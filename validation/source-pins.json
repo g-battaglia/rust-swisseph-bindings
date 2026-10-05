@@ -1,0 +1,9 @@
+{
+  "native_engine": {
+    "repository": "https://github.com/aloistr/swisseph",
+    "submodule": "swisseph",
+    "commit": "9083a12d59e98034fb2337061481ac8800c16e64",
+    "runtime_version": "2.10.03",
+    "role": "Unmodified native dependency; public ABI and build inputs"
+  }
+}

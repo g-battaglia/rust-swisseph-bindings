@@ -1,0 +1,77 @@
+[package]
+name = "rust-swisseph-bindings"
+version = "1.0.0"
+edition = "2024"
+rust-version = "1.98.1"
+license = "AGPL-3.0-only"
+description = "Minimal Rust bindings to the original Swiss Ephemeris C library"
+readme = "README.md"
+repository = "https://github.com/g-battaglia/rust-swisseph-bindings"
+homepage = "https://github.com/g-battaglia/rust-swisseph-bindings"
+publish = false
+links = "swisseph"
+
+# Package policy: ship only the nine compiled C units
+# (the upstream `SWEOBJ` set in `swisseph/Makefile`), the headers they
+# actually include (the `build.rs` HEADERS union, re-verified with
+# `cc -MM`), license/notices, and the owned Rust/build/test/doc files.
+# Ephemeris data payloads (`ephe/`), upstream test oracles (`setest/`),
+# unrelated tools and programs, contributed trees, generated documents,
+# platform binaries and process docs are excluded. Consumers point the
+# binding at an explicit external data directory (`SWISSEPH_EPHE_DIR` or
+# `set_ephe_path`); missing data yields an actionable error or an
+# explicit classified skip, never silent success.
+include = [
+    "Cargo.toml",
+    "Cargo.lock",
+    "LICENSE",
+    "README.md",
+    "build.rs",
+    "rust-toolchain.toml",
+    "src/**",
+    "tests/**",
+    "examples/**",
+    "validation/**",
+    "swisseph/Makefile",
+    "swisseph/LICENSE",
+    "swisseph/LICENSE.TXT",
+    "swisseph/agpl-3.0.txt",
+    "swisseph/readme.md",
+    "swisseph/doc/README.md",
+    "swisseph/swedate.c",
+    "swisseph/swehouse.c",
+    "swisseph/swejpl.c",
+    "swisseph/swemmoon.c",
+    "swisseph/swemplan.c",
+    "swisseph/sweph.c",
+    "swisseph/swephlib.c",
+    "swisseph/swecl.c",
+    "swisseph/swehel.c",
+    "swisseph/swephexp.h",
+    "swisseph/sweph.h",
+    "swisseph/swephlib.h",
+    "swisseph/swehouse.h",
+    "swisseph/swejpl.h",
+    "swisseph/sweodef.h",
+    "swisseph/swemptab.h",
+    "swisseph/swenut2000a.h",
+]
+
+[lib]
+name = "swisseph_bindings"
+path = "src/lib.rs"
+
+# Owned two-process differential runner; the default profile needs no data.
+# Existing integration tests retain Cargo's automatic discovery.
+[[test]]
+name = "native_parity"
+path = "tests/native_parity.rs"
+harness = false
+
+[lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+missing_docs = "warn"
+
+[lints.clippy]
+undocumented_unsafe_blocks = "deny"
+missing_safety_doc = "deny"
