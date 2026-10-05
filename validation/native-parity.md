@@ -148,7 +148,9 @@ owned tests and validation tools, while excluding ephemerides and upstream test
 or tool trees. Private-item integration Rustdoc also uses the exact Cargo JSON
 `.rlib` path as its `swisseph_bindings` extern.
 
-`publish = false` remains set. Package verification does not publish the crate.
+Publication is restricted to crates.io. Package verification does not upload
+the crate; `cargo publish --registry crates-io --dry-run --locked` checks the
+release package before publication.
 
 ## Verified results
 

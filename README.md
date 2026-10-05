@@ -32,11 +32,11 @@ runtime version are recorded in [source-pins.json](validation/source-pins.json).
 
 ## Use
 
-Add the Git dependency to your `Cargo.toml`:
+Add the dependency to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-swisseph_bindings = { package = "rust-swisseph-bindings", git = "https://github.com/g-battaglia/rust-swisseph-bindings.git" }
+swisseph_bindings = { package = "rust-swisseph-bindings", version = "1.0" }
 ```
 
 ```rust

@@ -8,7 +8,7 @@ description = "Minimal Rust bindings to the original Swiss Ephemeris C library"
 readme = "README.md"
 repository = "https://github.com/g-battaglia/rust-swisseph-bindings"
 homepage = "https://github.com/g-battaglia/rust-swisseph-bindings"
-publish = false
+publish = ["crates-io"]
 links = "swisseph"
 
 # Package policy: ship only the nine compiled C units
