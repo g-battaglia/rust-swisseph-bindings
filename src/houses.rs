@@ -373,50 +373,64 @@ pub fn houses_ex2(
 ) -> Result<HousesWithSpeeds, Error> {
     check_system(hsys)?;
     check_houses_inputs("houses_ex2", jd_ut, latitude, longitude)?;
-    with_native_access(|| {
-        crate::domain::check_ut_locked("houses_ex2", jd_ut, -1)?;
-        if flags & crate::FLG_SIDEREAL != 0 {
-            crate::config::check_sidereal_epoch_locked("houses_ex2: reference epoch", -1)?;
-        }
-        let mut cusps = [0.0; CUSPS_NATIVE_LEN];
-        let mut ascmc = [0.0; ASCMC_NATIVE_LEN];
-        let mut cusp_speed = [0.0; CUSPS_NATIVE_LEN];
-        let mut ascmc_speed = [0.0; ASCMC_NATIVE_LEN];
-        let mut serr = [0 as c_char; SERR_LEN];
-        // SAFETY: each buffer owns exactly its native width (13/10/13/10
-        // doubles, 256 diagnostic bytes), all outlive the call, and the
-        // lock excludes every other native access. Results are only
-        // exposed after the OK/ERR status is checked.
-        let ret = unsafe {
-            ffi::swe_houses_ex2(
-                jd_ut,
-                flags,
-                latitude,
-                longitude,
-                c_int::from(hsys),
-                cusps.as_mut_ptr(),
-                ascmc.as_mut_ptr(),
-                cusp_speed.as_mut_ptr(),
-                ascmc_speed.as_mut_ptr(),
-                serr.as_mut_ptr(),
-            )
-        };
-        if ret < 0 {
-            // SAFETY: `serr` is our own fully initialized buffer; the read
-            // is bounded by its capacity.
-            let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
-            return Err(Error::native(format!(
-                "houses_ex2: native computation failed (jd_ut={jd_ut}, flags={flags}, hsys={}): {diagnostic}",
-                hsys as char,
-            )));
-        }
-        Ok(pack_houses_with_speeds(
-            &cusps,
-            &ascmc,
-            &cusp_speed,
-            &ascmc_speed,
-        ))
-    })
+    with_native_access(|| houses_ex2_locked(jd_ut, flags, latitude, longitude, hsys))
+}
+
+/// Execute [`crate::houses_ex2`] with native access already held.
+/// Preserve its input domains, units, native status/flags and diagnostics;
+/// apply no configuration, fallback or alternate numerical method. Errors
+/// follow the public operation. Caller owns the lock for validation and C read.
+pub(crate) fn houses_ex2_locked(
+    jd_ut: f64,
+    flags: i32,
+    latitude: f64,
+    longitude: f64,
+    hsys: u8,
+) -> Result<HousesWithSpeeds, Error> {
+    check_system(hsys)?;
+    check_houses_inputs("houses_ex2", jd_ut, latitude, longitude)?;
+    crate::domain::check_ut_locked("houses_ex2", jd_ut, -1)?;
+    if flags & crate::FLG_SIDEREAL != 0 {
+        crate::config::check_sidereal_epoch_locked("houses_ex2: reference epoch", -1)?;
+    }
+    let mut cusps = [0.0; CUSPS_NATIVE_LEN];
+    let mut ascmc = [0.0; ASCMC_NATIVE_LEN];
+    let mut cusp_speed = [0.0; CUSPS_NATIVE_LEN];
+    let mut ascmc_speed = [0.0; ASCMC_NATIVE_LEN];
+    let mut serr = [0 as c_char; SERR_LEN];
+    // SAFETY: each buffer owns exactly its native width (13/10/13/10
+    // doubles, 256 diagnostic bytes), all outlive the call, and the
+    // lock excludes every other native access. Results are only
+    // exposed after the OK/ERR status is checked.
+    let ret = unsafe {
+        ffi::swe_houses_ex2(
+            jd_ut,
+            flags,
+            latitude,
+            longitude,
+            c_int::from(hsys),
+            cusps.as_mut_ptr(),
+            ascmc.as_mut_ptr(),
+            cusp_speed.as_mut_ptr(),
+            ascmc_speed.as_mut_ptr(),
+            serr.as_mut_ptr(),
+        )
+    };
+    if ret < 0 {
+        // SAFETY: `serr` is our own fully initialized buffer; the read
+        // is bounded by its capacity.
+        let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
+        return Err(Error::native(format!(
+            "houses_ex2: native computation failed (jd_ut={jd_ut}, flags={flags}, hsys={}): {diagnostic}",
+            hsys as char,
+        )));
+    }
+    Ok(pack_houses_with_speeds(
+        &cusps,
+        &ascmc,
+        &cusp_speed,
+        &ascmc_speed,
+    ))
 }
 
 /// Calculate the Gauquelin 36-sector layout with angles and speeds.
@@ -451,54 +465,66 @@ pub fn houses_gauquelin(
     longitude: f64,
 ) -> Result<GauquelinSectors, Error> {
     check_houses_inputs("houses_gauquelin", jd_ut, latitude, longitude)?;
-    with_native_access(|| {
-        crate::domain::check_ut_locked("houses_gauquelin", jd_ut, -1)?;
-        if flags & crate::FLG_SIDEREAL != 0 {
-            crate::config::check_sidereal_epoch_locked("houses_gauquelin: reference epoch", -1)?;
-        }
-        let mut cusps = [0.0; CUSPS_GAUQUELIN_LEN];
-        let mut ascmc = [0.0; ASCMC_NATIVE_LEN];
-        let mut cusp_speed = [0.0; CUSPS_GAUQUELIN_LEN];
-        let mut ascmc_speed = [0.0; ASCMC_NATIVE_LEN];
-        let mut serr = [0 as c_char; SERR_LEN];
-        // SAFETY: sector buffers own the full 37-slot native width so the
-        // engine can never write past them; otherwise the same contract
-        // as in [`houses_ex2`].
-        let ret = unsafe {
-            ffi::swe_houses_ex2(
-                jd_ut,
-                flags,
-                latitude,
-                longitude,
-                c_int::from(b'G'),
-                cusps.as_mut_ptr(),
-                ascmc.as_mut_ptr(),
-                cusp_speed.as_mut_ptr(),
-                ascmc_speed.as_mut_ptr(),
-                serr.as_mut_ptr(),
-            )
-        };
-        if ret < 0 {
-            // SAFETY: same bounded read as in [`houses_ex2`].
-            let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
-            return Err(Error::native(format!(
-                "houses_gauquelin: native computation failed (jd_ut={jd_ut}, flags={flags}): {diagnostic}"
-            )));
-        }
-        let mut sectors = [0.0; 36];
-        sectors.copy_from_slice(&cusps[1..37]);
-        let mut sector_speeds = [0.0; 36];
-        sector_speeds.copy_from_slice(&cusp_speed[1..37]);
-        let mut angles = [0.0; 8];
-        angles.copy_from_slice(&ascmc[0..8]);
-        let mut angle_speeds = [0.0; 8];
-        angle_speeds.copy_from_slice(&ascmc_speed[0..8]);
-        Ok(GauquelinSectors {
-            sectors,
-            angles,
-            sector_speeds,
-            angle_speeds,
-        })
+    with_native_access(|| houses_gauquelin_locked(jd_ut, flags, latitude, longitude))
+}
+
+/// Execute [`crate::houses_gauquelin`] with native access already held.
+/// Preserve its input domains, units, native status/flags and diagnostics;
+/// apply no configuration, fallback or alternate numerical method. Errors
+/// follow the public operation. Caller owns the lock for validation and C read.
+pub(crate) fn houses_gauquelin_locked(
+    jd_ut: f64,
+    flags: i32,
+    latitude: f64,
+    longitude: f64,
+) -> Result<GauquelinSectors, Error> {
+    check_houses_inputs("houses_gauquelin", jd_ut, latitude, longitude)?;
+    crate::domain::check_ut_locked("houses_gauquelin", jd_ut, -1)?;
+    if flags & crate::FLG_SIDEREAL != 0 {
+        crate::config::check_sidereal_epoch_locked("houses_gauquelin: reference epoch", -1)?;
+    }
+    let mut cusps = [0.0; CUSPS_GAUQUELIN_LEN];
+    let mut ascmc = [0.0; ASCMC_NATIVE_LEN];
+    let mut cusp_speed = [0.0; CUSPS_GAUQUELIN_LEN];
+    let mut ascmc_speed = [0.0; ASCMC_NATIVE_LEN];
+    let mut serr = [0 as c_char; SERR_LEN];
+    // SAFETY: sector buffers own the full 37-slot native width so the
+    // engine can never write past them; otherwise the same contract
+    // as in [`houses_ex2`].
+    let ret = unsafe {
+        ffi::swe_houses_ex2(
+            jd_ut,
+            flags,
+            latitude,
+            longitude,
+            c_int::from(b'G'),
+            cusps.as_mut_ptr(),
+            ascmc.as_mut_ptr(),
+            cusp_speed.as_mut_ptr(),
+            ascmc_speed.as_mut_ptr(),
+            serr.as_mut_ptr(),
+        )
+    };
+    if ret < 0 {
+        // SAFETY: same bounded read as in [`houses_ex2`].
+        let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
+        return Err(Error::native(format!(
+            "houses_gauquelin: native computation failed (jd_ut={jd_ut}, flags={flags}): {diagnostic}"
+        )));
+    }
+    let mut sectors = [0.0; 36];
+    sectors.copy_from_slice(&cusps[1..37]);
+    let mut sector_speeds = [0.0; 36];
+    sector_speeds.copy_from_slice(&cusp_speed[1..37]);
+    let mut angles = [0.0; 8];
+    angles.copy_from_slice(&ascmc[0..8]);
+    let mut angle_speeds = [0.0; 8];
+    angle_speeds.copy_from_slice(&ascmc_speed[0..8]);
+    Ok(GauquelinSectors {
+        sectors,
+        angles,
+        sector_speeds,
+        angle_speeds,
     })
 }
 

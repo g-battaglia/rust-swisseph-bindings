@@ -1210,45 +1210,59 @@ pub fn sol_eclipse_where_full(jd_ut: f64, flags: i32) -> Result<SolarEclipseGeom
             "sol_eclipse_where: Julian Day must be finite",
         ));
     }
-    with_native_access(|| {
-        crate::domain::check_ut_locked("sol_eclipse_where", jd_ut, flags)?;
-        let mut geopos = [0.0; ECLIPSE_GEOPOS_LEN];
-        let mut attr = [0.0; ECLIPSE_ATTR_LEN];
-        let mut serr = [0 as c_char; SERR_LEN];
-        // SAFETY: `geopos` owns ECLIPSE_GEOPOS_LEN writable slots and
-        // `attr` owns ECLIPSE_ATTR_LEN writable slots (more than the
-        // engine fills: slots 0-10, established by probing); `serr` owns
-        // SERR_LEN writable bytes. All outlive this call under the native
-        // lock. Results are only exposed after the native status is
-        // classified.
-        let ret = unsafe {
-            ffi::swe_sol_eclipse_where(
-                jd_ut,
-                flags,
-                geopos.as_mut_ptr(),
-                attr.as_mut_ptr(),
-                serr.as_mut_ptr(),
-            )
-        };
-        // SAFETY: `serr` is our own fully initialized buffer; the read is
-        // bounded by SERR_LEN (see `read_native_text`).
-        let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
-        if ret < 0 {
-            Err(Error::native(describe_eclipse_moment_failure(
-                "sol_eclipse_where",
-                jd_ut,
-                flags,
-                &diagnostic,
-            )))
-        } else {
-            Ok(SolarEclipseGeometryFull {
-                geopos,
-                eclipse_type: ret,
-                attributes: attr,
-                diagnostic,
-            })
-        }
-    })
+    with_native_access(|| sol_eclipse_where_full_locked(jd_ut, flags))
+}
+
+/// Execute [`crate::sol_eclipse_where_full`] with native access already held.
+/// Preserve its input domains, units, native status/flags and diagnostics;
+/// apply no configuration, fallback or alternate numerical method. Errors
+/// follow the public operation. Caller owns the lock for validation and C read.
+pub(crate) fn sol_eclipse_where_full_locked(
+    jd_ut: f64,
+    flags: i32,
+) -> Result<SolarEclipseGeometryFull, Error> {
+    if !jd_ut.is_finite() {
+        return Err(Error::invalid_input(
+            "sol_eclipse_where: Julian Day must be finite",
+        ));
+    }
+    crate::domain::check_ut_locked("sol_eclipse_where", jd_ut, flags)?;
+    let mut geopos = [0.0; ECLIPSE_GEOPOS_LEN];
+    let mut attr = [0.0; ECLIPSE_ATTR_LEN];
+    let mut serr = [0 as c_char; SERR_LEN];
+    // SAFETY: `geopos` owns ECLIPSE_GEOPOS_LEN writable slots and
+    // `attr` owns ECLIPSE_ATTR_LEN writable slots (more than the
+    // engine fills: slots 0-10, established by probing); `serr` owns
+    // SERR_LEN writable bytes. All outlive this call under the native
+    // lock. Results are only exposed after the native status is
+    // classified.
+    let ret = unsafe {
+        ffi::swe_sol_eclipse_where(
+            jd_ut,
+            flags,
+            geopos.as_mut_ptr(),
+            attr.as_mut_ptr(),
+            serr.as_mut_ptr(),
+        )
+    };
+    // SAFETY: `serr` is our own fully initialized buffer; the read is
+    // bounded by SERR_LEN (see `read_native_text`).
+    let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
+    if ret < 0 {
+        Err(Error::native(describe_eclipse_moment_failure(
+            "sol_eclipse_where",
+            jd_ut,
+            flags,
+            &diagnostic,
+        )))
+    } else {
+        Ok(SolarEclipseGeometryFull {
+            geopos,
+            eclipse_type: ret,
+            attributes: attr,
+            diagnostic,
+        })
+    }
 }
 
 /// Project native solar geography to the retained longitude/latitude API.
@@ -2923,6 +2937,26 @@ pub fn lun_occult_where_full(
     }
     check_occult_star_input("lun_occult_where", star_name)?;
     check_occult_body_input("lun_occult_where", body, star_name)?;
+    with_native_access(|| lun_occult_where_full_locked(jd_ut, body, star_name, flags))
+}
+
+/// Execute [`crate::lun_occult_where_full`] with native access already held.
+/// Preserve its input domains, units, native status/flags and diagnostics;
+/// apply no configuration, fallback or alternate numerical method. Errors
+/// follow the public operation. Caller owns the lock for validation and C read.
+pub(crate) fn lun_occult_where_full_locked(
+    jd_ut: f64,
+    body: i32,
+    star_name: Option<&str>,
+    flags: i32,
+) -> Result<OccultationGeometryFull, Error> {
+    if !jd_ut.is_finite() {
+        return Err(Error::invalid_input(
+            "lun_occult_where: Julian Day must be finite",
+        ));
+    }
+    check_occult_star_input("lun_occult_where", star_name)?;
+    check_occult_body_input("lun_occult_where", body, star_name)?;
     // Same caller-owned star buffer contract as in
     // [`lun_occult_when_glob`].
     let mut star_buffer = [0 as c_char; TEXT_BUF_LEN];
@@ -2931,52 +2965,50 @@ pub fn lun_occult_where_full(
             *slot = byte as c_char;
         }
     }
-    with_native_access(|| {
-        crate::domain::check_ut_locked("lun_occult_where", jd_ut, flags)?;
-        let mut geopos = [0.0; ECLIPSE_GEOPOS_LEN];
-        let mut attr = [0.0; ECLIPSE_ATTR_LEN];
-        let mut serr = [0 as c_char; SERR_LEN];
-        // SAFETY: `star_buffer` owns TEXT_BUF_LEN bytes (or is unused
-        // when null is passed), `geopos` owns ECLIPSE_GEOPOS_LEN writable
-        // slots, `attr` owns ECLIPSE_ATTR_LEN writable slots and `serr`
-        // owns SERR_LEN writable bytes; all outlive the call under the
-        // native lock. Results are only exposed after the native status
-        // is classified.
-        let ret = unsafe {
-            ffi::swe_lun_occult_where(
-                jd_ut,
-                body,
-                if star_name.is_none() {
-                    std::ptr::null_mut()
-                } else {
-                    star_buffer.as_mut_ptr()
-                },
-                flags,
-                geopos.as_mut_ptr(),
-                attr.as_mut_ptr(),
-                serr.as_mut_ptr(),
-            )
-        };
-        // SAFETY: `serr` is our own fully initialized buffer; the read is
-        // bounded by SERR_LEN (see `read_native_text`).
-        let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
-        if ret < 0 {
-            Err(Error::native(describe_occult_moment_failure(
-                "lun_occult_where",
-                jd_ut,
-                body,
-                flags,
-                &diagnostic,
-            )))
-        } else {
-            Ok(OccultationGeometryFull {
-                geopos,
-                occult_type: ret,
-                attributes: attr,
-                diagnostic,
-            })
-        }
-    })
+    crate::domain::check_ut_locked("lun_occult_where", jd_ut, flags)?;
+    let mut geopos = [0.0; ECLIPSE_GEOPOS_LEN];
+    let mut attr = [0.0; ECLIPSE_ATTR_LEN];
+    let mut serr = [0 as c_char; SERR_LEN];
+    // SAFETY: `star_buffer` owns TEXT_BUF_LEN bytes (or is unused
+    // when null is passed), `geopos` owns ECLIPSE_GEOPOS_LEN writable
+    // slots, `attr` owns ECLIPSE_ATTR_LEN writable slots and `serr`
+    // owns SERR_LEN writable bytes; all outlive the call under the
+    // native lock. Results are only exposed after the native status
+    // is classified.
+    let ret = unsafe {
+        ffi::swe_lun_occult_where(
+            jd_ut,
+            body,
+            if star_name.is_none() {
+                std::ptr::null_mut()
+            } else {
+                star_buffer.as_mut_ptr()
+            },
+            flags,
+            geopos.as_mut_ptr(),
+            attr.as_mut_ptr(),
+            serr.as_mut_ptr(),
+        )
+    };
+    // SAFETY: `serr` is our own fully initialized buffer; the read is
+    // bounded by SERR_LEN (see `read_native_text`).
+    let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
+    if ret < 0 {
+        Err(Error::native(describe_occult_moment_failure(
+            "lun_occult_where",
+            jd_ut,
+            body,
+            flags,
+            &diagnostic,
+        )))
+    } else {
+        Ok(OccultationGeometryFull {
+            geopos,
+            occult_type: ret,
+            attributes: attr,
+            diagnostic,
+        })
+    }
 }
 
 /// Project native occultation geography to the retained longitude/latitude API.
@@ -3707,58 +3739,89 @@ pub fn heliacal_pheno_ut_full(
         &observer,
         object,
     )?;
-    let mut name_buffer = heliacal_name_buffer(object);
     with_native_access(|| {
-        crate::domain::check_ut_locked("heliacal_pheno_ut", jd_ut, -1)?;
-        let mut geopos = [0.0; HELIACAL_GEO_LEN];
-        geopos[0] = longitude;
-        geopos[1] = latitude;
-        geopos[2] = altitude;
-        // Same owned-copy contract for the defaulted blocks as in
-        // [`heliacal_ut`].
-        let mut datm = atmosphere;
-        let mut dobs = observer;
-        // Zero-initialized: the engine writes slots 0-27 and leaves the
-        // reserved slots 28-49 untouched, so they read as 0.0 by
-        // construction (never uninitialized memory).
-        let mut darr = [0.0; 50];
-        let mut serr = [0 as c_char; SERR_LEN];
-        // SAFETY: same contract as in [`heliacal_ut`]: every buffer is
-        // owned, correctly sized and held under the native lock, and the
-        // results are only exposed after the native status is checked.
-        let ret = unsafe {
-            ffi::swe_heliacal_pheno_ut(
-                jd_ut,
-                geopos.as_mut_ptr(),
-                datm.as_mut_ptr(),
-                dobs.as_mut_ptr(),
-                name_buffer.as_mut_ptr(),
-                event_type,
-                helflag,
-                darr.as_mut_ptr(),
-                serr.as_mut_ptr(),
-            )
-        };
-        // SAFETY: `serr` is our own fully initialized buffer; the read is
-        // bounded by SERR_LEN (see `read_native_text`).
-        let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
-        if ret < 0 {
-            Err(Error::native(describe_heliacal_moment_failure(
-                "heliacal_pheno_ut",
-                jd_ut,
-                object,
-                event_type,
-                helflag,
-                &diagnostic,
-            )))
-        } else {
-            Ok(HeliacalPhenomenaFull {
-                values: darr,
-                status: ret,
-                diagnostic,
-            })
-        }
+        heliacal_pheno_ut_full_locked(
+            jd_ut, longitude, latitude, altitude, atmosphere, observer, object, event_type, helflag,
+        )
     })
+}
+
+/// Execute [`crate::heliacal_pheno_ut_full`] with native access already held.
+/// Preserve its input domains, units, native status/flags and diagnostics;
+/// apply no configuration, fallback or alternate numerical method. Errors
+/// follow the public operation. Caller owns the lock for validation and C read.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn heliacal_pheno_ut_full_locked(
+    jd_ut: f64,
+    longitude: f64,
+    latitude: f64,
+    altitude: f64,
+    atmosphere: [f64; HELIACAL_ATM_LEN],
+    observer: [f64; HELIACAL_OBS_LEN],
+    object: &str,
+    event_type: i32,
+    helflag: i32,
+) -> Result<HeliacalPhenomenaFull, Error> {
+    check_heliacal_inputs(
+        "heliacal_pheno_ut",
+        jd_ut,
+        longitude,
+        latitude,
+        altitude,
+        &atmosphere,
+        &observer,
+        object,
+    )?;
+    let mut name_buffer = heliacal_name_buffer(object);
+    crate::domain::check_ut_locked("heliacal_pheno_ut", jd_ut, -1)?;
+    let mut geopos = [0.0; HELIACAL_GEO_LEN];
+    geopos[0] = longitude;
+    geopos[1] = latitude;
+    geopos[2] = altitude;
+    // Same owned-copy contract for the defaulted blocks as in
+    // [`heliacal_ut`].
+    let mut datm = atmosphere;
+    let mut dobs = observer;
+    // Zero-initialized: the engine writes slots 0-27 and leaves the
+    // reserved slots 28-49 untouched, so they read as 0.0 by
+    // construction (never uninitialized memory).
+    let mut darr = [0.0; 50];
+    let mut serr = [0 as c_char; SERR_LEN];
+    // SAFETY: same contract as in [`heliacal_ut`]: every buffer is
+    // owned, correctly sized and held under the native lock, and the
+    // results are only exposed after the native status is checked.
+    let ret = unsafe {
+        ffi::swe_heliacal_pheno_ut(
+            jd_ut,
+            geopos.as_mut_ptr(),
+            datm.as_mut_ptr(),
+            dobs.as_mut_ptr(),
+            name_buffer.as_mut_ptr(),
+            event_type,
+            helflag,
+            darr.as_mut_ptr(),
+            serr.as_mut_ptr(),
+        )
+    };
+    // SAFETY: `serr` is our own fully initialized buffer; the read is
+    // bounded by SERR_LEN (see `read_native_text`).
+    let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
+    if ret < 0 {
+        Err(Error::native(describe_heliacal_moment_failure(
+            "heliacal_pheno_ut",
+            jd_ut,
+            object,
+            event_type,
+            helflag,
+            &diagnostic,
+        )))
+    } else {
+        Ok(HeliacalPhenomenaFull {
+            values: darr,
+            status: ret,
+            diagnostic,
+        })
+    }
 }
 
 /// Project heliacal circumstances to the retained thirty-slot result.

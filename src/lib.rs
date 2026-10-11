@@ -127,8 +127,8 @@ pub use observer::{
 pub use positions::{Position, calc, calc_pctr, calc_ut, get_planet_name, require_source_flags};
 pub use session::{Session, SessionBuilder};
 pub use stars::{
-    StarMagnitude, StarPosition, fixstar, fixstar_mag, fixstar_ut, fixstar2, fixstar2_mag,
-    fixstar2_ut,
+    StarMagnitude, StarPosition, fixed_star_catalog, fixstar, fixstar_mag, fixstar_ut, fixstar2,
+    fixstar2_mag, fixstar2_ut,
 };
 pub use time::{
     Calendar, CalendarDate, DeltaT, EquationOfTime, JulDays, LocalTime, UtcDateTime,

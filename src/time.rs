@@ -723,29 +723,40 @@ pub fn time_equ(jd_ut: f64) -> Result<EquationOfTime, Error> {
             "time_equ: Julian Day must be finite ({jd_ut})"
         )));
     }
-    with_native_access(|| {
-        crate::domain::check_ut_locked("time_equ", jd_ut, -1)?;
-        let mut te = 0.0;
-        let mut serr = [0 as c_char; SERR_LEN];
-        // SAFETY: `te` is one owned slot and `serr` owns SERR_LEN bytes;
-        // both outlive the call. The result is exposed only after the
-        // OK/ERR status is checked.
-        let ret = unsafe { ffi::swe_time_equ(jd_ut, &mut te, serr.as_mut_ptr()) };
-        // SAFETY: bounded read of our own buffer (see `read_native_text`).
-        let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
-        if ret < 0 {
-            Err(Error::native(if diagnostic.is_empty() {
-                format!("time_equ: native computation failed (jd={jd_ut})")
-            } else {
-                format!("time_equ: {diagnostic} (jd={jd_ut})")
-            }))
+    with_native_access(|| time_equ_locked(jd_ut))
+}
+
+/// Execute [`crate::time_equ`] with native access already held.
+/// Preserve its input domains, units, native status/flags and diagnostics;
+/// apply no configuration, fallback or alternate numerical method. Errors
+/// follow the public operation. Caller owns the lock for validation and C read.
+pub(crate) fn time_equ_locked(jd_ut: f64) -> Result<EquationOfTime, Error> {
+    if !jd_ut.is_finite() {
+        return Err(Error::invalid_input(format!(
+            "time_equ: Julian Day must be finite ({jd_ut})"
+        )));
+    }
+    crate::domain::check_ut_locked("time_equ", jd_ut, -1)?;
+    let mut te = 0.0;
+    let mut serr = [0 as c_char; SERR_LEN];
+    // SAFETY: `te` is one owned slot and `serr` owns SERR_LEN bytes;
+    // both outlive the call. The result is exposed only after the
+    // OK/ERR status is checked.
+    let ret = unsafe { ffi::swe_time_equ(jd_ut, &mut te, serr.as_mut_ptr()) };
+    // SAFETY: bounded read of our own buffer (see `read_native_text`).
+    let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
+    if ret < 0 {
+        Err(Error::native(if diagnostic.is_empty() {
+            format!("time_equ: native computation failed (jd={jd_ut})")
         } else {
-            Ok(EquationOfTime {
-                value: te,
-                diagnostic,
-            })
-        }
-    })
+            format!("time_equ: {diagnostic} (jd={jd_ut})")
+        }))
+    } else {
+        Ok(EquationOfTime {
+            value: te,
+            diagnostic,
+        })
+    }
 }
 
 /// Convert between local mean time and local apparent time.

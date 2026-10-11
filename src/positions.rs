@@ -285,50 +285,66 @@ pub fn calc_pctr(jd_et: f64, body: i32, center: i32, flags: i32) -> Result<Posit
             "calc_pctr: Julian Day must be finite ({jd_et})"
         )));
     }
-    with_native_access(|| {
-        crate::domain::check_et_locked("calc_pctr", jd_et, flags)?;
-        let mut xx = [0.0; POSITION_LEN];
-        let mut serr = [0 as c_char; SERR_LEN];
-        // SAFETY: `xx` owns POSITION_LEN writable f64 slots and `serr`
-        // owns SERR_LEN writable bytes; both outlive this call and no
-        // other thread can access native state while the lock is held.
-        // Effective dates are calendar-bounded above, and results are exposed
-        // only after native status and output finiteness are checked.
-        let ret = unsafe {
-            ffi::swe_calc_pctr(
-                jd_et,
-                body,
-                center,
-                flags,
-                xx.as_mut_ptr(),
-                serr.as_mut_ptr(),
-            )
-        };
-        // SAFETY: `serr` is our own fully initialized buffer; the read is
-        // bounded by SERR_LEN (see `read_native_text`).
-        let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
-        if ret < 0 {
-            Err(Error::native(format!(
-                "calc_pctr: {} (jd_et={jd_et}, body={body}, center={center}, flags={flags})",
-                if diagnostic.is_empty() {
-                    "native computation failed".to_string()
-                } else {
-                    diagnostic
-                },
-            )))
-        } else {
-            if !xx.iter().all(|value| value.is_finite()) {
-                return Err(Error::native(format!(
-                    "calc_pctr: non-finite native position output; check observer/sidereal configuration: {diagnostic}"
-                )));
-            }
-            Ok(Position {
-                values: xx,
-                returned_flags: ret,
-                diagnostic,
-            })
+    with_native_access(|| calc_pctr_locked(jd_et, body, center, flags))
+}
+
+/// Execute [`crate::calc_pctr`] with native access already held.
+/// Preserve its input domains, units, native status/flags and diagnostics;
+/// apply no configuration, fallback or alternate numerical method. Errors
+/// follow the public operation. Caller owns the lock for validation and C read.
+pub(crate) fn calc_pctr_locked(
+    jd_et: f64,
+    body: i32,
+    center: i32,
+    flags: i32,
+) -> Result<Position, Error> {
+    if !jd_et.is_finite() {
+        return Err(Error::invalid_input(format!(
+            "calc_pctr: Julian Day must be finite ({jd_et})"
+        )));
+    }
+    crate::domain::check_et_locked("calc_pctr", jd_et, flags)?;
+    let mut xx = [0.0; POSITION_LEN];
+    let mut serr = [0 as c_char; SERR_LEN];
+    // SAFETY: `xx` owns POSITION_LEN writable f64 slots and `serr`
+    // owns SERR_LEN writable bytes; both outlive this call and no
+    // other thread can access native state while the lock is held.
+    // Effective dates are calendar-bounded above, and results are exposed
+    // only after native status and output finiteness are checked.
+    let ret = unsafe {
+        ffi::swe_calc_pctr(
+            jd_et,
+            body,
+            center,
+            flags,
+            xx.as_mut_ptr(),
+            serr.as_mut_ptr(),
+        )
+    };
+    // SAFETY: `serr` is our own fully initialized buffer; the read is
+    // bounded by SERR_LEN (see `read_native_text`).
+    let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
+    if ret < 0 {
+        Err(Error::native(format!(
+            "calc_pctr: {} (jd_et={jd_et}, body={body}, center={center}, flags={flags})",
+            if diagnostic.is_empty() {
+                "native computation failed".to_string()
+            } else {
+                diagnostic
+            },
+        )))
+    } else {
+        if !xx.iter().all(|value| value.is_finite()) {
+            return Err(Error::native(format!(
+                "calc_pctr: non-finite native position output; check observer/sidereal configuration: {diagnostic}"
+            )));
         }
-    })
+        Ok(Position {
+            values: xx,
+            returned_flags: ret,
+            diagnostic,
+        })
+    }
 }
 
 /// Resolve a body number to its native name.

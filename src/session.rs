@@ -78,6 +78,7 @@ use crate::config::{
     check_sidereal_request_locked, get_ayanamsa_ut_locked, get_current_file_data_locked,
 };
 use crate::error::Error;
+use crate::ffi::{HELIACAL_ATM_LEN, HELIACAL_OBS_LEN};
 use crate::houses::{Houses, check_houses_inputs, check_system, houses_ex_locked, houses_locked};
 use crate::observer::{
     RiseTransitOutcome, apply_lapse_rate_locked, check_rise_inputs, rise_trans_locked,
@@ -85,6 +86,10 @@ use crate::observer::{
 use crate::positions::{Position, calc_locked, calc_ut_locked};
 use crate::state::with_native_access;
 use crate::time::deltat_locked;
+use crate::{
+    Ayanamsha, EquationOfTime, GauquelinSectors, HeliacalPhenomenaFull, HousesWithSpeeds,
+    OccultationGeometryFull, SolarEclipseGeometryFull, StarMagnitude, StarPosition,
+};
 
 /// Builder for [`Session`].
 ///
@@ -353,7 +358,7 @@ impl Session {
     /// the computation and the metadata snapshot).
     fn apply_locked(&self) -> Result<(), Error> {
         if let Some(path) = &self.ephe_path {
-            apply_ephe_path_locked(path.as_ref());
+            apply_ephe_path_locked(path.as_ref())?;
         }
         if let Some(jpl) = &self.jpl_file {
             match jpl {
@@ -364,7 +369,7 @@ impl Session {
             }
         }
         if let Some((lon, lat, alt)) = self.topo {
-            apply_topo_locked(lon, lat, alt);
+            apply_topo_locked(lon, lat, alt)?;
         }
         if let Some((mode, t0, ayan_t0)) = self.sid_mode {
             apply_sid_mode_locked(mode, t0, ayan_t0)?;
@@ -440,6 +445,205 @@ impl Session {
         check_system(hsys)?;
         check_houses_inputs("Session::houses_ex", jd_ut, latitude, longitude)?;
         self.compute(|| houses_ex_locked(jd_ut, flags, latitude, longitude, hsys))
+    }
+
+    /// Run [`crate::calc_pctr`] after applying this session's configuration
+    /// under one native acquisition. `jd_et` is TT/ET Julian days; other units and
+    /// input domains follow the linked operation. Return the complete native
+    /// output, real flags/status/diagnostic where provided; preserve native,
+    /// input and poisoned-lock errors. No callback, inferred value, alternate
+    /// engine or isolation against external raw-C clients is introduced.
+    pub fn calc_pctr(
+        &self,
+        jd_et: f64,
+        body: i32,
+        center: i32,
+        flags: i32,
+    ) -> Result<Position, Error> {
+        self.compute(|| crate::positions::calc_pctr_locked(jd_et, body, center, flags))
+    }
+    /// Run [`crate::houses_ex2`] after applying this session's configuration
+    /// under one native acquisition. `jd_ut` is UT Julian days; other units and
+    /// input domains follow the linked operation. Return the complete native
+    /// output, real flags/status/diagnostic where provided; preserve native,
+    /// input and poisoned-lock errors. No callback, inferred value, alternate
+    /// engine or isolation against external raw-C clients is introduced.
+    pub fn houses_ex2(
+        &self,
+        jd_ut: f64,
+        flags: i32,
+        latitude: f64,
+        longitude: f64,
+        hsys: u8,
+    ) -> Result<HousesWithSpeeds, Error> {
+        self.compute(|| crate::houses::houses_ex2_locked(jd_ut, flags, latitude, longitude, hsys))
+    }
+    /// Run [`crate::houses_gauquelin`] after applying this session's configuration
+    /// under one native acquisition. `jd_ut` is UT Julian days; other units and
+    /// input domains follow the linked operation. Return the complete native
+    /// output, real flags/status/diagnostic where provided; preserve native,
+    /// input and poisoned-lock errors. No callback, inferred value, alternate
+    /// engine or isolation against external raw-C clients is introduced.
+    pub fn houses_gauquelin(
+        &self,
+        jd_ut: f64,
+        flags: i32,
+        latitude: f64,
+        longitude: f64,
+    ) -> Result<GauquelinSectors, Error> {
+        self.compute(|| crate::houses::houses_gauquelin_locked(jd_ut, flags, latitude, longitude))
+    }
+    /// Run [`crate::get_ayanamsa`] after applying this session's configuration
+    /// under one native acquisition. `jd_et` is TT/ET Julian days; other units and
+    /// input domains follow the linked operation. Return the complete native
+    /// output, real flags/status/diagnostic where provided; preserve native,
+    /// input and poisoned-lock errors. No callback, inferred value, alternate
+    /// engine or isolation against external raw-C clients is introduced.
+    pub fn get_ayanamsa(&self, jd_et: f64) -> Result<f64, Error> {
+        self.compute(|| crate::config::get_ayanamsa_locked(jd_et))
+    }
+    /// Run [`crate::get_ayanamsa_ex`] after applying this session's configuration
+    /// under one native acquisition. `jd_et` is TT/ET Julian days; other units and
+    /// input domains follow the linked operation. Return the complete native
+    /// output, real flags/status/diagnostic where provided; preserve native,
+    /// input and poisoned-lock errors. No callback, inferred value, alternate
+    /// engine or isolation against external raw-C clients is introduced.
+    pub fn get_ayanamsa_ex(&self, jd_et: f64, flags: i32) -> Result<Ayanamsha, Error> {
+        self.compute(|| crate::config::get_ayanamsa_ex_locked(jd_et, flags))
+    }
+    /// Run [`crate::get_ayanamsa_ex_ut`] after applying this session's configuration
+    /// under one native acquisition. `jd_ut` is UT Julian days; other units and
+    /// input domains follow the linked operation. Return the complete native
+    /// output, real flags/status/diagnostic where provided; preserve native,
+    /// input and poisoned-lock errors. No callback, inferred value, alternate
+    /// engine or isolation against external raw-C clients is introduced.
+    pub fn get_ayanamsa_ex_ut(&self, jd_ut: f64, flags: i32) -> Result<Ayanamsha, Error> {
+        self.compute(|| crate::config::get_ayanamsa_ex_ut_locked(jd_ut, flags))
+    }
+    /// Run [`crate::time_equ`] after applying this session's configuration
+    /// under one native acquisition. `jd_ut` is UT Julian days; other units and
+    /// input domains follow the linked operation. Return the complete native
+    /// output, real flags/status/diagnostic where provided; preserve native,
+    /// input and poisoned-lock errors. No callback, inferred value, alternate
+    /// engine or isolation against external raw-C clients is introduced.
+    pub fn time_equ(&self, jd_ut: f64) -> Result<EquationOfTime, Error> {
+        self.compute(|| crate::time::time_equ_locked(jd_ut))
+    }
+    /// Run [`crate::fixstar`] after applying this session's configuration
+    /// under one native acquisition. `jd_et` is TT/ET Julian days; other units and
+    /// input domains follow the linked operation. Return the complete native
+    /// output, real flags/status/diagnostic where provided; preserve native,
+    /// input and poisoned-lock errors. No callback, inferred value, alternate
+    /// engine or isolation against external raw-C clients is introduced.
+    pub fn fixstar(&self, star: &str, jd_et: f64, flags: i32) -> Result<StarPosition, Error> {
+        self.compute(|| crate::stars::fixstar_locked(star, jd_et, flags))
+    }
+    /// Run [`crate::fixstar_ut`] after applying this session's configuration
+    /// under one native acquisition. `jd_ut` is UT Julian days; other units and
+    /// input domains follow the linked operation. Return the complete native
+    /// output, real flags/status/diagnostic where provided; preserve native,
+    /// input and poisoned-lock errors. No callback, inferred value, alternate
+    /// engine or isolation against external raw-C clients is introduced.
+    pub fn fixstar_ut(&self, star: &str, jd_ut: f64, flags: i32) -> Result<StarPosition, Error> {
+        self.compute(|| crate::stars::fixstar_ut_locked(star, jd_ut, flags))
+    }
+    /// Run [`crate::fixstar2`] after applying this session's configuration
+    /// under one native acquisition. `jd_et` is TT/ET Julian days; other units and
+    /// input domains follow the linked operation. Return the complete native
+    /// output, real flags/status/diagnostic where provided; preserve native,
+    /// input and poisoned-lock errors. No callback, inferred value, alternate
+    /// engine or isolation against external raw-C clients is introduced.
+    pub fn fixstar2(&self, star: &str, jd_et: f64, flags: i32) -> Result<StarPosition, Error> {
+        self.compute(|| crate::stars::fixstar2_locked(star, jd_et, flags))
+    }
+    /// Run [`crate::fixstar2_ut`] after applying this session's configuration
+    /// under one native acquisition. `jd_ut` is UT Julian days; other units and
+    /// input domains follow the linked operation. Return the complete native
+    /// output, real flags/status/diagnostic where provided; preserve native,
+    /// input and poisoned-lock errors. No callback, inferred value, alternate
+    /// engine or isolation against external raw-C clients is introduced.
+    pub fn fixstar2_ut(&self, star: &str, jd_ut: f64, flags: i32) -> Result<StarPosition, Error> {
+        self.compute(|| crate::stars::fixstar2_ut_locked(star, jd_ut, flags))
+    }
+    /// Run [`crate::fixstar_mag`] after applying this session's configuration
+    /// under one native acquisition. magnitude is unitless visual magnitude; other units and
+    /// input domains follow the linked operation. Return the complete native
+    /// output, real flags/status/diagnostic where provided; preserve native,
+    /// input and poisoned-lock errors. No callback, inferred value, alternate
+    /// engine or isolation against external raw-C clients is introduced.
+    pub fn fixstar_mag(&self, star: &str) -> Result<StarMagnitude, Error> {
+        self.compute(|| crate::stars::fixstar_mag_locked(star))
+    }
+    /// Run [`crate::sol_eclipse_where_full`] after applying this session's configuration
+    /// under one native acquisition. `jd_ut` is UT Julian days; other units and
+    /// input domains follow the linked operation. Return the complete native
+    /// output, real flags/status/diagnostic where provided; preserve native,
+    /// input and poisoned-lock errors. No callback, inferred value, alternate
+    /// engine or isolation against external raw-C clients is introduced.
+    pub fn sol_eclipse_where_full(
+        &self,
+        jd_ut: f64,
+        flags: i32,
+    ) -> Result<SolarEclipseGeometryFull, Error> {
+        self.compute(|| crate::events::sol_eclipse_where_full_locked(jd_ut, flags))
+    }
+    /// Run [`crate::lun_occult_where_full`] after applying this session's configuration
+    /// under one native acquisition. `jd_ut` is UT Julian days; other units and
+    /// input domains follow the linked operation. Return the complete native
+    /// output, real flags/status/diagnostic where provided; preserve native,
+    /// input and poisoned-lock errors. No callback, inferred value, alternate
+    /// engine or isolation against external raw-C clients is introduced.
+    pub fn lun_occult_where_full(
+        &self,
+        jd_ut: f64,
+        body: i32,
+        star_name: Option<&str>,
+        flags: i32,
+    ) -> Result<OccultationGeometryFull, Error> {
+        self.compute(|| crate::events::lun_occult_where_full_locked(jd_ut, body, star_name, flags))
+    }
+    /// Run [`crate::heliacal_pheno_ut_full`] after applying this session's configuration
+    /// under one native acquisition. `jd_ut` is UT Julian days; other units and
+    /// input domains follow the linked operation. Return the complete native
+    /// output, real flags/status/diagnostic where provided; preserve native,
+    /// input and poisoned-lock errors. No callback, inferred value, alternate
+    /// engine or isolation against external raw-C clients is introduced.
+    #[allow(clippy::too_many_arguments)]
+    pub fn heliacal_pheno_ut_full(
+        &self,
+        jd_ut: f64,
+        longitude: f64,
+        latitude: f64,
+        altitude: f64,
+        atmosphere: [f64; HELIACAL_ATM_LEN],
+        observer: [f64; HELIACAL_OBS_LEN],
+        object: &str,
+        event_type: i32,
+        helflag: i32,
+    ) -> Result<HeliacalPhenomenaFull, Error> {
+        self.compute(|| {
+            crate::events::heliacal_pheno_ut_full_locked(
+                jd_ut, longitude, latitude, altitude, atmosphere, observer, object, event_type,
+                helflag,
+            )
+        })
+    }
+    /// Read the extended native visual magnitude and resolved name after the
+    /// owned path is installed in the same acquisition. Query semantics and
+    /// missing-catalog/native errors follow [`crate::fixstar2_mag`]; preserve
+    /// the actual diagnostic, with no date calculation or catalog substitution.
+    pub fn fixstar2_mag(&self, star: &str) -> Result<crate::StarMagnitude, Error> {
+        crate::stars::check_star_name("fixstar2_mag", star)?;
+        self.compute(|| crate::stars::fixstar2_mag_locked(star))
+    }
+
+    /// Enumerate the selected catalog with path/configuration and all numeric
+    /// lookups in one native acquisition. Native names/order, unitless visual
+    /// magnitudes and diagnostics are retained. Missing/empty catalog, native
+    /// failures and poisoned state are errors; no positional calculation,
+    /// deduplication, download or external-C isolation is added.
+    pub fn fixed_star_catalog(&self) -> Result<Vec<crate::StarMagnitude>, Error> {
+        self.compute(crate::stars::fixed_star_catalog_locked)
     }
 
     /// Ayanamsha (tropical-sidereal offset) in degrees for a UT instant.

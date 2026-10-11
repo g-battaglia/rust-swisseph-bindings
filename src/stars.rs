@@ -86,7 +86,7 @@ fn check_star_inputs(function: &str, star: &str, jd: f64) -> Result<(), Error> {
 }
 
 /// Check a star query before any native call.
-fn check_star_name(function: &str, star: &str) -> Result<(), Error> {
+pub(crate) fn check_star_name(function: &str, star: &str) -> Result<(), Error> {
     if star.as_bytes().contains(&0) {
         return Err(Error::invalid_input(format!(
             "{function}: star name must not contain NUL bytes"
@@ -120,20 +120,25 @@ fn prepare_star_buffer(star: &str) -> [c_char; STAR_BUF_LEN] {
 /// introduced, and native environment/default/legacy-file search remains
 /// authoritative.
 fn check_extended_catalog_locked(function: &str) -> Result<(), Error> {
-    let mut name = prepare_star_buffer("1");
-    let mut magnitude = 0.0;
-    let mut diagnostic = [0 as c_char; SERR_LEN];
-    // SAFETY: the legacy lookup accepts a sequential catalog number and
-    // handles absent catalogs; every output buffer is owned, initialized
-    // and correctly sized. The caller holds the native lock.
-    let ret =
-        unsafe { ffi::swe_fixstar_mag(name.as_mut_ptr(), &mut magnitude, diagnostic.as_mut_ptr()) };
-    if ret < 0 {
-        // SAFETY: initialized diagnostic storage, bounded owned read.
-        let text = unsafe { read_native_text(diagnostic.as_ptr(), SERR_LEN) };
-        return Err(Error::native(format!(
-            "{function}: fixed-star catalog unavailable; configure set_ephe_path or SE_EPHE_PATH: {text}"
-        )));
+    // Legacy C retains its last textual query even after close. Two equivalent
+    // but distinct numeric forms ensure one lookup really reads the selected
+    // catalog. Both must succeed before the unsafe extended lookup is admitted.
+    for query in ["1", "01"] {
+        let mut name = prepare_star_buffer(query);
+        let mut magnitude = 0.0;
+        let mut diagnostic = [0 as c_char; SERR_LEN];
+        // SAFETY: legacy lookup tolerates absent catalogs; owned initialized
+        // writable buffers and native access cover the complete call/read.
+        let ret = unsafe {
+            ffi::swe_fixstar_mag(name.as_mut_ptr(), &mut magnitude, diagnostic.as_mut_ptr())
+        };
+        if ret < 0 {
+            // SAFETY: initialized diagnostic, bounded read with native access.
+            let text = unsafe { read_native_text(diagnostic.as_ptr(), SERR_LEN) };
+            return Err(Error::native(format!(
+                "{function}: fixed-star catalog unavailable; configure set_ephe_path or SE_EPHE_PATH: {text}"
+            )));
+        }
     }
     Ok(())
 }
@@ -195,52 +200,59 @@ fn check_extended_catalog_locked(function: &str) -> Result<(), Error> {
 /// described by [`crate::set_sid_mode`].
 pub fn fixstar(star: &str, jd_et: f64, flags: i32) -> Result<StarPosition, Error> {
     check_star_inputs("fixstar", star, jd_et)?;
-    with_native_access(|| {
-        crate::domain::check_et_locked("fixstar", jd_et, flags)?;
-        let mut star_buf = prepare_star_buffer(star);
-        let mut xx = [0.0; POSITION_LEN];
-        let mut serr = [0 as c_char; SERR_LEN];
-        // SAFETY: `star_buf` owns STAR_BUF_LEN writable bytes (the native
-        // in/out name contract), `xx` owns POSITION_LEN writable f64
-        // slots, `serr` owns SERR_LEN writable bytes; all outlive this
-        // call and no other thread can access native state while the lock
-        // is held. Results are only exposed after the native status is
-        // checked.
-        let ret = unsafe {
-            ffi::swe_fixstar(
-                star_buf.as_mut_ptr(),
-                jd_et,
-                flags,
-                xx.as_mut_ptr(),
-                serr.as_mut_ptr(),
-            )
-        };
-        // SAFETY: both buffers are our own fully initialized storage; the
-        // reads are bounded by their capacities. Copied before the lock
-        // is released.
-        let (resolved_name, diagnostic) = unsafe {
-            (
-                read_native_text(star_buf.as_ptr(), STAR_BUF_LEN),
-                read_native_text(serr.as_ptr(), SERR_LEN),
-            )
-        };
-        if ret < 0 {
-            Err(Error::native(describe_star_failure(
-                "fixstar",
-                star,
-                jd_et,
-                flags,
-                &diagnostic,
-            )))
-        } else {
-            Ok(StarPosition {
-                values: xx,
-                resolved_name,
-                returned_flags: ret,
-                diagnostic,
-            })
-        }
-    })
+    with_native_access(|| fixstar_locked(star, jd_et, flags))
+}
+
+/// Execute [`crate::fixstar`] with native access already held.
+/// Preserve its input domains, units, native status/flags and diagnostics;
+/// apply no configuration, fallback or alternate numerical method. Errors
+/// follow the public operation. Caller owns the lock for validation and C read.
+pub(crate) fn fixstar_locked(star: &str, jd_et: f64, flags: i32) -> Result<StarPosition, Error> {
+    check_star_inputs("fixstar", star, jd_et)?;
+    crate::domain::check_et_locked("fixstar", jd_et, flags)?;
+    let mut star_buf = prepare_star_buffer(star);
+    let mut xx = [0.0; POSITION_LEN];
+    let mut serr = [0 as c_char; SERR_LEN];
+    // SAFETY: `star_buf` owns STAR_BUF_LEN writable bytes (the native
+    // in/out name contract), `xx` owns POSITION_LEN writable f64
+    // slots, `serr` owns SERR_LEN writable bytes; all outlive this
+    // call and no other thread can access native state while the lock
+    // is held. Results are only exposed after the native status is
+    // checked.
+    let ret = unsafe {
+        ffi::swe_fixstar(
+            star_buf.as_mut_ptr(),
+            jd_et,
+            flags,
+            xx.as_mut_ptr(),
+            serr.as_mut_ptr(),
+        )
+    };
+    // SAFETY: both buffers are our own fully initialized storage; the
+    // reads are bounded by their capacities. Copied before the lock
+    // is released.
+    let (resolved_name, diagnostic) = unsafe {
+        (
+            read_native_text(star_buf.as_ptr(), STAR_BUF_LEN),
+            read_native_text(serr.as_ptr(), SERR_LEN),
+        )
+    };
+    if ret < 0 {
+        Err(Error::native(describe_star_failure(
+            "fixstar",
+            star,
+            jd_et,
+            flags,
+            &diagnostic,
+        )))
+    } else {
+        Ok(StarPosition {
+            values: xx,
+            resolved_name,
+            returned_flags: ret,
+            diagnostic,
+        })
+    }
 }
 
 /// Calculate a fixed-star position for a Universal Time Julian Day.
@@ -257,45 +269,52 @@ pub fn fixstar(star: &str, jd_et: f64, flags: i32) -> Result<StarPosition, Error
 /// described by [`crate::set_sid_mode`].
 pub fn fixstar_ut(star: &str, jd_ut: f64, flags: i32) -> Result<StarPosition, Error> {
     check_star_inputs("fixstar_ut", star, jd_ut)?;
-    with_native_access(|| {
-        crate::domain::check_ut_locked("fixstar_ut", jd_ut, flags)?;
-        let mut star_buf = prepare_star_buffer(star);
-        let mut xx = [0.0; POSITION_LEN];
-        let mut serr = [0 as c_char; SERR_LEN];
-        // SAFETY: same contract as in [`fixstar`].
-        let ret = unsafe {
-            ffi::swe_fixstar_ut(
-                star_buf.as_mut_ptr(),
-                jd_ut,
-                flags,
-                xx.as_mut_ptr(),
-                serr.as_mut_ptr(),
-            )
-        };
-        // SAFETY: same contract as in [`fixstar`].
-        let (resolved_name, diagnostic) = unsafe {
-            (
-                read_native_text(star_buf.as_ptr(), STAR_BUF_LEN),
-                read_native_text(serr.as_ptr(), SERR_LEN),
-            )
-        };
-        if ret < 0 {
-            Err(Error::native(describe_star_failure(
-                "fixstar_ut",
-                star,
-                jd_ut,
-                flags,
-                &diagnostic,
-            )))
-        } else {
-            Ok(StarPosition {
-                values: xx,
-                resolved_name,
-                returned_flags: ret,
-                diagnostic,
-            })
-        }
-    })
+    with_native_access(|| fixstar_ut_locked(star, jd_ut, flags))
+}
+
+/// Execute [`crate::fixstar_ut`] with native access already held.
+/// Preserve its input domains, units, native status/flags and diagnostics;
+/// apply no configuration, fallback or alternate numerical method. Errors
+/// follow the public operation. Caller owns the lock for validation and C read.
+pub(crate) fn fixstar_ut_locked(star: &str, jd_ut: f64, flags: i32) -> Result<StarPosition, Error> {
+    check_star_inputs("fixstar_ut", star, jd_ut)?;
+    crate::domain::check_ut_locked("fixstar_ut", jd_ut, flags)?;
+    let mut star_buf = prepare_star_buffer(star);
+    let mut xx = [0.0; POSITION_LEN];
+    let mut serr = [0 as c_char; SERR_LEN];
+    // SAFETY: same contract as in [`fixstar`].
+    let ret = unsafe {
+        ffi::swe_fixstar_ut(
+            star_buf.as_mut_ptr(),
+            jd_ut,
+            flags,
+            xx.as_mut_ptr(),
+            serr.as_mut_ptr(),
+        )
+    };
+    // SAFETY: same contract as in [`fixstar`].
+    let (resolved_name, diagnostic) = unsafe {
+        (
+            read_native_text(star_buf.as_ptr(), STAR_BUF_LEN),
+            read_native_text(serr.as_ptr(), SERR_LEN),
+        )
+    };
+    if ret < 0 {
+        Err(Error::native(describe_star_failure(
+            "fixstar_ut",
+            star,
+            jd_ut,
+            flags,
+            &diagnostic,
+        )))
+    } else {
+        Ok(StarPosition {
+            values: xx,
+            resolved_name,
+            returned_flags: ret,
+            diagnostic,
+        })
+    }
 }
 
 /// Calculate a fixed-star position with the extended search semantics.
@@ -321,46 +340,53 @@ pub fn fixstar_ut(star: &str, jd_ut: f64, flags: i32) -> Result<StarPosition, Er
 /// the catalog. The native search path and query semantics are preserved.
 pub fn fixstar2(star: &str, jd_et: f64, flags: i32) -> Result<StarPosition, Error> {
     check_star_inputs("fixstar2", star, jd_et)?;
-    with_native_access(|| {
-        crate::domain::check_et_locked("fixstar2", jd_et, flags)?;
-        check_extended_catalog_locked("fixstar2")?;
-        let mut star_buf = prepare_star_buffer(star);
-        let mut xx = [0.0; POSITION_LEN];
-        let mut serr = [0 as c_char; SERR_LEN];
-        // SAFETY: same contract as in [`fixstar`].
-        let ret = unsafe {
-            ffi::swe_fixstar2(
-                star_buf.as_mut_ptr(),
-                jd_et,
-                flags,
-                xx.as_mut_ptr(),
-                serr.as_mut_ptr(),
-            )
-        };
-        // SAFETY: same contract as in [`fixstar`].
-        let (resolved_name, diagnostic) = unsafe {
-            (
-                read_native_text(star_buf.as_ptr(), STAR_BUF_LEN),
-                read_native_text(serr.as_ptr(), SERR_LEN),
-            )
-        };
-        if ret < 0 {
-            Err(Error::native(describe_star_failure(
-                "fixstar2",
-                star,
-                jd_et,
-                flags,
-                &diagnostic,
-            )))
-        } else {
-            Ok(StarPosition {
-                values: xx,
-                resolved_name,
-                returned_flags: ret,
-                diagnostic,
-            })
-        }
-    })
+    with_native_access(|| fixstar2_locked(star, jd_et, flags))
+}
+
+/// Execute [`crate::fixstar2`] with native access already held.
+/// Preserve its input domains, units, native status/flags and diagnostics;
+/// apply no configuration, fallback or alternate numerical method. Errors
+/// follow the public operation. Caller owns the lock for validation and C read.
+pub(crate) fn fixstar2_locked(star: &str, jd_et: f64, flags: i32) -> Result<StarPosition, Error> {
+    check_star_inputs("fixstar2", star, jd_et)?;
+    crate::domain::check_et_locked("fixstar2", jd_et, flags)?;
+    check_extended_catalog_locked("fixstar2")?;
+    let mut star_buf = prepare_star_buffer(star);
+    let mut xx = [0.0; POSITION_LEN];
+    let mut serr = [0 as c_char; SERR_LEN];
+    // SAFETY: same contract as in [`fixstar`].
+    let ret = unsafe {
+        ffi::swe_fixstar2(
+            star_buf.as_mut_ptr(),
+            jd_et,
+            flags,
+            xx.as_mut_ptr(),
+            serr.as_mut_ptr(),
+        )
+    };
+    // SAFETY: same contract as in [`fixstar`].
+    let (resolved_name, diagnostic) = unsafe {
+        (
+            read_native_text(star_buf.as_ptr(), STAR_BUF_LEN),
+            read_native_text(serr.as_ptr(), SERR_LEN),
+        )
+    };
+    if ret < 0 {
+        Err(Error::native(describe_star_failure(
+            "fixstar2",
+            star,
+            jd_et,
+            flags,
+            &diagnostic,
+        )))
+    } else {
+        Ok(StarPosition {
+            values: xx,
+            resolved_name,
+            returned_flags: ret,
+            diagnostic,
+        })
+    }
 }
 
 /// Calculate a fixed-star position with the extended search semantics for
@@ -405,46 +431,57 @@ pub fn fixstar2(star: &str, jd_et: f64, flags: i32) -> Result<StarPosition, Erro
 /// the catalog. The native search path and query semantics are preserved.
 pub fn fixstar2_ut(star: &str, jd_ut: f64, flags: i32) -> Result<StarPosition, Error> {
     check_star_inputs("fixstar2_ut", star, jd_ut)?;
-    with_native_access(|| {
-        crate::domain::check_ut_locked("fixstar2_ut", jd_ut, flags)?;
-        check_extended_catalog_locked("fixstar2_ut")?;
-        let mut star_buf = prepare_star_buffer(star);
-        let mut xx = [0.0; POSITION_LEN];
-        let mut serr = [0 as c_char; SERR_LEN];
-        // SAFETY: same contract as in [`fixstar`].
-        let ret = unsafe {
-            ffi::swe_fixstar2_ut(
-                star_buf.as_mut_ptr(),
-                jd_ut,
-                flags,
-                xx.as_mut_ptr(),
-                serr.as_mut_ptr(),
-            )
-        };
-        // SAFETY: same contract as in [`fixstar`].
-        let (resolved_name, diagnostic) = unsafe {
-            (
-                read_native_text(star_buf.as_ptr(), STAR_BUF_LEN),
-                read_native_text(serr.as_ptr(), SERR_LEN),
-            )
-        };
-        if ret < 0 {
-            Err(Error::native(describe_star_failure(
-                "fixstar2_ut",
-                star,
-                jd_ut,
-                flags,
-                &diagnostic,
-            )))
-        } else {
-            Ok(StarPosition {
-                values: xx,
-                resolved_name,
-                returned_flags: ret,
-                diagnostic,
-            })
-        }
-    })
+    with_native_access(|| fixstar2_ut_locked(star, jd_ut, flags))
+}
+
+/// Execute [`crate::fixstar2_ut`] with native access already held.
+/// Preserve its input domains, units, native status/flags and diagnostics;
+/// apply no configuration, fallback or alternate numerical method. Errors
+/// follow the public operation. Caller owns the lock for validation and C read.
+pub(crate) fn fixstar2_ut_locked(
+    star: &str,
+    jd_ut: f64,
+    flags: i32,
+) -> Result<StarPosition, Error> {
+    check_star_inputs("fixstar2_ut", star, jd_ut)?;
+    crate::domain::check_ut_locked("fixstar2_ut", jd_ut, flags)?;
+    check_extended_catalog_locked("fixstar2_ut")?;
+    let mut star_buf = prepare_star_buffer(star);
+    let mut xx = [0.0; POSITION_LEN];
+    let mut serr = [0 as c_char; SERR_LEN];
+    // SAFETY: same contract as in [`fixstar`].
+    let ret = unsafe {
+        ffi::swe_fixstar2_ut(
+            star_buf.as_mut_ptr(),
+            jd_ut,
+            flags,
+            xx.as_mut_ptr(),
+            serr.as_mut_ptr(),
+        )
+    };
+    // SAFETY: same contract as in [`fixstar`].
+    let (resolved_name, diagnostic) = unsafe {
+        (
+            read_native_text(star_buf.as_ptr(), STAR_BUF_LEN),
+            read_native_text(serr.as_ptr(), SERR_LEN),
+        )
+    };
+    if ret < 0 {
+        Err(Error::native(describe_star_failure(
+            "fixstar2_ut",
+            star,
+            jd_ut,
+            flags,
+            &diagnostic,
+        )))
+    } else {
+        Ok(StarPosition {
+            values: xx,
+            resolved_name,
+            returned_flags: ret,
+            diagnostic,
+        })
+    }
 }
 
 /// Report the visual magnitude of a fixed star.
@@ -478,38 +515,44 @@ pub fn fixstar2_ut(star: &str, jd_ut: f64, flags: i32) -> Result<StarPosition, E
 /// ```
 pub fn fixstar_mag(star: &str) -> Result<StarMagnitude, Error> {
     check_star_name("fixstar_mag", star)?;
-    with_native_access(|| {
-        let mut star_buf = prepare_star_buffer(star);
-        let mut mag = 0.0;
-        let mut serr = [0 as c_char; SERR_LEN];
-        // SAFETY: `star_buf` owns STAR_BUF_LEN writable bytes (the native
-        // in/out name contract), `mag` addresses one writable slot,
-        // `serr` owns SERR_LEN writable bytes; all outlive this call
-        // under the native lock. Results are only exposed after the
-        // native status is checked.
-        let ret =
-            unsafe { ffi::swe_fixstar_mag(star_buf.as_mut_ptr(), &mut mag, serr.as_mut_ptr()) };
-        // SAFETY: same bounded reads as in [`fixstar`].
-        let (resolved_name, diagnostic) = unsafe {
-            (
-                read_native_text(star_buf.as_ptr(), STAR_BUF_LEN),
-                read_native_text(serr.as_ptr(), SERR_LEN),
-            )
-        };
-        if ret < 0 {
-            Err(Error::native(if diagnostic.is_empty() {
-                format!("fixstar_mag: native computation failed (star={star:?})")
-            } else {
-                format!("fixstar_mag: {diagnostic} (star={star:?})")
-            }))
+    with_native_access(|| fixstar_mag_locked(star))
+}
+
+/// Execute [`crate::fixstar_mag`] with native access already held.
+/// Preserve its input domains, units, native status/flags and diagnostics;
+/// apply no configuration, fallback or alternate numerical method. Errors
+/// follow the public operation. Caller owns the lock for validation and C read.
+pub(crate) fn fixstar_mag_locked(star: &str) -> Result<StarMagnitude, Error> {
+    check_star_name("fixstar_mag", star)?;
+    let mut star_buf = prepare_star_buffer(star);
+    let mut mag = 0.0;
+    let mut serr = [0 as c_char; SERR_LEN];
+    // SAFETY: `star_buf` owns STAR_BUF_LEN writable bytes (the native
+    // in/out name contract), `mag` addresses one writable slot,
+    // `serr` owns SERR_LEN writable bytes; all outlive this call
+    // under the native lock. Results are only exposed after the
+    // native status is checked.
+    let ret = unsafe { ffi::swe_fixstar_mag(star_buf.as_mut_ptr(), &mut mag, serr.as_mut_ptr()) };
+    // SAFETY: same bounded reads as in [`fixstar`].
+    let (resolved_name, diagnostic) = unsafe {
+        (
+            read_native_text(star_buf.as_ptr(), STAR_BUF_LEN),
+            read_native_text(serr.as_ptr(), SERR_LEN),
+        )
+    };
+    if ret < 0 {
+        Err(Error::native(if diagnostic.is_empty() {
+            format!("fixstar_mag: native computation failed (star={star:?})")
         } else {
-            Ok(StarMagnitude {
-                magnitude: mag,
-                resolved_name,
-                diagnostic,
-            })
-        }
-    })
+            format!("fixstar_mag: {diagnostic} (star={star:?})")
+        }))
+    } else {
+        Ok(StarMagnitude {
+            magnitude: mag,
+            resolved_name,
+            diagnostic,
+        })
+    }
 }
 
 /// Report the visual magnitude of a fixed star with the extended search
@@ -525,35 +568,80 @@ pub fn fixstar_mag(star: &str) -> Result<StarMagnitude, Error> {
 /// the catalog. The native search path and query semantics are preserved.
 pub fn fixstar2_mag(star: &str) -> Result<StarMagnitude, Error> {
     check_star_name("fixstar2_mag", star)?;
-    with_native_access(|| {
-        check_extended_catalog_locked("fixstar2_mag")?;
-        let mut star_buf = prepare_star_buffer(star);
-        let mut mag = 0.0;
-        let mut serr = [0 as c_char; SERR_LEN];
-        // SAFETY: same contract as in [`fixstar_mag`].
-        let ret =
-            unsafe { ffi::swe_fixstar2_mag(star_buf.as_mut_ptr(), &mut mag, serr.as_mut_ptr()) };
-        // SAFETY: same bounded reads as in [`fixstar`].
-        let (resolved_name, diagnostic) = unsafe {
-            (
-                read_native_text(star_buf.as_ptr(), STAR_BUF_LEN),
-                read_native_text(serr.as_ptr(), SERR_LEN),
-            )
-        };
-        if ret < 0 {
-            Err(Error::native(if diagnostic.is_empty() {
-                format!("fixstar2_mag: native computation failed (star={star:?})")
-            } else {
-                format!("fixstar2_mag: {diagnostic} (star={star:?})")
-            }))
+    with_native_access(|| fixstar2_mag_locked(star))
+}
+
+/// Extended magnitude lookup with the native lock held and admitted query.
+/// Preflight the selected catalog before C lookup; names, unitless visual
+/// magnitude and actual diagnostic are preserved. Missing/native errors propagate.
+pub(crate) fn fixstar2_mag_locked(star: &str) -> Result<StarMagnitude, Error> {
+    check_extended_catalog_locked("fixstar2_mag")?;
+    fixstar2_mag_catalog_checked_locked(star)
+}
+
+/// Read one already-admitted native query after a catalog preflight in the
+/// same acquisition. Return the actual name, visual magnitude and diagnostic;
+/// do not call without both invariants, especially with an unavailable catalog.
+fn fixstar2_mag_catalog_checked_locked(star: &str) -> Result<StarMagnitude, Error> {
+    let mut star_buf = prepare_star_buffer(star);
+    let mut mag = 0.0;
+    let mut serr = [0 as c_char; SERR_LEN];
+    // SAFETY: same contract as in [`fixstar_mag`].
+    let ret = unsafe { ffi::swe_fixstar2_mag(star_buf.as_mut_ptr(), &mut mag, serr.as_mut_ptr()) };
+    // SAFETY: same bounded reads as in [`fixstar`].
+    let (resolved_name, diagnostic) = unsafe {
+        (
+            read_native_text(star_buf.as_ptr(), STAR_BUF_LEN),
+            read_native_text(serr.as_ptr(), SERR_LEN),
+        )
+    };
+    if ret < 0 {
+        Err(Error::native(if diagnostic.is_empty() {
+            format!("fixstar2_mag: native computation failed (star={star:?})")
         } else {
-            Ok(StarMagnitude {
-                magnitude: mag,
-                resolved_name,
-                diagnostic,
-            })
+            format!("fixstar2_mag: {diagnostic} (star={star:?})")
+        }))
+    } else {
+        Ok(StarMagnitude {
+            magnitude: mag,
+            resolved_name,
+            diagnostic,
+        })
+    }
+}
+
+/// List the selected native fixed-star catalog in its numeric query order.
+///
+/// Hold native access for the complete traversal, first preflight the catalog
+/// safely and then query indices1.. in C order. Return actual resolved names,
+/// unitless visual magnitudes and per-entry diagnostics without deduplication.
+/// Only the native sequential-number end verdict terminates successfully;
+/// unavailable/empty catalogs and other native/lock failures remain errors.
+/// No date, stellar position calculation, alternate catalog or download occurs.
+/// The list belongs to this call and does not change native global path policy.
+pub fn fixed_star_catalog() -> Result<Vec<StarMagnitude>, Error> {
+    with_native_access(fixed_star_catalog_locked)
+}
+
+/// Traverse admitted numeric C lookups with native access held throughout.
+/// The legacy preflight protects C's extended missing-catalog domain. Return
+/// native order and values; distinguish the explicit end verdict from failure.
+pub(crate) fn fixed_star_catalog_locked() -> Result<Vec<StarMagnitude>, Error> {
+    check_extended_catalog_locked("fixed_star_catalog")?;
+    let mut stars = Vec::new();
+    for index in 1..=i32::MAX {
+        match fixstar2_mag_catalog_checked_locked(&index.to_string()) {
+            Ok(star) => stars.push(star),
+            Err(error) if index > 1 && error.kind() == crate::ErrorKind::Native
+                && error.message().contains(&format!(
+                    "error, swe_fixstar(): sequential fixed star number {index} is not available"
+                )) => return Ok(stars),
+            Err(error) => return Err(error),
         }
-    })
+    }
+    Err(Error::invalid_input(
+        "fixed_star_catalog: native numeric index domain exhausted",
+    ))
 }
 
 /// Build the error message for a failed star-position computation, keeping

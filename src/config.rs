@@ -27,6 +27,11 @@ struct ValidationSettings {
     sidereal_ut_epoch: Option<f64>,
     /// Native Delta-T override; None represents automatic computation.
     delta_t: Option<f64>,
+    /// Requested path plus native environment selection of the last path write.
+    ephe_path: Option<(Option<CString>, Option<std::ffi::OsString>)>,
+    /// Last binding-owned observer and full sidereal setting, for cache reset.
+    topo: Option<(f64, f64, f64)>,
+    sidereal_mode: Option<(i32, f64, f64)>,
 }
 
 /// Fresh native defaults; explicit close resets both settings (ABI probe).
@@ -34,6 +39,9 @@ static VALIDATION_SETTINGS: Mutex<ValidationSettings> = Mutex::new(ValidationSet
     sidereal_initialized: false,
     sidereal_ut_epoch: None,
     delta_t: None,
+    ephe_path: None,
+    topo: None,
+    sidereal_mode: None,
 });
 
 /// Initialize native defaults before writes that native first use would
@@ -52,6 +60,7 @@ fn initialize_sidereal_locked() -> Result<(), Error> {
         // the binding's supported shared-state contract.
         unsafe { ffi::swe_set_sid_mode(crate::SIDM_FAGAN_BRADLEY, 0.0, 0.0) };
         settings.sidereal_initialized = true;
+        settings.sidereal_mode = Some((crate::SIDM_FAGAN_BRADLEY, 0.0, 0.0));
     }
     Ok(())
 }
@@ -143,23 +152,46 @@ pub const MAX_EPHE_PATH_LEN: usize = 242;
 /// [`crate::state`): this function performs the raw setter without
 /// acquiring it. `path` follows the same convention as [`set_ephe_path`]
 /// (`None` = null = compiled default).
-pub(crate) fn apply_ephe_path_locked(path: Option<&CString>) {
+pub(crate) fn apply_ephe_path_locked(path: Option<&CString>) -> Result<(), Error> {
+    let key = (path.cloned(), std::env::var_os("SE_EPHE_PATH"));
+    let mut settings = VALIDATION_SETTINGS
+        .lock()
+        .map_err(|_| Error::lock_poisoned())?;
+    let changed = settings.ephe_path.as_ref() != Some(&key);
     let pointer = path.map_or(std::ptr::null(), |owned| owned.as_ptr());
-    // SAFETY: `pointer` is either null or addresses a live `CString`
-    // kept alive by the caller for the whole call. The native setter
-    // copies the path into its own storage, so no reference outlives this
-    // scope. The caller holds the native lock because the setter also
-    // closes cached file data.
+    // SAFETY: native access is held; strings remain alive and are copied by C.
+    // C's path setter retains the extended catalog. A real path change therefore
+    // requires public close before path installation. Replay binding-owned
+    // sidereal/topo writes that close resets but the path setter normally keeps.
     unsafe {
+        if changed {
+            ffi::swe_close();
+        }
         ffi::swe_set_ephe_path(pointer);
+        if changed {
+            if let Some((mode, t0, ayan)) = settings.sidereal_mode {
+                ffi::swe_set_sid_mode(mode, t0, ayan);
+                if let Some(dt) = settings.delta_t {
+                    ffi::swe_set_delta_t_userdef(dt);
+                }
+            }
+            if let Some((lon, lat, alt)) = settings.topo {
+                ffi::swe_set_topo(lon, lat, alt);
+            }
+        }
     }
+    settings.ephe_path = Some(key);
+    Ok(())
 }
 
 /// Apply an observer position while native access is already held.
 ///
 /// Caller must hold the native lock; pure value write serialized with
 /// later computations.
-pub(crate) fn apply_topo_locked(longitude: f64, latitude: f64, altitude: f64) {
+pub(crate) fn apply_topo_locked(longitude: f64, latitude: f64, altitude: f64) -> Result<(), Error> {
+    let mut settings = VALIDATION_SETTINGS
+        .lock()
+        .map_err(|_| Error::lock_poisoned())?;
     // SAFETY: pure value call; the caller holds the native lock because
     // this mutates shared configuration read by later computations.
     unsafe {
@@ -169,6 +201,8 @@ pub(crate) fn apply_topo_locked(longitude: f64, latitude: f64, altitude: f64) {
             altitude as c_double,
         );
     }
+    settings.topo = Some((longitude, latitude, altitude));
+    Ok(())
 }
 
 /// Apply a sidereal mode while native access is already held.
@@ -186,6 +220,7 @@ pub(crate) fn apply_sid_mode_locked(mode: i32, t0: f64, ayan_t0: f64) -> Result<
     settings.sidereal_ut_epoch =
         (mode & 255 == crate::SIDM_USER && mode & USER_UT_BIT != 0).then_some(t0);
     settings.sidereal_initialized = true;
+    settings.sidereal_mode = Some((mode, t0, ayan_t0));
     Ok(())
 }
 
@@ -280,7 +315,7 @@ pub fn set_ephe_path(path: Option<&str>) -> Result<(), Error> {
         None => None,
     };
     with_native_access(|| {
-        apply_ephe_path_locked(native_path.as_ref());
+        apply_ephe_path_locked(native_path.as_ref())?;
         Ok(())
     })
 }
@@ -320,7 +355,7 @@ pub fn set_topo(longitude: f64, latitude: f64, altitude: f64) -> Result<(), Erro
     }
     crate::domain::check_observer_height("set_topo", altitude)?;
     with_native_access(|| {
-        apply_topo_locked(longitude, latitude, altitude);
+        apply_topo_locked(longitude, latitude, altitude)?;
         Ok(())
     })
 }
@@ -611,14 +646,25 @@ pub fn get_ayanamsa(jd_et: f64) -> Result<f64, Error> {
             "get_ayanamsa: Julian Day must be finite ({jd_et})"
         )));
     }
-    with_native_access(|| {
-        crate::domain::check_et("get_ayanamsa", jd_et)?;
-        check_sidereal_epoch_locked("get_ayanamsa: reference epoch", -1)?;
-        // SAFETY: pure value call like [`get_ayanamsa_ut`], in the ET
-        // scale the native entry point expects.
-        let value = unsafe { ffi::swe_get_ayanamsa(jd_et as c_double) };
-        checked_ayanamsha("get_ayanamsa", value)
-    })
+    with_native_access(|| get_ayanamsa_locked(jd_et))
+}
+
+/// Execute [`crate::get_ayanamsa`] with native access already held.
+/// Preserve its input domains, units, native status/flags and diagnostics;
+/// apply no configuration, fallback or alternate numerical method. Errors
+/// follow the public operation. Caller owns the lock for validation and C read.
+pub(crate) fn get_ayanamsa_locked(jd_et: f64) -> Result<f64, Error> {
+    if !jd_et.is_finite() {
+        return Err(Error::invalid_input(format!(
+            "get_ayanamsa: Julian Day must be finite ({jd_et})"
+        )));
+    }
+    crate::domain::check_et("get_ayanamsa", jd_et)?;
+    check_sidereal_epoch_locked("get_ayanamsa: reference epoch", -1)?;
+    // SAFETY: pure value call like [`get_ayanamsa_ut`], in the ET
+    // scale the native entry point expects.
+    let value = unsafe { ffi::swe_get_ayanamsa(jd_et as c_double) };
+    checked_ayanamsha("get_ayanamsa", value)
 }
 
 /// Return the ayanamsha with an explicit ephemeris flag.
@@ -656,28 +702,39 @@ pub fn get_ayanamsa_ex(jd_et: f64, flags: i32) -> Result<Ayanamsha, Error> {
             "get_ayanamsa_ex: Julian Day must be finite ({jd_et})"
         )));
     }
-    with_native_access(|| {
-        crate::domain::check_et("get_ayanamsa_ex", jd_et)?;
-        check_sidereal_epoch_locked("get_ayanamsa_ex: reference epoch", flags)?;
-        let mut daya = 0.0;
-        let mut serr = [0 as c_char; SERR_LEN];
-        // SAFETY: `daya` owns one writable slot and `serr` owns SERR_LEN
-        // writable bytes; both outlive the call under the native lock.
-        // The value is only exposed after the status is checked.
-        let ret = unsafe { ffi::swe_get_ayanamsa_ex(jd_et, flags, &mut daya, serr.as_mut_ptr()) };
-        // SAFETY: `serr` is our own fully initialized buffer; the read is
-        // bounded by its capacity. Copied before the lock is released.
-        let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
-        if ret < 0 || !daya.is_finite() {
-            return Err(Error::native(format!(
-                "get_ayanamsa_ex: native computation failed (jd_et={jd_et}, flags={flags}): {diagnostic}"
-            )));
-        }
-        Ok(Ayanamsha {
-            value: daya,
-            returned_flags: ret,
-            diagnostic,
-        })
+    with_native_access(|| get_ayanamsa_ex_locked(jd_et, flags))
+}
+
+/// Execute [`crate::get_ayanamsa_ex`] with native access already held.
+/// Preserve its input domains, units, native status/flags and diagnostics;
+/// apply no configuration, fallback or alternate numerical method. Errors
+/// follow the public operation. Caller owns the lock for validation and C read.
+pub(crate) fn get_ayanamsa_ex_locked(jd_et: f64, flags: i32) -> Result<Ayanamsha, Error> {
+    if !jd_et.is_finite() {
+        return Err(Error::invalid_input(format!(
+            "get_ayanamsa_ex: Julian Day must be finite ({jd_et})"
+        )));
+    }
+    crate::domain::check_et("get_ayanamsa_ex", jd_et)?;
+    check_sidereal_epoch_locked("get_ayanamsa_ex: reference epoch", flags)?;
+    let mut daya = 0.0;
+    let mut serr = [0 as c_char; SERR_LEN];
+    // SAFETY: `daya` owns one writable slot and `serr` owns SERR_LEN
+    // writable bytes; both outlive the call under the native lock.
+    // The value is only exposed after the status is checked.
+    let ret = unsafe { ffi::swe_get_ayanamsa_ex(jd_et, flags, &mut daya, serr.as_mut_ptr()) };
+    // SAFETY: `serr` is our own fully initialized buffer; the read is
+    // bounded by its capacity. Copied before the lock is released.
+    let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
+    if ret < 0 || !daya.is_finite() {
+        return Err(Error::native(format!(
+            "get_ayanamsa_ex: native computation failed (jd_et={jd_et}, flags={flags}): {diagnostic}"
+        )));
+    }
+    Ok(Ayanamsha {
+        value: daya,
+        returned_flags: ret,
+        diagnostic,
     })
 }
 
@@ -709,26 +766,36 @@ pub fn get_ayanamsa_ex_ut(jd_ut: f64, flags: i32) -> Result<Ayanamsha, Error> {
             "get_ayanamsa_ex_ut: Julian Day must be finite ({jd_ut})"
         )));
     }
-    with_native_access(|| {
-        crate::domain::check_ut_locked("get_ayanamsa_ex_ut", jd_ut, flags)?;
-        check_sidereal_epoch_locked("get_ayanamsa_ex_ut: reference epoch", flags)?;
-        let mut daya = 0.0;
-        let mut serr = [0 as c_char; SERR_LEN];
-        // SAFETY: same buffer contract as in [`get_ayanamsa_ex`].
-        let ret =
-            unsafe { ffi::swe_get_ayanamsa_ex_ut(jd_ut, flags, &mut daya, serr.as_mut_ptr()) };
-        // SAFETY: same bounded read as in [`get_ayanamsa_ex`].
-        let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
-        if ret < 0 || !daya.is_finite() {
-            return Err(Error::native(format!(
-                "get_ayanamsa_ex_ut: native computation failed (jd_ut={jd_ut}, flags={flags}): {diagnostic}"
-            )));
-        }
-        Ok(Ayanamsha {
-            value: daya,
-            returned_flags: ret,
-            diagnostic,
-        })
+    with_native_access(|| get_ayanamsa_ex_ut_locked(jd_ut, flags))
+}
+
+/// Execute [`crate::get_ayanamsa_ex_ut`] with native access already held.
+/// Preserve its input domains, units, native status/flags and diagnostics;
+/// apply no configuration, fallback or alternate numerical method. Errors
+/// follow the public operation. Caller owns the lock for validation and C read.
+pub(crate) fn get_ayanamsa_ex_ut_locked(jd_ut: f64, flags: i32) -> Result<Ayanamsha, Error> {
+    if !jd_ut.is_finite() {
+        return Err(Error::invalid_input(format!(
+            "get_ayanamsa_ex_ut: Julian Day must be finite ({jd_ut})"
+        )));
+    }
+    crate::domain::check_ut_locked("get_ayanamsa_ex_ut", jd_ut, flags)?;
+    check_sidereal_epoch_locked("get_ayanamsa_ex_ut: reference epoch", flags)?;
+    let mut daya = 0.0;
+    let mut serr = [0 as c_char; SERR_LEN];
+    // SAFETY: same buffer contract as in [`get_ayanamsa_ex`].
+    let ret = unsafe { ffi::swe_get_ayanamsa_ex_ut(jd_ut, flags, &mut daya, serr.as_mut_ptr()) };
+    // SAFETY: same bounded read as in [`get_ayanamsa_ex`].
+    let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
+    if ret < 0 || !daya.is_finite() {
+        return Err(Error::native(format!(
+            "get_ayanamsa_ex_ut: native computation failed (jd_ut={jd_ut}, flags={flags}): {diagnostic}"
+        )));
+    }
+    Ok(Ayanamsha {
+        value: daya,
+        returned_flags: ret,
+        diagnostic,
     })
 }
 
