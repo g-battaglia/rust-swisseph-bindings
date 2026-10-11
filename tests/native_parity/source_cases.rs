@@ -1,8 +1,8 @@
 //! Selected Swiss/Moshier/JPL and partial-file source recipes. All policy
 //! checks consume a genuine public Position already compared completely with C.
-//! Real JPL coverage needs `SWISSEPH_JPL_DIR` pointing at an explicitly selected
-//! directory with MD5-verified `de440.eph`; without it the JPL-success
-//! recipes report BLOCKED (no cases) unless `--require-jpl` hard-fails.
+//! Real JPL coverage selects either the historical `SWISSEPH_JPL_DIR/de440.eph`
+//! identity or the approved SHA-256 archive through `SWISSEPH_JPL_FILE`. Without
+//! either, recipes report BLOCKED (no cases) unless `--require-jpl` hard-fails.
 use super::cases::{Case, Expectation, Step, step};
 use super::registry::Op;
 use swisseph_bindings::*;
@@ -10,6 +10,9 @@ use swisseph_bindings::*;
 /// JPL archive selected for genuine `FLG_JPLEPH` coverage. DE440 is the
 /// selected MD5-verified file with modern coverage.
 const JPL_FILE: &str = "de440.eph";
+/// Approved DE440/LE440 binary archive (1549-2650), independently identified.
+const SELECTED_JPL_SHA256: &str =
+    "29915576d0a6555766b99485ac3056ee415e86df4fce282611c31afb329ad062";
 /// JPL coverage window: inside DE440-LE440 (1849–2150) with margin, so file
 /// bounds never turn success recipes into out-of-range Native errors.
 const JPL_DATES: [f64; 4] = [2415020.0, 2451545.0, 2460000.5, 2500000.0];
@@ -37,6 +40,7 @@ pub fn pilot(
     planet_only: &str,
     moon_only: &str,
     require_jpl: bool,
+    data_identity: &mut Vec<(std::path::PathBuf, String)>,
 ) -> Result<Vec<Case>, String> {
     use Op::*;
     let jd = 2451545.0;
@@ -152,37 +156,59 @@ pub fn pilot(
             step(CalcPctr, &[ECL_NUT, MARS, FLG_TOPOCTR], &[2443912.658], &[]),
         ],
     });
-    // Genuine JPL success: the only recipes that select a real JPL file.
-    // The directory must come from SWISSEPH_JPL_DIR (never the checkout).
-    // Absence is BLOCKED, not fallback double-coverage, unless --require-jpl.
-    let jpl = match std::env::var("SWISSEPH_JPL_DIR") {
-        Ok(dir) => dir,
-        Err(_) if require_jpl => {
-            return Err("real-JPL recipes require an explicit SWISSEPH_JPL_DIR".into());
-        }
-        Err(_) => {
-            println!(
-                "BLOCKED JPL-success: set SWISSEPH_JPL_DIR to MD5-verified de440.eph (or pass --require-jpl to fail)"
-            );
-            return Ok(cases);
-        }
+    // Explicit full-file selection takes precedence over the historical
+    // directory recipe. Neither path downloads or rewrites data.
+    let explicit = std::env::var_os("SWISSEPH_JPL_FILE");
+    let archive = match explicit.as_ref() {
+        Some(file) => std::path::PathBuf::from(file),
+        None => match std::env::var_os("SWISSEPH_JPL_DIR") {
+            Some(dir) => std::path::PathBuf::from(dir).join(JPL_FILE),
+            None if require_jpl => {
+                return Err(
+                    "real-JPL recipes require SWISSEPH_JPL_FILE or SWISSEPH_JPL_DIR".into(),
+                );
+            }
+            None => {
+                println!(
+                    "BLOCKED JPL-success: select an identified archive with SWISSEPH_JPL_FILE or SWISSEPH_JPL_DIR"
+                );
+                return Ok(cases);
+            }
+        },
     };
-    let jpl = std::path::Path::new(&jpl)
+    let archive = archive
         .canonicalize()
-        .map_err(|e| format!("JPL data directory: {e}"))?;
-    let archive = jpl.join(JPL_FILE);
-    // MD5 is the checksum the mirror publishes for this archive; it guards
-    // the download here, never a native result.
-    let digest = std::process::Command::new("md5")
-        .arg(&archive)
-        .output()
-        .map_err(|e| format!("JPL archive {JPL_FILE}: {e}"))?;
-    let digest = String::from_utf8(digest.stdout).map_err(|e| e.to_string())?;
-    let digest = digest.split('=').nth(1).ok_or("JPL md5 layout")?.trim();
-    if digest != "8a1c6e63ce2b0ab4716e8c07e45f7d5a" {
-        return Err(format!("JPL archive {JPL_FILE} digest mismatch"));
+        .map_err(|e| format!("JPL archive: {e}"))?;
+    let hash = super::process::fingerprint(&archive)?;
+    if explicit.is_some() {
+        if hash != SELECTED_JPL_SHA256 {
+            return Err("selected JPL archive SHA-256 mismatch".into());
+        }
+    } else {
+        // Retain the historical archive identity; do not relabel the newer
+        // archive or accept a file merely because its basename matches.
+        let output = std::process::Command::new("md5")
+            .arg(&archive)
+            .output()
+            .map_err(|e| format!("historical JPL digest: {e}"))?;
+        if !output.status.success() {
+            return Err("cannot verify historical JPL archive MD5".into());
+        }
+        let text = String::from_utf8(output.stdout).map_err(|e| e.to_string())?;
+        let digest = text.split('=').nth(1).ok_or("JPL md5 layout")?.trim();
+        if digest != "8a1c6e63ce2b0ab4716e8c07e45f7d5a" {
+            return Err("historical JPL archive MD5 mismatch".into());
+        }
     }
-    let jpl = jpl.to_str().ok_or("JPL path encoding")?;
+    data_identity.push((archive.clone(), hash));
+    let jpl = archive
+        .parent()
+        .and_then(|p| p.to_str())
+        .ok_or("JPL directory encoding")?;
+    let jpl_file = archive
+        .file_name()
+        .and_then(|p| p.to_str())
+        .ok_or("JPL filename encoding")?;
     for date in JPL_DATES {
         for body in [
             SUN, MOON, MERCURY, VENUS, MARS, JUPITER, SATURN, TRUE_NODE, MEAN_APOG,
@@ -193,7 +219,7 @@ pub fn pilot(
                     family: "sources",
                     steps: vec![
                         step(SetEphePath, &[], &[], &[Some(jpl)]),
-                        step(SetJplFile, &[], &[], &[Some(JPL_FILE)]),
+                        step(SetJplFile, &[], &[], &[Some(jpl_file)]),
                         step(op, &[body, FLG_JPLEPH | FLG_SPEED], &[date], &[]),
                         policy(FLG_JPLEPH, true, FLG_JPLEPH, false),
                         policy(0, true, FLG_JPLEPH, false),
@@ -210,7 +236,7 @@ pub fn pilot(
             family: "sources",
             steps: vec![
                 step(SetEphePath, &[], &[], &[Some(jpl)]),
-                step(SetJplFile, &[], &[], &[Some(JPL_FILE)]),
+                step(SetJplFile, &[], &[], &[Some(jpl_file)]),
                 step(
                     CalcPctr,
                     &[body, center, FLG_JPLEPH | FLG_SPEED],

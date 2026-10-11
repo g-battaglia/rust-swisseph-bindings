@@ -51,11 +51,20 @@ Swiss profiles require nonempty `sepl_18.se1`, `semo_18.se1`, `seas_18.se1` and
 fingerprinted when present. Planet-only and Moon-only source recipes use owned
 copies of the selected inputs. No data is downloaded or modified.
 
-Real JPL cases require `SWISSEPH_JPL_DIR` with `de440.eph`, MD5
-`8a1c6e63ce2b0ab4716e8c07e45f7d5a`, within the declared JD window
-2415020.0–2500000.0. Without it, the optional JPL-success block is reported
+Real JPL cases select one of two reviewed identities. `SWISSEPH_JPL_DIR`
+retains the historical `de440.eph` archive with MD5
+`8a1c6e63ce2b0ab4716e8c07e45f7d5a`. Alternatively, `SWISSEPH_JPL_FILE` selects
+an explicit DE440/LE440 binary archive with SHA-256
+`29915576d0a6555766b99485ac3056ee415e86df4fce282611c31afb329ad062`,
+102272352 bytes, JD2287184.5–2688976.5 (1549–2650). The explicit full-file
+selection takes precedence. Its actual basename is passed to native C without
+copying or renaming the file. Both archives cover the declared matrix window
+2415020.0–2500000.0; neither selection relabels the other archive identity.
+The selected JPL file joins the SHA-256 identities rechecked after execution. Without it, the optional JPL-success block is reported
 `BLOCKED`; `--require-jpl` makes absence a failure. Swiss regressions and
-missing-JPL fallback still execute without JPL. Ordinary integration tests skip
+missing-JPL fallback still execute without JPL. To select the full-file archive, replace the directory setting
+with `SWISSEPH_JPL_FILE=/path/to/linux_p1550p2650.440`. Wrong identities fail
+before native comparison. Ordinary integration tests skip
 implicit missing data explicitly; an explicitly selected incomplete directory
 fails with an actionable message.
 

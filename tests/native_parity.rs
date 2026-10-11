@@ -261,6 +261,7 @@ fn driver() -> Result<(), String> {
             paths[2],
             paths[3],
             options.require_jpl,
+            &mut data_identity,
         )?);
         if matches!(options.profile, Profile::MatrixPilot) {
             matrix_cases::self_test()?;
