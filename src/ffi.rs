@@ -106,9 +106,10 @@ pub(crate) const ECLIPSE_TRET_LEN: usize = 10;
 /// reserved tail reads as 0.0 and no uninitialized memory is exposed.
 pub(crate) const ECLIPSE_ATTR_LEN: usize = 20;
 
-/// Native `geopos` width written by the eclipse `where` calls: eastern
-/// longitude and northern latitude in degrees of the greatest eclipse.
-pub(crate) const ECLIPSE_GEOPOS_LEN: usize = 2;
+/// Complete initialized `geopos` transport for native `where` calls.
+/// The pinned engine writes longitude/latitude in degrees to slots0/1;
+/// slots2..9 are reserved for currently unimplemented boundary pairs.
+pub(crate) const ECLIPSE_GEOPOS_LEN: usize = 10;
 
 /// Native `tret` width for the local solar-eclipse and occultation
 /// searches: maximum, first/second/third/fourth contact, sunrise, sunset
@@ -1024,8 +1025,9 @@ unsafe extern "C" {
     /// `int32 swe_sol_eclipse_where(double tjd_ut, int32 ifl, double
     /// *geopos, double *attr, char *serr)` — geographic circumstances of
     /// the solar eclipse in progress at `tjd_ut` (Universal Time).
-    /// `geopos` receives [`ECLIPSE_GEOPOS_LEN`] slots (eastern longitude,
-    /// northern latitude, degrees, of the greatest eclipse); `attr` needs
+    /// `geopos` owns [`ECLIPSE_GEOPOS_LEN`] initialized slots. The engine
+    /// writes eastern longitude/northern latitude in degrees to slots0/1;
+    /// the reserved boundary tail remains initialized. `attr` needs
     /// [`ECLIPSE_ATTR_LEN`] slots (see `swe_sol_eclipse_how` for the
     /// layout); `serr` needs [`SERR_LEN`] bytes. Returns the eclipse-type
     /// bitmask, or 0 when no eclipse is in progress (kept as data with
@@ -1196,8 +1198,9 @@ unsafe extern "C" {
     /// geographic circumstances of the lunar occultation in progress at
     /// `tjd` (Universal Time). Body/star selection matches
     /// `swe_lun_occult_when_glob`. `geopos` receives
-    /// [`ECLIPSE_GEOPOS_LEN`] slots (eastern longitude, northern latitude,
-    /// degrees, of the greatest occultation); `attr` needs
+    /// [`ECLIPSE_GEOPOS_LEN`] initialized slots. The engine writes eastern
+    /// longitude/northern latitude in degrees to slots0/1 and leaves the
+    /// reserved boundary tail initialized. `attr` needs
     /// [`ECLIPSE_ATTR_LEN`] slots with the occultation layout (slots 0-7
     /// meaningful, slots 8-10 read 0.0 for non-solar targets);
     /// `serr` needs [`SERR_LEN`] bytes. Returns the occultation-type

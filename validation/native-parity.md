@@ -7,10 +7,14 @@ separate C caller using the pinned `swephexp.h`. Both use the same Cargo-selecte
 native archive. This validates ABI conversion, configuration, ownership and
 complete public results. It does not establish independent astronomical accuracy.
 
-The [coverage manifest](native-parity-coverage.md) maps 105 free functions,
+The [coverage manifest](native-parity-coverage.md) maps the original105 free functions,
 101 bound native symbols, 242 constants and session/helper checks to their
 independent projections. Profiles and filters report actual execution counts;
-declaration inventory alone is not executed coverage.
+declaration inventory alone is not executed coverage. Three additive complete
+buffer projections bring the current free-function total to108; their
+independent C coverage is in `tests/full_native_outputs.rs` and
+[complete output verification](full-native-outputs.md). The original runner's
+105-operation denominator describes its own protocol, not those extra APIs.
 
 ## Commands and data
 

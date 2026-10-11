@@ -136,3 +136,9 @@ pub use time::{
     lmt_to_lat, revjul, sidtime, sidtime0, time_equ, utc_time_zone, utc_to_jd,
 };
 pub use version::{library_path, version};
+
+/// Complete native output buffers; existing convenience projections remain.
+pub use events::{
+    HeliacalPhenomenaFull, OccultationGeometryFull, SolarEclipseGeometryFull,
+    heliacal_pheno_ut_full, lun_occult_where_full, sol_eclipse_where_full,
+};

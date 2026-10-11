@@ -147,3 +147,18 @@ The 243-field constants/marker gate passes in every profile.
 | `Session::deltat` | Matching C operation + owned configuration/history | A/B/threads/NaN | Full profile |
 | `Session::rise_trans` | Matching C operation + owned configuration/history | A/B/threads/NaN; Circumpolar absence | Full profile |
 | `Session::get_current_file_data` | Matching C operation + owned configuration/history | 5 slots/threads/post-close/NaN/invalid; clone histories | Full profile |
+
+## Additive complete output coverage
+
+The original protocol table retains its105operation identities. Three new free
+functions (current total108) use the independently compiled public-header caller
+in tests/full_native_outputs.rs; they do not add native symbols.
+
+| Public operation | Native symbol | Complete output proof |
+| --- | --- | --- |
+| sol_eclipse_where_full | swe_sol_eclipse_where | geography10+attributes20/status/diagnostic;SWIEPH/Moshier/JPL |
+| lun_occult_where_full | swe_lun_occult_where | geography10+attributes20/status/diagnostic;SWIEPH/Moshier/JPL |
+| heliacal_pheno_ut_full | swe_heliacal_pheno_ut | initialized50/status/diagnostic;native reserved tail retained |
+
+See full-native-outputs.md for executed inputs, identities and limits. Existing
+convenience projections remain independently covered by the original runner.

@@ -958,6 +958,27 @@ fn describe_eclipse_search_failure(
 
 /// Geographic circumstances of the solar eclipse in progress at an
 /// instant, as computed by [`sol_eclipse_where`].
+/// Complete native solar eclipse geography and circumstances at a UT instant.
+///
+/// Preserve all ten geographic words and twenty attributes, including native
+/// untouched slots. The first pair locates greatest eclipse in degrees. The
+/// remaining pairs reserve northern/southern umbra and penumbra limits; the
+/// pinned engine does not implement them and leaves all eight initialized zero.
+/// No computed boundary or source flag is synthesized.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SolarEclipseGeometryFull {
+    /// East-positive longitude/north-positive latitude pairs, native ten slots.
+    pub geopos: [f64; ECLIPSE_GEOPOS_LEN],
+    /// Native eclipse-type bitmask; zero denotes no eclipse, not an error.
+    pub eclipse_type: i32,
+    /// All twenty native attributes; units/order match SolarEclipseCircumstances.
+    pub attributes: [f64; ECLIPSE_ATTR_LEN],
+    /// Native diagnostic, including a nonfatal quiet-instant note.
+    pub diagnostic: String,
+}
+
+/// Retained longitude/latitude solar geography with all native attributes.
+/// Geographic degrees, status and diagnostic follow SolarEclipseGeometryFull.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SolarEclipseGeometry {
     /// Eastern longitude in degrees of the greatest eclipse.
@@ -1183,7 +1204,7 @@ impl LunarEclipseCircumstances {
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
 /// described by [`crate::set_sid_mode`].
-pub fn sol_eclipse_where(jd_ut: f64, flags: i32) -> Result<SolarEclipseGeometry, Error> {
+pub fn sol_eclipse_where_full(jd_ut: f64, flags: i32) -> Result<SolarEclipseGeometryFull, Error> {
     if !jd_ut.is_finite() {
         return Err(Error::invalid_input(
             "sol_eclipse_where: Julian Day must be finite",
@@ -1220,14 +1241,28 @@ pub fn sol_eclipse_where(jd_ut: f64, flags: i32) -> Result<SolarEclipseGeometry,
                 &diagnostic,
             )))
         } else {
-            Ok(SolarEclipseGeometry {
-                longitude: geopos[0],
-                latitude: geopos[1],
+            Ok(SolarEclipseGeometryFull {
+                geopos,
                 eclipse_type: ret,
                 attributes: attr,
                 diagnostic,
             })
         }
+    })
+}
+
+/// Project native solar geography to the retained longitude/latitude API.
+///
+/// UT Julian day and source flags follow sol_eclipse_where_full; all twenty
+/// attributes, type and diagnostics survive. Only geographic slots0/1 are
+/// exposed by this convenience result. Native domain/data failures propagate.
+pub fn sol_eclipse_where(jd_ut: f64, flags: i32) -> Result<SolarEclipseGeometry, Error> {
+    sol_eclipse_where_full(jd_ut, flags).map(|v| SolarEclipseGeometry {
+        longitude: v.geopos[0],
+        latitude: v.geopos[1],
+        eclipse_type: v.eclipse_type,
+        attributes: v.attributes,
+        diagnostic: v.diagnostic,
     })
 }
 
@@ -2253,6 +2288,26 @@ impl LocalOccultation {
 
 /// Geographic circumstances of the lunar occultation in progress at an
 /// instant, as computed by [`lun_occult_where`].
+/// Complete native occultation geography and circumstances at a UT instant.
+///
+/// The first pair locates greatest event in degrees. Remaining pairs reserve
+/// northern/southern umbra and penumbra limits; the pinned engine leaves those
+/// eight initialized zero. No boundary or source flag is inferred. Native
+/// circumstance units/order match LocalOccultation.
+#[derive(Debug, Clone, PartialEq)]
+pub struct OccultationGeometryFull {
+    /// East-positive longitude/north-positive latitude pairs, native ten slots.
+    pub geopos: [f64; ECLIPSE_GEOPOS_LEN],
+    /// Native occultation-type bitmask; zero denotes absence, not an error.
+    pub occult_type: i32,
+    /// Complete twenty-slot native circumstances.
+    pub attributes: [f64; ECLIPSE_ATTR_LEN],
+    /// Actual native diagnostic, including a nonfatal absence note.
+    pub diagnostic: String,
+}
+
+/// Retained longitude/latitude occultation geography and native attributes.
+/// Geographic degrees, status and diagnostic follow OccultationGeometryFull.
 #[derive(Debug, Clone, PartialEq)]
 pub struct OccultationGeometry {
     /// Eastern longitude in degrees of the greatest occultation.
@@ -2855,12 +2910,12 @@ fn lun_occult_when_loc_impl(
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
 /// described by [`crate::set_sid_mode`].
-pub fn lun_occult_where(
+pub fn lun_occult_where_full(
     jd_ut: f64,
     body: i32,
     star_name: Option<&str>,
     flags: i32,
-) -> Result<OccultationGeometry, Error> {
+) -> Result<OccultationGeometryFull, Error> {
     if !jd_ut.is_finite() {
         return Err(Error::invalid_input(
             "lun_occult_where: Julian Day must be finite",
@@ -2914,14 +2969,34 @@ pub fn lun_occult_where(
                 &diagnostic,
             )))
         } else {
-            Ok(OccultationGeometry {
-                longitude: geopos[0],
-                latitude: geopos[1],
+            Ok(OccultationGeometryFull {
+                geopos,
                 occult_type: ret,
                 attributes: attr,
                 diagnostic,
             })
         }
+    })
+}
+
+/// Project native occultation geography to the retained longitude/latitude API.
+///
+/// UT days, body/star selection and source flags follow lun_occult_where_full.
+/// All twenty attributes, type and diagnostic survive. Geographic slots0/1 are
+/// degrees east/north; other geography is available through the full result.
+/// Native input, catalog and data failures propagate without an alternate call.
+pub fn lun_occult_where(
+    jd_ut: f64,
+    body: i32,
+    star: Option<&str>,
+    flags: i32,
+) -> Result<OccultationGeometry, Error> {
+    lun_occult_where_full(jd_ut, body, star, flags).map(|v| OccultationGeometry {
+        longitude: v.geopos[0],
+        latitude: v.geopos[1],
+        occult_type: v.occult_type,
+        attributes: v.attributes,
+        diagnostic: v.diagnostic,
     })
 }
 
@@ -3082,6 +3157,24 @@ impl HeliacalEvent {
 /// - 25 `LMoon`: crescent length of the Moon (deg)
 /// - 26 `CVAact` (deg)
 /// - 27 `Illum`: lunar illumination (%)
+///
+/// Complete owned fifty-slot native heliacal circumstance transport.
+///
+/// Slots0..27 have the units/order documented on HeliacalPhenomena. The pinned
+/// engine writes those slots; slots28..49 retain the zero-initialized buffer
+/// values. They are reserved transport slots, not extra computed circumstances.
+#[derive(Debug, Clone, PartialEq)]
+pub struct HeliacalPhenomenaFull {
+    /// Full initialized buffer after the native calculation, in native order.
+    pub values: [f64; 50],
+    /// Actual nonnegative native return status; failures remain Error.
+    pub status: i32,
+    /// Actual native diagnostic text, including successful advisories.
+    pub diagnostic: String,
+}
+
+/// Retained thirty-slot heliacal circumstances and native diagnostic.
+/// Slot units/order follow HeliacalPhenomenaFull; reserved words are initialized.
 #[derive(Debug, Clone, PartialEq)]
 pub struct HeliacalPhenomena {
     /// The thirty native circumstance slots; see the type documentation.
@@ -3593,7 +3686,7 @@ pub fn heliacal_ut(
 /// observer configuration or computation. Native geographic limits and
 /// data errors are still reported by the engine.
 #[allow(clippy::too_many_arguments)]
-pub fn heliacal_pheno_ut(
+pub fn heliacal_pheno_ut_full(
     jd_ut: f64,
     longitude: f64,
     latitude: f64,
@@ -3603,7 +3696,7 @@ pub fn heliacal_pheno_ut(
     object: &str,
     event_type: i32,
     helflag: i32,
-) -> Result<HeliacalPhenomena, Error> {
+) -> Result<HeliacalPhenomenaFull, Error> {
     check_heliacal_inputs(
         "heliacal_pheno_ut",
         jd_ut,
@@ -3626,9 +3719,9 @@ pub fn heliacal_pheno_ut(
         let mut datm = atmosphere;
         let mut dobs = observer;
         // Zero-initialized: the engine writes slots 0-27 and leaves the
-        // reserved slots 28-29 untouched, so they read as 0.0 by
+        // reserved slots 28-49 untouched, so they read as 0.0 by
         // construction (never uninitialized memory).
-        let mut darr = [0.0; HELIACAL_PHENO_LEN];
+        let mut darr = [0.0; 50];
         let mut serr = [0 as c_char; SERR_LEN];
         // SAFETY: same contract as in [`heliacal_ut`]: every buffer is
         // owned, correctly sized and held under the native lock, and the
@@ -3659,10 +3752,43 @@ pub fn heliacal_pheno_ut(
                 &diagnostic,
             )))
         } else {
-            Ok(HeliacalPhenomena {
+            Ok(HeliacalPhenomenaFull {
                 values: darr,
+                status: ret,
                 diagnostic,
             })
+        }
+    })
+}
+
+/// Project heliacal circumstances to the retained thirty-slot result.
+///
+/// UT days, east/north degrees, altitude metres, atmosphere/observer domains,
+/// object/event and flags follow heliacal_pheno_ut_full. Native failure errors
+/// and diagnostic survive; slots0..29 are copied from the same single native
+/// calculation. Use the full result for all fifty initialized transport slots
+/// and the actual status; reserved words are not additional computed data.
+#[allow(clippy::too_many_arguments)]
+pub fn heliacal_pheno_ut(
+    jd_ut: f64,
+    longitude: f64,
+    latitude: f64,
+    altitude: f64,
+    atmosphere: [f64; HELIACAL_ATM_LEN],
+    observer: [f64; HELIACAL_OBS_LEN],
+    object: &str,
+    event_type: i32,
+    helflag: i32,
+) -> Result<HeliacalPhenomena, Error> {
+    heliacal_pheno_ut_full(
+        jd_ut, longitude, latitude, altitude, atmosphere, observer, object, event_type, helflag,
+    )
+    .map(|v| {
+        let mut values = [0.0; HELIACAL_PHENO_LEN];
+        values.copy_from_slice(&v.values[..HELIACAL_PHENO_LEN]);
+        HeliacalPhenomena {
+            values,
+            diagnostic: v.diagnostic,
         }
     })
 }
