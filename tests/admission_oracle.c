@@ -19,6 +19,9 @@ int main(int argc, char **argv) {
     status = swe_lun_occult_where(strtod(argv[2], NULL), SE_MOON, NULL,
                                  flags, values, values + 10, diagnostic);
     count = 30;
+  } else if (!strcmp(argv[1], "catalog-preflight")) {
+    double magnitude = 0; snprintf(name, sizeof(name), "1");
+    status = swe_fixstar_mag(name, &magnitude, diagnostic); count = 0;
   } else if (!strcmp(argv[1], "mooncross_ut")) {
     scalar = swe_mooncross_ut(90.0, 2460310.5, flags, diagnostic);
     status = 0; count = 1; values[0] = scalar;

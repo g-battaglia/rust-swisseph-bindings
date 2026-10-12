@@ -137,7 +137,7 @@ fn check_extended_catalog_locked(function: &str) -> Result<(), Error> {
             let text = unsafe { read_native_text(diagnostic.as_ptr(), SERR_LEN) };
             return Err(Error::native(format!(
                 "{function}: fixed-star catalog unavailable; configure set_ephe_path or SE_EPHE_PATH: {text}"
-            )));
+            )).with_native_details("fixstar_mag", ret, &text));
         }
     }
     Ok(())
@@ -621,7 +621,8 @@ fn fixstar2_mag_catalog_checked_locked(star: &str) -> Result<StarMagnitude, Erro
             format!("fixstar2_mag: native computation failed (star={star:?})")
         } else {
             format!("fixstar2_mag: {diagnostic} (star={star:?})")
-        }))
+        })
+        .with_native_details("fixstar2_mag", ret, &diagnostic))
     } else {
         Ok(StarMagnitude {
             magnitude: mag,

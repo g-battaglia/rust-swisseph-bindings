@@ -1,0 +1,24 @@
+{
+  "native_commit": "9083a12d59e98034fb2337061481ac8800c16e64",
+  "input": {
+    "query": "Spica",
+    "path": "/tmp/swiss-admission-missing-data"
+  },
+  "before": "real C catalog preflight status/operation/diagnostic unavailable",
+  "after": {
+    "independent_c_pair": 1,
+    "status_exact": true,
+    "diagnostic_exact": true,
+    "operation": "fixstar_mag",
+    "extended_unsafe_lookup_not_called": true
+  },
+  "affected_star_cases": 2,
+  "strict_clippy": "pass",
+  "private_rustdoc": "pass",
+  "source_sha256": {
+    "src/stars.rs": "61ed81e5bb579b18a692cb0ebe57e56e2ffe29ca441c7491253cefe467d3cb6e",
+    "src/error.rs": "3e35ff10920172fc5ab9bc26a1ce025bdd7bc2d0b0be6fc3fb70c259ce97bd0c",
+    "tests/admission_oracle.c": "ebd02272685da180ef99dc842cbd6fffaf0edd5283b7051c0cdb8c79f1bf5e79",
+    "tests/native_admission.rs": "281af922b22b00ef573d5fc1853cc0677b3ce82ad411733626cbb692a77ba659"
+  }
+}

@@ -78,7 +78,7 @@ impl Error {
 
     /// Attach an actual negative C status and original diagnostic to a failure.
     ///
-    /// Called only after the named position entry returns a negative status;
+    /// Called only after the named native entry returns a negative status;
     /// copy its initialized diagnostic buffer without parsing the display text.
     /// Preserve the existing contextual message. No status is inferred for a
     /// Rust preflight, non-finite output or another operation lacking transport.
@@ -121,7 +121,7 @@ impl Error {
         self.native_scalar_return_bits.map(f64::from_bits)
     }
 
-    /// Original negative status from a completed position C call, when retained.
+    /// Original negative status from a completed integer-status C call, when retained.
     ///
     /// Dimensionless C return code, independent of the error display message.
     /// None means no transported status, including Rust-side admission errors;
@@ -133,7 +133,7 @@ impl Error {
 
     /// Native entry that produced the transported failure metadata.
     ///
-    /// Return the retained position/crossing entry for its failing C call; otherwise
+    /// Return the retained position/catalog/crossing entry for its failing C call; otherwise
     /// None. The static name carries no scientific or data-source guarantee.
     /// Pure metadata access never acquires or changes native state.
     pub fn native_operation(&self) -> Option<&'static str> {

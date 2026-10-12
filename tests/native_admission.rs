@@ -139,3 +139,18 @@ fn crossing_failure_retains_original_empty_diagnostic() {
         "original C sentinel differs"
     );
 }
+
+#[test]
+fn unavailable_catalog_retains_actual_preflight_metadata() {
+    let bin = oracle();
+    set_ephe_path(Some("/tmp/swiss-admission-missing-data")).unwrap();
+    let (status, _, diagnostic, _) = reference(&bin, "catalog-preflight", "1", 0);
+    let error = fixstar2_mag("Spica").unwrap_err();
+    assert_eq!(error.kind(), ErrorKind::Native);
+    assert_eq!(error.native_status(), Some(status));
+    assert_eq!(error.native_operation(), Some("fixstar_mag"));
+    assert!(
+        error.native_diagnostic() == Some(diagnostic.as_str()),
+        "actual preflight diagnostic differs"
+    );
+}

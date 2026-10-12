@@ -138,3 +138,8 @@ event searches retain their nontermination guard. Failing longitude crossings
 preserve `native_scalar_return()` (the actual TT/UT-day sentinel), entry name and
 original diagnostic separately from contextual display detail. No integer
 status, star record or astronomical result is synthesized by these changes.
+
+A missing extended catalog retains the original negative status and diagnostic
+of the safe legacy `fixstar_mag` preflight. `native_operation()` identifies the
+actual preflight rather than implying that the withheld extended query ran.
+Extended magnitude failures after admission retain their own actual C metadata.
