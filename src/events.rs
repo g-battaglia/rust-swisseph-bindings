@@ -86,7 +86,7 @@ fn check_crossing_inputs(function: &str, target: f64, jd: f64) -> Result<(), Err
 /// Classify the `double`-returning crossing result: the engine reports an
 /// error by returning a Julian Day below the search epoch (`jd - 1`).
 fn classify_crossing(
-    function: &str,
+    function: &'static str,
     jd: f64,
     target: f64,
     flags: i32,
@@ -100,7 +100,8 @@ fn classify_crossing(
             target,
             flags,
             &diagnostic,
-        )))
+        ))
+        .with_native_scalar_details(function, ret, &diagnostic))
     } else {
         Ok(LongitudeCrossing {
             time: ret,
@@ -2936,7 +2937,7 @@ pub fn lun_occult_where_full(
         ));
     }
     check_occult_star_input("lun_occult_where", star_name)?;
-    check_occult_body_input("lun_occult_where", body, star_name)?;
+    // Fixed-instant Moon geometry is finite; only event searches reject self-targets.
     with_native_access(|| lun_occult_where_full_locked(jd_ut, body, star_name, flags))
 }
 
@@ -2956,7 +2957,7 @@ pub(crate) fn lun_occult_where_full_locked(
         ));
     }
     check_occult_star_input("lun_occult_where", star_name)?;
-    check_occult_body_input("lun_occult_where", body, star_name)?;
+    // Fixed-instant Moon geometry is finite; only event searches reject self-targets.
     // Same caller-owned star buffer contract as in
     // [`lun_occult_when_glob`].
     let mut star_buffer = [0 as c_char; TEXT_BUF_LEN];

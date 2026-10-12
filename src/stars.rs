@@ -143,6 +143,23 @@ fn check_extended_catalog_locked(function: &str) -> Result<(), Error> {
     Ok(())
 }
 
+/// Admit the pinned C built-in position-query branches without a catalog.
+///
+/// These exact prefixes/contained Bayer keys select get_builtin_star in the
+/// identified C source before its unsafe missing-catalog search. This is only
+/// an input-domain guard: no coordinates, records, magnitudes or canonical
+/// names are supplied by Rust. Other queries retain the catalog preflight.
+fn is_native_builtin_position_query(star: &str) -> bool {
+    [
+        "spica", "Spica", "revati", "Revati", "pushya", "Pushya", "mula", "Mula",
+    ]
+    .into_iter()
+    .any(|prefix| star.starts_with(prefix))
+        || [",zePsc", ",deCnc", ",laSco", ",SgrA*", ",GP1958", ",GPol"]
+            .into_iter()
+            .any(|key| star.contains(key))
+}
+
 /// Calculate a fixed-star position for an Ephemeris Time Julian Day.
 ///
 /// `star` is the traditional star name (for example `"Sirius"`); `jd_et`
@@ -350,7 +367,9 @@ pub fn fixstar2(star: &str, jd_et: f64, flags: i32) -> Result<StarPosition, Erro
 pub(crate) fn fixstar2_locked(star: &str, jd_et: f64, flags: i32) -> Result<StarPosition, Error> {
     check_star_inputs("fixstar2", star, jd_et)?;
     crate::domain::check_et_locked("fixstar2", jd_et, flags)?;
-    check_extended_catalog_locked("fixstar2")?;
+    if !is_native_builtin_position_query(star) {
+        check_extended_catalog_locked("fixstar2")?;
+    }
     let mut star_buf = prepare_star_buffer(star);
     let mut xx = [0.0; POSITION_LEN];
     let mut serr = [0 as c_char; SERR_LEN];
@@ -445,7 +464,9 @@ pub(crate) fn fixstar2_ut_locked(
 ) -> Result<StarPosition, Error> {
     check_star_inputs("fixstar2_ut", star, jd_ut)?;
     crate::domain::check_ut_locked("fixstar2_ut", jd_ut, flags)?;
-    check_extended_catalog_locked("fixstar2_ut")?;
+    if !is_native_builtin_position_query(star) {
+        check_extended_catalog_locked("fixstar2_ut")?;
+    }
     let mut star_buf = prepare_star_buffer(star);
     let mut xx = [0.0; POSITION_LEN];
     let mut serr = [0 as c_char; SERR_LEN];

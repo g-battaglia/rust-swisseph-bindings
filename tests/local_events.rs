@@ -81,7 +81,6 @@ fn occult_calls_reject_bad_star_and_moon_body_path() {
         lun_occult_when_glob(J2000, MOON, None, FLG_MOSEPH, 0, false).map(|_| ()),
         lun_occult_when_glob(J2000, MOON, Some(""), FLG_MOSEPH, 0, false).map(|_| ()),
         lun_occult_when_loc(J2000, MOON, None, FLG_MOSEPH, 0.0, 51.5, 0.0, false).map(|_| ()),
-        lun_occult_where(J2000, MOON, None, FLG_MOSEPH).map(|_| ()),
     ] {
         let err = result.expect_err("Moon body path must be rejected");
         assert_eq!(err.kind(), ErrorKind::InvalidInput);

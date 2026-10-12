@@ -130,3 +130,11 @@ Negative `calc`/`calc_ut` results retain `native_status()`,
 existing contextual error message. Rust admission errors and other operations
 without this transport return `None`; an absent status is never success. These
 getters do not parse messages, change native state or infer physical data source.
+
+Built-in extended position queries use the native C records even without a
+catalog; other extended queries retain the missing-catalog safety preflight.
+Fixed-instant lunar occultation geometry accepts the Moon, while self-target
+event searches retain their nontermination guard. Failing longitude crossings
+preserve `native_scalar_return()` (the actual TT/UT-day sentinel), entry name and
+original diagnostic separately from contextual display detail. No integer
+status, star record or astronomical result is synthesized by these changes.

@@ -1,0 +1,61 @@
+{
+  "native_commit": "9083a12d59e98034fb2337061481ac8800c16e64",
+  "inputs": {
+    "path": "/tmp/swiss-admission-missing-data",
+    "star_day": 2451545.0,
+    "queries": [
+      "Spica",
+      "spica-suffix",
+      "Revati",
+      ",zePsc",
+      "Pushya",
+      ",deCnc",
+      "Mula",
+      ",laSco",
+      ",SgrA*",
+      ",GP1958",
+      ",GPol"
+    ],
+    "star_flags": [
+      2,
+      260
+    ],
+    "where_days": [
+      2451545.0,
+      2460310.5
+    ],
+    "where_flags": [
+      2,
+      4
+    ],
+    "crossing": {
+      "operation": "mooncross_ut",
+      "target_degrees": 90.0,
+      "jd_ut": 2460310.5,
+      "flags": 10
+    }
+  },
+  "before": {
+    "builtin_positions": "valid C result rejected by catalog preflight",
+    "crossing": "actual empty diagnostic unavailable",
+    "where": "finite Moon geometry rejected by search guard"
+  },
+  "after": {
+    "builtin_c_pairs": 44,
+    "where_c_pairs": 4,
+    "crossing_c_pairs": 1,
+    "all_words_flags_diagnostics_exact": true,
+    "catalog_absence_not_fabricated": true
+  },
+  "affected_harnesses": 5,
+  "affected_cases": 16,
+  "strict_clippy": "pass",
+  "private_rustdoc": "pass",
+  "sources": {
+    "src/error.rs": "742783ac81d3faebe3b60c58d3803337a6349d583616fc0052294df7e57fc401",
+    "src/stars.rs": "fd2f32e6c96a6cd52cc2633a0232da59b110720154b346fd5a3fa0806980ffd4",
+    "src/events.rs": "c18ed7ae61119981b99ee1a4186f1de18de85f90cbabbbaafcccb2b965d0119c",
+    "tests/native_admission.rs": "70972d3787fb7941c3a663f734900da6246f631ee7b601b266f4634c24cd35ce",
+    "tests/admission_oracle.c": "873df86cf83de1fad7c76818b75384273650b697415e6a73606cf10b4afd552b"
+  }
+}

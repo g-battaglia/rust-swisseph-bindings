@@ -32,6 +32,7 @@ pub struct Error {
     kind: ErrorKind,
     message: String,
     native_status: Option<i32>,
+    native_scalar_return_bits: Option<u64>,
     native_operation: Option<&'static str>,
     native_diagnostic: Option<String>,
 }
@@ -43,6 +44,7 @@ impl Error {
             kind: ErrorKind::Native,
             message: message.into(),
             native_status: None,
+            native_scalar_return_bits: None,
             native_operation: None,
             native_diagnostic: None,
         }
@@ -54,6 +56,7 @@ impl Error {
             kind: ErrorKind::InvalidInput,
             message: message.into(),
             native_status: None,
+            native_scalar_return_bits: None,
             native_operation: None,
             native_diagnostic: None,
         }
@@ -64,6 +67,7 @@ impl Error {
         Self {
             kind: ErrorKind::LockPoisoned,
             native_status: None,
+            native_scalar_return_bits: None,
             native_operation: None,
             native_diagnostic: None,
             message: String::from(
@@ -90,6 +94,33 @@ impl Error {
         self
     }
 
+    /// Retain the actual scalar return and diagnostic from a failed crossing.
+    ///
+    /// Store binary64 bits without rounding or guessing an integer status.
+    /// The caller has already classified the C failure sentinel/non-finite
+    /// result. Keep the existing display message and original bounded serr.
+    pub(crate) fn with_native_scalar_details(
+        mut self,
+        operation: &'static str,
+        value: f64,
+        diagnostic: &str,
+    ) -> Self {
+        self.native_scalar_return_bits = Some(value.to_bits());
+        self.native_operation = Some(operation);
+        self.native_diagnostic = Some(diagnostic.to_owned());
+        self
+    }
+
+    /// Actual scalar C return for a failed longitude-crossing entry, if retained.
+    ///
+    /// Units are the entry's TT/UT Julian days, including its failure sentinel;
+    /// this is never a calculated successful crossing or integer status. None
+    /// means no scalar transport. Pure decoding preserves the binary64 bits and
+    /// performs no native call, fitting, time conversion or source inference.
+    pub fn native_scalar_return(&self) -> Option<f64> {
+        self.native_scalar_return_bits.map(f64::from_bits)
+    }
+
     /// Original negative status from a completed position C call, when retained.
     ///
     /// Dimensionless C return code, independent of the error display message.
@@ -100,9 +131,9 @@ impl Error {
         self.native_status
     }
 
-    /// Native position entry that produced the transported negative status.
+    /// Native entry that produced the transported failure metadata.
     ///
-    /// Return calc or calc_ut for their completed failing C calls; otherwise
+    /// Return the retained position/crossing entry for its failing C call; otherwise
     /// None. The static name carries no scientific or data-source guarantee.
     /// Pure metadata access never acquires or changes native state.
     pub fn native_operation(&self) -> Option<&'static str> {
@@ -111,7 +142,7 @@ impl Error {
 
     /// Original C diagnostic text, independently of contextual display detail.
     ///
-    /// Return the copied, bounded, decoded serr buffer for a failing position
+    /// Return the copied, bounded, decoded serr buffer for a failing native
     /// entry, including an empty string if C supplied one. None means this
     /// failure has no transported C diagnostic. No suffix is stripped or text
     /// reconstructed; the borrowed string uses this error's lifetime.
