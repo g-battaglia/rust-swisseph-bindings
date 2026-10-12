@@ -94,7 +94,8 @@ pub(crate) fn calc_ut_locked(jd_ut: f64, body: i32, flags: i32) -> Result<Positi
             body,
             flags,
             &diagnostic,
-        )))
+        ))
+        .with_native_details("calc_ut", ret, &diagnostic))
     } else {
         if !xx.iter().all(|value| value.is_finite()) {
             return Err(Error::native(format!(
@@ -189,7 +190,8 @@ pub(crate) fn calc_locked(jd_et: f64, body: i32, flags: i32) -> Result<Position,
             body,
             flags,
             &diagnostic,
-        )))
+        ))
+        .with_native_details("calc", ret, &diagnostic))
     } else {
         if !xx.iter().all(|value| value.is_finite()) {
             return Err(Error::native(format!(

@@ -124,3 +124,9 @@ Swiss/JPL prerequisites, full matrices, sanitizers and package checks.
 ## License
 
 [AGPL-3.0-only](LICENSE). Native notices remain with the upstream submodule.
+
+Negative `calc`/`calc_ut` results retain `native_status()`,
+`native_operation()` and the original `native_diagnostic()` separately from the
+existing contextual error message. Rust admission errors and other operations
+without this transport return `None`; an absent status is never success. These
+getters do not parse messages, change native state or infer physical data source.

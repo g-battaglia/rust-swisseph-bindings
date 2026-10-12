@@ -1,0 +1,34 @@
+{
+  "native_commit": "9083a12d59e98034fb2337061481ac8800c16e64",
+  "operations": [
+    "calc",
+    "calc_ut"
+  ],
+  "inputs": {
+    "jd": 2451545.0,
+    "body": 999999,
+    "flags": [
+      258,
+      260
+    ],
+    "path": "/tmp/swiss-position-error-missing-data"
+  },
+  "before": "API unavailable: compile E0599 for native status/operation/diagnostic getters",
+  "after": {
+    "independent_c_pairs": 4,
+    "status_exact": 4,
+    "diagnostic_exact": 4,
+    "context_preserved": 4,
+    "preflight_none": 1
+  },
+  "affected_harnesses": 3,
+  "affected_cases": 20,
+  "strict_clippy": "pass",
+  "private_rustdoc": "pass",
+  "sources": {
+    "src/error.rs": "731076694f8131c9049edb81868df8d55a48d60f86f46c270b819d63b51c1cb1",
+    "src/positions.rs": "d9fba0cfefef7de1c978c0b9e3888a8eb2b236b10699db923f25df07281ef20b",
+    "tests/position_error_metadata.rs": "b7a843b132cb7c9ffb00c11befc4fb064edcd7d7597f35a5b59a07b79bac2b84",
+    "tests/position_error_oracle.c": "2628df9ec0383fd5e5461435a20d68dea1210d50544a4f0610f494d5fbc8d81b"
+  }
+}
