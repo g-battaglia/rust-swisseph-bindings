@@ -24,6 +24,12 @@
 //! return `InvalidInput`, applied settings may remain installed. Rejection
 //! preserves the session's file snapshot, not the previous global configuration.
 //!
+//! An unchanged path keeps native files and calculation caches open. The path
+//! is installed again after another path selection, a native environment or
+//! working-directory change, an explicit close, or a tidal-state change that
+//! requires its automatic-selection side effect. The public path setter remains
+//! a forced reload, including when the same path is supplied again.
+//!
 //! # Reset semantics
 //!
 //! - Ephemeris path: [`SessionBuilder::ephe_path`] selects a directory,
@@ -73,9 +79,9 @@ use std::ffi::CString;
 use std::sync::{Arc, Mutex};
 
 use crate::config::{
-    MAX_EPHE_PATH_LEN, MAX_JPL_FILE_LEN, apply_delta_t_locked, apply_ephe_path_locked,
-    apply_jpl_file_locked, apply_sid_mode_locked, apply_tid_acc_locked, apply_topo_locked,
-    check_sidereal_request_locked, get_ayanamsa_ut_locked, get_current_file_data_locked,
+    MAX_EPHE_PATH_LEN, MAX_JPL_FILE_LEN, apply_delta_t_locked, apply_jpl_file_locked,
+    apply_sid_mode_locked, apply_tid_acc_locked, apply_topo_locked, check_sidereal_request_locked,
+    ensure_ephe_path_locked, get_ayanamsa_ut_locked, get_current_file_data_locked,
 };
 use crate::error::Error;
 use crate::ffi::{HELIACAL_ATM_LEN, HELIACAL_OBS_LEN};
@@ -358,7 +364,7 @@ impl Session {
     /// the computation and the metadata snapshot).
     fn apply_locked(&self) -> Result<(), Error> {
         if let Some(path) = &self.ephe_path {
-            apply_ephe_path_locked(path.as_ref())?;
+            ensure_ephe_path_locked(path.as_ref())?;
         }
         if let Some(jpl) = &self.jpl_file {
             match jpl {

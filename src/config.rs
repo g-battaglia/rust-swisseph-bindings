@@ -29,6 +29,13 @@ struct ValidationSettings {
     delta_t: Option<f64>,
     /// Requested path plus native environment selection of the last path write.
     ephe_path: Option<(Option<CString>, Option<std::ffi::OsString>)>,
+    /// Working directory used by the last path installation.
+    ephe_path_directory: Option<std::path::PathBuf>,
+    /// Native builds with thread-local storage need an installation per thread.
+    ephe_path_thread: Option<std::thread::ThreadId>,
+    /// Automatic tidal selection immediately after that installation.
+    /// Manual tidal writes clear this even when the numerical value is equal.
+    ephe_path_tidal: Option<u64>,
     /// Last binding-owned observer and full sidereal setting, for cache reset.
     topo: Option<(f64, f64, f64)>,
     sidereal_mode: Option<(i32, f64, f64)>,
@@ -40,6 +47,9 @@ static VALIDATION_SETTINGS: Mutex<ValidationSettings> = Mutex::new(ValidationSet
     sidereal_ut_epoch: None,
     delta_t: None,
     ephe_path: None,
+    ephe_path_directory: None,
+    ephe_path_thread: None,
+    ephe_path_tidal: None,
     topo: None,
     sidereal_mode: None,
 });
@@ -154,10 +164,15 @@ pub const MAX_EPHE_PATH_LEN: usize = 242;
 /// (`None` = null = compiled default).
 pub(crate) fn apply_ephe_path_locked(path: Option<&CString>) -> Result<(), Error> {
     let key = (path.cloned(), std::env::var_os("SE_EPHE_PATH"));
+    let directory = std::env::current_dir().ok();
+    let thread = std::thread::current().id();
     let mut settings = VALIDATION_SETTINGS
         .lock()
         .map_err(|_| Error::lock_poisoned())?;
-    let changed = settings.ephe_path.as_ref() != Some(&key);
+    let changed = settings.ephe_path.as_ref() != Some(&key)
+        || directory.is_none()
+        || settings.ephe_path_directory != directory
+        || settings.ephe_path_thread != Some(thread);
     let pointer = path.map_or(std::ptr::null(), |owned| owned.as_ptr());
     // SAFETY: native access is held; strings remain alive and are copied by C.
     // C's path setter retains the extended catalog. A real path change therefore
@@ -181,7 +196,44 @@ pub(crate) fn apply_ephe_path_locked(path: Option<&CString>) -> Result<(), Error
         }
     }
     settings.ephe_path = Some(key);
+    settings.ephe_path_directory = directory;
+    settings.ephe_path_thread = Some(thread);
+    // SAFETY: native access is held; scalar read of the state just installed.
+    settings.ephe_path_tidal = Some(unsafe { ffi::swe_get_tid_acc() }.to_bits());
     Ok(())
+}
+
+/// Install a session's path only when its native configuration has changed.
+///
+/// Caller holds native access across this helper and the dependent operation.
+/// Every binding path write updates the same metadata, and explicit close
+/// clears it. Public setters always use `apply_ephe_path_locked`, retaining
+/// their forced-reload behavior. Manual tidal writes disable reuse because
+/// path installation restores automatic selection, even for an equal value.
+pub(crate) fn ensure_ephe_path_locked(path: Option<&CString>) -> Result<(), Error> {
+    let environment = std::env::var_os("SE_EPHE_PATH");
+    let working_directory = std::env::current_dir().ok();
+    let reusable = {
+        let settings = VALIDATION_SETTINGS
+            .lock()
+            .map_err(|_| Error::lock_poisoned())?;
+        settings
+            .ephe_path
+            .as_ref()
+            .is_some_and(|(saved, saved_environment)| {
+                saved.as_ref() == path && *saved_environment == environment
+            })
+            && working_directory.is_some()
+            && working_directory == settings.ephe_path_directory
+            && settings.ephe_path_thread == Some(std::thread::current().id())
+            // SAFETY: caller holds native access for this scalar read.
+            && Some(unsafe { ffi::swe_get_tid_acc() }.to_bits()) == settings.ephe_path_tidal
+    };
+    if reusable {
+        Ok(())
+    } else {
+        apply_ephe_path_locked(path)
+    }
 }
 
 /// Apply an observer position while native access is already held.
@@ -242,11 +294,15 @@ pub(crate) fn apply_jpl_file_locked(native_name: &CString) {
 /// Caller must hold the native lock.
 pub(crate) fn apply_tid_acc_locked(acc: f64) -> Result<(), Error> {
     initialize_sidereal_locked()?;
+    let mut settings = VALIDATION_SETTINGS
+        .lock()
+        .map_err(|_| Error::lock_poisoned())?;
     // SAFETY: pure value call; serialized because it mutates shared
     // native configuration read by later Delta-T computations.
     unsafe {
         ffi::swe_set_tid_acc(acc as c_double);
     }
+    settings.ephe_path_tidal = None;
     Ok(())
 }
 
@@ -273,6 +329,9 @@ pub(crate) fn apply_delta_t_locked(native_dt: f64) -> Result<(), Error> {
 /// `None` (a null pointer natively) restores the compiled default search
 /// path. The native library copies the path, so the Rust string does not
 /// need to outlive the call.
+/// Every call reloads native files and caches, even for an unchanged path.
+/// Configured [`crate::Session`] computations may instead reuse an unchanged
+/// installation while holding the same process-wide lock.
 ///
 /// # Environment interaction
 ///
