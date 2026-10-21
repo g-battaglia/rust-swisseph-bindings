@@ -45,9 +45,9 @@ struct ValidationSettings {
     ephe_path_directory: EphemerisDirectory,
     /// Native builds with thread-local storage need an installation per thread.
     ephe_path_thread: Option<std::thread::ThreadId>,
-    /// Automatic tidal selection immediately after that installation.
+    /// Path installation is still eligible for automatic tidal selection.
     /// Manual tidal writes clear this even when the numerical value is equal.
-    ephe_path_tidal: Option<u64>,
+    ephe_path_automatic_tidal: bool,
     /// Last binding-owned observer and full sidereal setting, for cache reset.
     topo: Option<(f64, f64, f64)>,
     sidereal_mode: Option<(i32, f64, f64)>,
@@ -61,7 +61,7 @@ static VALIDATION_SETTINGS: Mutex<ValidationSettings> = Mutex::new(ValidationSet
     ephe_path: None,
     ephe_path_directory: EphemerisDirectory::Unavailable,
     ephe_path_thread: None,
-    ephe_path_tidal: None,
+    ephe_path_automatic_tidal: false,
     topo: None,
     sidereal_mode: None,
 });
@@ -256,8 +256,7 @@ pub(crate) fn apply_ephe_path_locked(path: Option<&CString>) -> Result<(), Error
     settings.ephe_path = Some(key);
     settings.ephe_path_directory = directory;
     settings.ephe_path_thread = Some(thread);
-    // SAFETY: native access is held; scalar read of the state just installed.
-    settings.ephe_path_tidal = Some(unsafe { ffi::swe_get_tid_acc() }.to_bits());
+    settings.ephe_path_automatic_tidal = true;
     Ok(())
 }
 
@@ -284,8 +283,10 @@ pub(crate) fn ensure_ephe_path_locked(path: Option<&CString>) -> Result<(), Erro
             && working_directory != EphemerisDirectory::Unavailable
             && working_directory == settings.ephe_path_directory
             && settings.ephe_path_thread == Some(std::thread::current().id())
-            // SAFETY: caller holds native access for this scalar read.
-            && Some(unsafe { ffi::swe_get_tid_acc() }.to_bits()) == settings.ephe_path_tidal
+            // Binding-owned manual tidal writes clear this marker. Automatic
+            // selection changes during calculations are part of native state,
+            // not a path change: replaying the setter would reset its caches.
+            && settings.ephe_path_automatic_tidal
     };
     if reusable {
         Ok(())
@@ -360,7 +361,7 @@ pub(crate) fn apply_tid_acc_locked(acc: f64) -> Result<(), Error> {
     unsafe {
         ffi::swe_set_tid_acc(acc as c_double);
     }
-    settings.ephe_path_tidal = None;
+    settings.ephe_path_automatic_tidal = false;
     Ok(())
 }
 
