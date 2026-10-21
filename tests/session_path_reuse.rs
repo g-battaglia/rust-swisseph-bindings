@@ -193,18 +193,30 @@ fn relative_session_path_tracks_working_directory() {
             .unwrap();
     }
     let original = std::env::current_dir().unwrap();
-    std::env::set_current_dir(&full).unwrap();
-    let session = SessionBuilder::new().ephe_path(".").build().unwrap();
-    let position = session.calc_ut(JD, MARS, FLG_SWIEPH).unwrap();
-    require_source_flags(&position, FLG_SWIEPH).expect("relative data lookup");
-    std::env::set_current_dir(&empty).unwrap();
-    let position = session.calc_ut(JD, MARS, FLG_SWIEPH).unwrap();
-    assert!(
-        require_source_flags(&position, FLG_SWIEPH).is_err(),
-        "same relative spelling must observe the changed working directory"
-    );
+    for requested in [
+        None,
+        Some("."),
+        Some("/nonexistent;."),
+        Some("/nonexistent:."),
+    ] {
+        std::env::set_current_dir(&full).unwrap();
+        let mut builder = SessionBuilder::new();
+        let builder = match requested {
+            Some(path) => builder.ephe_path(path),
+            None => builder.default_ephe_path(),
+        };
+        let session = builder.build().unwrap();
+        let position = session.calc_ut(JD, MARS, FLG_SWIEPH).unwrap();
+        require_source_flags(&position, FLG_SWIEPH).expect("relative data lookup");
+        std::env::set_current_dir(&empty).unwrap();
+        let position = session.calc_ut(JD, MARS, FLG_SWIEPH).unwrap();
+        assert!(
+            require_source_flags(&position, FLG_SWIEPH).is_err(),
+            "relative and default search entries must observe the changed working directory"
+        );
+        close().unwrap();
+    }
     std::env::set_current_dir(original).unwrap();
-    close().unwrap();
     std::fs::remove_dir_all(root).unwrap();
 }
 
@@ -234,4 +246,68 @@ fn session_path_respects_native_environment_precedence() {
     assert!(file.path.starts_with(&data));
     session.calc_ut(JD, MOON, FLG_SWIEPH).unwrap();
     assert_eq!(get_current_file_data(0).unwrap(), Some(file));
+}
+
+#[test]
+fn absolute_session_paths_keep_open_files_across_directory_changes() {
+    let child_mode = std::env::var("SWISSEPH_ABSOLUTE_CWD_CHILD");
+    if child_mode.is_err() {
+        let mut failures = Vec::new();
+        for mode in ["argument", "environment"] {
+            let root = std::env::temp_dir().join(format!(
+                "swisseph-absolute-cwd-{}-{mode}",
+                std::process::id()
+            ));
+            let mut command = std::process::Command::new(std::env::current_exe().unwrap());
+            command
+                .args([
+                    "--exact",
+                    "absolute_session_paths_keep_open_files_across_directory_changes",
+                    "--nocapture",
+                    "--test-threads=1",
+                ])
+                .env("SWISSEPH_ABSOLUTE_CWD_CHILD", mode)
+                .env("SWISSEPH_ABSOLUTE_CWD_ROOT", &root)
+                .env_remove("SE_EPHE_PATH");
+            if mode == "environment" {
+                command.env("SE_EPHE_PATH", root.join("full"));
+            }
+            let output = command.output().expect("isolated absolute-path child");
+            if !output.status.success() {
+                failures.push((mode, String::from_utf8_lossy(&output.stderr).into_owned()));
+            }
+        }
+        assert!(
+            failures.is_empty(),
+            "absolute-path children failed: {failures:?}"
+        );
+        return;
+    }
+    let data = test_data::ephemeris_dir().expect("complete external ephemeris data");
+    let root = std::path::PathBuf::from(std::env::var_os("SWISSEPH_ABSOLUTE_CWD_ROOT").unwrap());
+    let full = root.join("full");
+    let empty = root.join("empty");
+    std::fs::create_dir_all(&full).unwrap();
+    std::fs::create_dir(&empty).unwrap();
+    for name in ["sepl_18.se1", "semo_18.se1"] {
+        std::os::unix::fs::symlink(std::path::Path::new(&data).join(name), full.join(name))
+            .unwrap();
+    }
+    let requested = if child_mode.unwrap() == "environment" {
+        "."
+    } else {
+        full.to_str().unwrap()
+    };
+    let session = SessionBuilder::new().ephe_path(requested).build().unwrap();
+    let first = session.calc_ut(JD, MARS, FLG_SWIEPH).unwrap();
+    require_source_flags(&first, FLG_SWIEPH).expect("absolute data lookup");
+    std::fs::remove_file(full.join("sepl_18.se1")).unwrap();
+    let original = std::env::current_dir().unwrap();
+    std::env::set_current_dir(&empty).unwrap();
+    let repeated = session.calc_ut(JD + 1.0, MARS, FLG_SWIEPH).unwrap();
+    std::env::set_current_dir(original).unwrap();
+    close().unwrap();
+    std::fs::remove_dir_all(root).unwrap();
+    require_source_flags(&repeated, FLG_SWIEPH)
+        .expect("an unrelated cwd change must keep the absolute-path file open");
 }

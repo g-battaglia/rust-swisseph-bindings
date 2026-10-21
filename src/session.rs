@@ -26,7 +26,8 @@
 //!
 //! An unchanged path keeps native files and calculation caches open. The path
 //! is installed again after another path selection, a native environment or
-//! working-directory change, an explicit close, or a tidal-state change that
+//! working-directory change affecting a relative search entry, an explicit
+//! close, or a tidal-state change that
 //! requires its automatic-selection side effect. The public path setter remains
 //! a forced reload, including when the same path is supplied again.
 //!

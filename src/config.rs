@@ -16,6 +16,18 @@ use crate::state::with_native_access;
 /// Native `SE_SIDBIT_USER_UT`, verified in the pinned public header.
 const USER_UT_BIT: i32 = 1024;
 
+/// Working-directory identity needed only by a relative native search entry.
+#[derive(Default, PartialEq, Eq)]
+enum EphemerisDirectory {
+    /// Every effective search entry is absolute; cwd cannot alter its lookup.
+    Independent,
+    /// A relative entry was installed from this directory.
+    Current(std::path::PathBuf),
+    /// A required cwd lookup failed; this state is never eligible for reuse.
+    #[default]
+    Unavailable,
+}
+
 /// Binding-owned validation metadata for write-only native settings.
 /// Access order is native lock, then this mutex. No raw-C caller outside
 /// the binding's synchronization contract is supported by this metadata.
@@ -29,8 +41,8 @@ struct ValidationSettings {
     delta_t: Option<f64>,
     /// Requested path plus native environment selection of the last path write.
     ephe_path: Option<(Option<CString>, Option<std::ffi::OsString>)>,
-    /// Working directory used by the last path installation.
-    ephe_path_directory: Option<std::path::PathBuf>,
+    /// Working-directory identity of the last effective path installation.
+    ephe_path_directory: EphemerisDirectory,
     /// Native builds with thread-local storage need an installation per thread.
     ephe_path_thread: Option<std::thread::ThreadId>,
     /// Automatic tidal selection immediately after that installation.
@@ -47,7 +59,7 @@ static VALIDATION_SETTINGS: Mutex<ValidationSettings> = Mutex::new(ValidationSet
     sidereal_ut_epoch: None,
     delta_t: None,
     ephe_path: None,
-    ephe_path_directory: None,
+    ephe_path_directory: EphemerisDirectory::Unavailable,
     ephe_path_thread: None,
     ephe_path_tidal: None,
     topo: None,
@@ -154,6 +166,52 @@ pub(crate) fn check_sidereal_request_locked(
 /// path the caller did not ask for.
 pub const MAX_EPHE_PATH_LEN: usize = 242;
 
+/// Whether the effective native search path contains a cwd-dependent entry.
+///
+/// The pinned C setter accepts a nonempty `SE_EPHE_PATH` of at most 242
+/// bytes before the requested path, and otherwise uses its compiled default
+/// for a missing, empty or oversized request. Unix lookup accepts both colon
+/// and semicolon separators; all entries must start with `/` to skip cwd.
+/// The compiled default includes `.`, and other platforms remain conservative.
+fn ephe_path_depends_on_directory(
+    path: Option<&CString>,
+    environment: Option<&std::ffi::OsStr>,
+) -> bool {
+    #[cfg(unix)]
+    {
+        let admitted = |bytes: &&[u8]| !bytes.is_empty() && bytes.len() <= MAX_EPHE_PATH_LEN;
+        let effective = environment
+            .map(std::ffi::OsStr::as_encoded_bytes)
+            .filter(admitted)
+            .or_else(|| path.map(|path| path.as_bytes()).filter(admitted));
+        effective.is_none_or(|bytes| {
+            bytes
+                .split(|byte| *byte == b':' || *byte == b';')
+                .any(|entry| !entry.starts_with(b"/"))
+        })
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (path, environment);
+        true
+    }
+}
+
+/// Capture cwd only when a native path entry can resolve against it.
+/// Failed lookups disable reuse; absolute-only paths need no filesystem call.
+fn ephe_path_directory(
+    path: Option<&CString>,
+    environment: Option<&std::ffi::OsStr>,
+) -> EphemerisDirectory {
+    if !ephe_path_depends_on_directory(path, environment) {
+        return EphemerisDirectory::Independent;
+    }
+    match std::env::current_dir() {
+        Ok(directory) => EphemerisDirectory::Current(directory),
+        Err(_) => EphemerisDirectory::Unavailable,
+    }
+}
+
 /// Apply an ephemeris path while native access is already held.
 ///
 /// # Safety contract
@@ -164,13 +222,13 @@ pub const MAX_EPHE_PATH_LEN: usize = 242;
 /// (`None` = null = compiled default).
 pub(crate) fn apply_ephe_path_locked(path: Option<&CString>) -> Result<(), Error> {
     let key = (path.cloned(), std::env::var_os("SE_EPHE_PATH"));
-    let directory = std::env::current_dir().ok();
+    let directory = ephe_path_directory(path, key.1.as_deref());
     let thread = std::thread::current().id();
     let mut settings = VALIDATION_SETTINGS
         .lock()
         .map_err(|_| Error::lock_poisoned())?;
     let changed = settings.ephe_path.as_ref() != Some(&key)
-        || directory.is_none()
+        || directory == EphemerisDirectory::Unavailable
         || settings.ephe_path_directory != directory
         || settings.ephe_path_thread != Some(thread);
     let pointer = path.map_or(std::ptr::null(), |owned| owned.as_ptr());
@@ -212,7 +270,7 @@ pub(crate) fn apply_ephe_path_locked(path: Option<&CString>) -> Result<(), Error
 /// path installation restores automatic selection, even for an equal value.
 pub(crate) fn ensure_ephe_path_locked(path: Option<&CString>) -> Result<(), Error> {
     let environment = std::env::var_os("SE_EPHE_PATH");
-    let working_directory = std::env::current_dir().ok();
+    let working_directory = ephe_path_directory(path, environment.as_deref());
     let reusable = {
         let settings = VALIDATION_SETTINGS
             .lock()
@@ -223,7 +281,7 @@ pub(crate) fn ensure_ephe_path_locked(path: Option<&CString>) -> Result<(), Erro
             .is_some_and(|(saved, saved_environment)| {
                 saved.as_ref() == path && *saved_environment == environment
             })
-            && working_directory.is_some()
+            && working_directory != EphemerisDirectory::Unavailable
             && working_directory == settings.ephe_path_directory
             && settings.ephe_path_thread == Some(std::thread::current().id())
             // SAFETY: caller holds native access for this scalar read.
@@ -1002,4 +1060,53 @@ pub(crate) fn get_current_file_data_locked(ifno: i32) -> Option<CurrentFileData>
 /// ```
 pub fn get_current_file_data(ifno: i32) -> Result<Option<CurrentFileData>, Error> {
     with_native_access(|| Ok(get_current_file_data_locked(ifno)))
+}
+
+#[cfg(all(test, unix))]
+mod path_directory_tests {
+    use super::*;
+    use std::ffi::OsStr;
+    use std::os::unix::ffi::OsStrExt;
+
+    #[test]
+    fn effective_path_keeps_native_precedence_and_separator_rules() {
+        let absolute = CString::new("/data/ephe").unwrap();
+        let relative = CString::new(".").unwrap();
+        let empty = CString::new("").unwrap();
+        for path in [None, Some(&empty), Some(&relative)] {
+            assert!(ephe_path_depends_on_directory(path, None));
+        }
+        for text in ["/a", "/a:/b", "/a;/b", "/a:/b;/c"] {
+            let path = CString::new(text).unwrap();
+            assert!(!ephe_path_depends_on_directory(Some(&path), None));
+            assert!(!ephe_path_depends_on_directory(
+                Some(&relative),
+                Some(OsStr::new(text))
+            ));
+        }
+        for text in [".", "relative", "/a:.", "/a;relative", ":/a", "/a;"] {
+            let path = CString::new(text).unwrap();
+            assert!(ephe_path_depends_on_directory(Some(&path), None));
+            assert!(ephe_path_depends_on_directory(
+                Some(&absolute),
+                Some(OsStr::new(text))
+            ));
+        }
+        for environment in [
+            OsStr::new(""),
+            OsStr::new(&"r".repeat(MAX_EPHE_PATH_LEN + 1)),
+        ] {
+            assert!(!ephe_path_depends_on_directory(
+                Some(&absolute),
+                Some(environment)
+            ));
+            assert!(ephe_path_depends_on_directory(None, Some(environment)));
+        }
+        // Native Unix filenames are bytes, not necessarily UTF-8.
+        let environment = OsStr::from_bytes(b"/data/\xff:/other");
+        assert!(!ephe_path_depends_on_directory(
+            Some(&relative),
+            Some(environment)
+        ));
+    }
 }
