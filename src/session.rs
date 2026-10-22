@@ -115,12 +115,26 @@ pub struct SessionBuilder {
     tid_acc: Option<f64>,
     delta_t: Option<Option<f64>>,
     lapse_rate: Option<f64>,
+    skip_file_data_capture: bool,
 }
 
 impl SessionBuilder {
     /// Start a session builder with every knob unset (fully inherited).
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Enable or disable owned file-metadata snapshots after computations.
+    ///
+    /// Enabled by default. Disabling avoids observing and copying the five
+    /// native file slots; it does not change configuration, calculations,
+    /// returned flags or diagnostics. Metadata getters on the built session
+    /// and its clones then return `None`, meaning no snapshot was requested,
+    /// without claiming that the computation used no files. Independent
+    /// sessions and the process-global metadata getters remain unaffected.
+    pub fn capture_file_data(&mut self, enabled: bool) -> &mut Self {
+        self.skip_file_data_capture = !enabled;
+        self
     }
 
     /// Select the ephemeris data directory for the session.
@@ -307,6 +321,7 @@ impl SessionBuilder {
             tid_acc: self.tid_acc,
             delta_t: self.delta_t,
             lapse_rate: self.lapse_rate,
+            capture_file_data: !self.skip_file_data_capture,
             file_data: Arc::new(Mutex::new(std::array::from_fn(|_| None))),
         })
     }
@@ -324,7 +339,9 @@ impl SessionBuilder {
 /// side-effect semantics.
 /// File metadata is captured before releasing native access and can be
 /// queried later without changing native state. Clones share this history;
-/// separately built sessions have independent histories.
+/// separately built sessions have independent histories. Snapshot capture can
+/// be disabled with [`SessionBuilder::capture_file_data`]; those sessions have
+/// no file history even when their computations use native data files.
 #[derive(Debug, Clone)]
 pub struct Session {
     ephe_path: Option<Option<CString>>,
@@ -334,6 +351,8 @@ pub struct Session {
     tid_acc: Option<f64>,
     delta_t: Option<Option<f64>>,
     lapse_rate: Option<f64>,
+    /// Whether computations publish an owned snapshot of the native file slots.
+    capture_file_data: bool,
     /// Owned copies of slots 0..=4, the range accepted by the pinned
     /// `swe_get_current_file_data`. Only accessed under the native lock;
     /// the inner mutex provides safe interior mutability for `&self`.
@@ -341,16 +360,17 @@ pub struct Session {
 }
 
 impl Session {
-    /// Apply configuration, compute and capture native file slots under
+    /// Apply configuration, compute and optionally capture native file slots under
     /// one acquisition. No user-provided callback reaches this helper.
     /// Lock order is always native access, then the metadata mutex.
     fn compute<R>(&self, operation: impl FnOnce() -> Result<R, Error>) -> Result<R, Error> {
         with_native_access(|| {
             self.apply_locked()?;
             let result = operation();
-            if result
-                .as_ref()
-                .is_err_and(|error| error.kind() == crate::ErrorKind::InvalidInput)
+            if !self.capture_file_data
+                || result
+                    .as_ref()
+                    .is_err_and(|error| error.kind() == crate::ErrorKind::InvalidInput)
             {
                 return result;
             }
@@ -870,9 +890,9 @@ impl Session {
     /// before native access leave it untouched.
     ///
     /// Slots and fields follow [`crate::get_current_file_data`]. Returns
-    /// `None` before the first computation, for an empty slot, or for an
-    /// ID outside `0..=4`. The report describes native slots at the end of
-    /// the operation, not a complete list of sources used by the result;
+    /// `None` when capture is disabled, before the first computation, for an
+    /// empty slot, or for an ID outside `0..=4`. The report describes native
+    /// slots at the end of the operation, not a complete list of sources used by the result;
     /// use returned source flags to detect fallback.
     pub fn get_current_file_data(
         &self,
