@@ -115,7 +115,7 @@ pub struct SessionBuilder {
     tid_acc: Option<f64>,
     delta_t: Option<Option<f64>>,
     lapse_rate: Option<f64>,
-    skip_file_data_capture: bool,
+    excluded_file_data_slots: [bool; 5],
 }
 
 impl SessionBuilder {
@@ -132,8 +132,23 @@ impl SessionBuilder {
     /// and its clones then return `None`, meaning no snapshot was requested,
     /// without claiming that the computation used no files. Independent
     /// sessions and the process-global metadata getters remain unaffected.
+    /// This replaces any selection made by [`Self::capture_file_slots`].
     pub fn capture_file_data(&mut self, enabled: bool) -> &mut Self {
-        self.skip_file_data_capture = !enabled;
+        self.excluded_file_data_slots = [!enabled; 5];
+        self
+    }
+
+    /// Select which native file slots receive owned metadata snapshots.
+    ///
+    /// The five booleans correspond to native slot indices 0 through 4. All
+    /// slots are enabled by default; `false` omits only that slot's observation
+    /// and copy. Configuration, native computations, returned flags and
+    /// diagnostics are unchanged. An omitted slot returns `None` from this
+    /// session's metadata getters, without asserting that no file was used.
+    /// Clones share the selected history; independent sessions and global
+    /// metadata getters remain unaffected. The last capture-policy setter wins.
+    pub fn capture_file_slots(&mut self, enabled: [bool; 5]) -> &mut Self {
+        self.excluded_file_data_slots = enabled.map(|enabled| !enabled);
         self
     }
 
@@ -313,6 +328,7 @@ impl SessionBuilder {
                 )
             })?;
         }
+        let capture_file_slots = self.excluded_file_data_slots.map(|excluded| !excluded);
         Ok(Session {
             ephe_path,
             jpl_file,
@@ -321,7 +337,8 @@ impl SessionBuilder {
             tid_acc: self.tid_acc,
             delta_t: self.delta_t,
             lapse_rate: self.lapse_rate,
-            capture_file_data: !self.skip_file_data_capture,
+            capture_file_data: capture_file_slots.iter().any(|enabled| *enabled),
+            capture_file_slots,
             file_data: Arc::new(Mutex::new(std::array::from_fn(|_| None))),
         })
     }
@@ -337,11 +354,12 @@ impl SessionBuilder {
 /// may leave applied settings installed globally; no transactional rollback is
 /// promised. See the module documentation for inheritance, reset and observer
 /// side-effect semantics.
-/// File metadata is captured before releasing native access and can be
+/// Selected file metadata is captured before releasing native access and can be
 /// queried later without changing native state. Clones share this history;
 /// separately built sessions have independent histories. Snapshot capture can
-/// be disabled with [`SessionBuilder::capture_file_data`]; those sessions have
-/// no file history even when their computations use native data files.
+/// be disabled with [`SessionBuilder::capture_file_data`] or restricted with
+/// [`SessionBuilder::capture_file_slots`]. Omitted slots have no history even
+/// when computations use native data files.
 #[derive(Debug, Clone)]
 pub struct Session {
     ephe_path: Option<Option<CString>>,
@@ -353,6 +371,8 @@ pub struct Session {
     lapse_rate: Option<f64>,
     /// Whether computations publish an owned snapshot of the native file slots.
     capture_file_data: bool,
+    /// Native file slots selected for owned observation after computations.
+    capture_file_slots: [bool; 5],
     /// Owned copies of slots 0..=4, the range accepted by the pinned
     /// `swe_get_current_file_data`. Only accessed under the native lock;
     /// the inner mutex provides safe interior mutability for `&self`.
@@ -377,17 +397,22 @@ impl Session {
             match self.file_data.lock() {
                 Ok(mut files) => {
                     // The native lock also serializes public snapshot readers.
-                    // Refresh every slot before publishing the complete snapshot,
+                    // Refresh selected slots before publishing the snapshot,
                     // reusing only the owned strings' allocation capacity.
                     for (slot, file) in files.iter_mut().enumerate() {
-                        crate::config::capture_current_file_data_locked(slot as i32, file);
+                        if self.capture_file_slots[slot] {
+                            crate::config::capture_current_file_data_locked(slot as i32, file);
+                        }
                     }
                 }
                 Err(_) => {
-                    // Keep the same five observations before the existing lock
+                    // Keep the same selected observations before the existing lock
                     // failure, including when the computation already failed.
-                    let _files: [Option<crate::CurrentFileData>; 5] =
-                        std::array::from_fn(|slot| get_current_file_data_locked(slot as i32));
+                    let _files: [Option<crate::CurrentFileData>; 5] = std::array::from_fn(|slot| {
+                        self.capture_file_slots[slot]
+                            .then(|| get_current_file_data_locked(slot as i32))
+                            .flatten()
+                    });
                     return Err(Error::lock_poisoned());
                 }
             }
@@ -890,7 +915,7 @@ impl Session {
     /// before native access leave it untouched.
     ///
     /// Slots and fields follow [`crate::get_current_file_data`]. Returns
-    /// `None` when capture is disabled, before the first computation, for an
+    /// `None` when capture is disabled for that slot, before the first computation, for an
     /// empty slot, or for an ID outside `0..=4`. The report describes native
     /// slots at the end of the operation, not a complete list of sources used by the result;
     /// use returned source flags to detect fallback.

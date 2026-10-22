@@ -101,3 +101,109 @@ fn disabled_file_capture_preserves_native_houses_and_independent_snapshots() {
         "reenabling capture must restore the default snapshot contract"
     );
 }
+
+#[test]
+fn selected_file_slots_preserve_native_positions_and_owned_provenance() {
+    use swisseph_bindings::{
+        CHIRON, EARTH, FLG_EQUATORIAL, FLG_SIDEREAL, FLG_SPEED, FLG_SWIEPH, JUPITER, MERCURY,
+        PLUTO, SUN, calc_ut, get_current_file_data, require_source_flags,
+    };
+
+    let path = std::env::var("SWISSEPH_EPHE_DIR").expect("explicit native data directory");
+    let mut builder = SessionBuilder::new();
+    builder.ephe_path(&path).sid_mode(1, 0.0, 0.0);
+    let complete = builder.build().unwrap();
+    let seed = complete
+        .calc_ut(2451545.0, CHIRON, FLG_SWIEPH | FLG_SPEED)
+        .unwrap();
+    require_source_flags(&seed, FLG_SWIEPH).unwrap();
+    assert!(
+        complete.get_current_file_data(2).unwrap().is_some(),
+        "asteroid metadata fixture must be populated"
+    );
+    let selected = builder
+        .capture_file_slots([true, true, false, false, false])
+        .build()
+        .unwrap();
+
+    for day in [2451545.0, 2460310.5, 2460676.5] {
+        for flags in [
+            FLG_MOSEPH | FLG_SPEED,
+            FLG_SWIEPH | FLG_SPEED,
+            FLG_SWIEPH | FLG_SPEED | FLG_EQUATORIAL,
+            FLG_SWIEPH | FLG_SPEED | FLG_SIDEREAL,
+        ] {
+            for body in [SUN, MOON, MERCURY, JUPITER, PLUTO, EARTH] {
+                let baseline = complete.calc_ut(day, body, flags).unwrap();
+                let actual = selected.calc_ut(day, body, flags).unwrap();
+                let direct = calc_ut(day, body, flags).unwrap();
+                for expected in [&baseline, &direct] {
+                    assert!(
+                        actual
+                            .values
+                            .iter()
+                            .zip(expected.values)
+                            .all(|(a, b)| a.to_bits() == b.to_bits())
+                            && actual.returned_flags == expected.returned_flags
+                            && actual.diagnostic == expected.diagnostic,
+                        "selected metadata slots must preserve original native values, flags and diagnostics"
+                    );
+                }
+                for slot in 0..2 {
+                    assert!(
+                        selected.get_current_file_data(slot).unwrap()
+                            == get_current_file_data(slot).unwrap(),
+                        "selected owned metadata must match the native snapshot"
+                    );
+                }
+                for slot in 2..5 {
+                    assert!(
+                        selected.get_current_file_data(slot).unwrap().is_none(),
+                        "unselected metadata must not be captured"
+                    );
+                }
+            }
+        }
+    }
+    let before: Vec<_> = (0..5)
+        .map(|slot| complete.get_current_file_data(slot).unwrap())
+        .collect();
+    let clone = selected.clone();
+    clone
+        .calc_ut(2461000.5, MOON, FLG_SWIEPH | FLG_SPEED)
+        .unwrap();
+    assert!(
+        (0..5).all(|slot| complete.get_current_file_data(slot).unwrap() == before[slot as usize]),
+        "selected session clones must not replace another owner's history"
+    );
+    assert!(
+        clone.get_current_file_data(1).unwrap() == selected.get_current_file_data(1).unwrap(),
+        "clones must retain the same selected history"
+    );
+    assert!(
+        selected.calc_ut(f64::NAN, MOON, FLG_SWIEPH).is_err(),
+        "selected snapshots must not weaken input admission"
+    );
+    let restored = builder.capture_file_data(true).build().unwrap();
+    restored
+        .calc_ut(2451545.0, MOON, FLG_SWIEPH | FLG_SPEED)
+        .unwrap();
+    assert!(
+        (0..5).all(|slot| restored.get_current_file_data(slot).unwrap()
+            == get_current_file_data(slot).unwrap()),
+        "enabling all snapshots must override an earlier slot selection"
+    );
+    let reselected = builder
+        .capture_file_data(false)
+        .capture_file_slots([false, true, false, false, false])
+        .build()
+        .unwrap();
+    reselected
+        .calc_ut(2451545.0, MOON, FLG_SWIEPH | FLG_SPEED)
+        .unwrap();
+    assert!(
+        reselected.get_current_file_data(1).unwrap().is_some()
+            && reselected.get_current_file_data(0).unwrap().is_none(),
+        "slot selection must override disabled snapshots"
+    );
+}
