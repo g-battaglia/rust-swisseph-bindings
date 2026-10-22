@@ -9,9 +9,14 @@ int main(int argc, char **argv) {
   double words[6] = {0}; char diagnostic[256] = {0};
   swe_set_ephe_path("/tmp/swiss-position-error-missing-data");
   int32 flags = (int32)strtol(argv[2], NULL, 10);
-  int32 status = !strcmp(argv[1], "calc")
-    ? swe_calc(2451545.0, 999999, flags, words, diagnostic)
-    : swe_calc_ut(2451545.0, 999999, flags, words, diagnostic);
+  int32 status;
+  if (!strcmp(argv[1], "calc"))
+    status = swe_calc(2451545.0, 999999, flags, words, diagnostic);
+  else if (!strcmp(argv[1], "calc_ut"))
+    status = swe_calc_ut(2451545.0, 999999, flags, words, diagnostic);
+  else if (!strcmp(argv[1], "calc_pctr"))
+    status = swe_calc_pctr(2451545.0, SE_MOON, SE_MARS, flags, words, diagnostic);
+  else return 2;
   uint32_t length = (uint32_t)strlen(diagnostic);
   fwrite(&status, sizeof(status), 1, stdout);
   fwrite(&length, sizeof(length), 1, stdout);

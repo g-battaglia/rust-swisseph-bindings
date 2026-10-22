@@ -332,9 +332,10 @@ pub(crate) fn calc_pctr_locked(
             if diagnostic.is_empty() {
                 "native computation failed".to_string()
             } else {
-                diagnostic
+                diagnostic.clone()
             },
-        )))
+        ))
+        .with_native_details("calc_pctr", ret, &diagnostic))
     } else {
         if !xx.iter().all(|value| value.is_finite()) {
             return Err(Error::native(format!(
