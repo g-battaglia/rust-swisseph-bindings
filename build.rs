@@ -106,6 +106,12 @@ fn main() {
     } else {
         "-O2"
     };
+    // The Darwin linker consumes the compiler's native bitcode archive and
+    // optimizes across the C translation units. Keep ordinary floating-point
+    // semantics and portable target instructions; development builds and
+    // other linkers retain ordinary native objects.
+    let native_lto = optimization == "-O3"
+        && env::var("TARGET").is_ok_and(|target| target.ends_with("-apple-darwin"));
 
     // 1. ABI probe: verify native integer widths before compiling.
     let probe_path = out.join("abi_probe.c");
@@ -139,9 +145,12 @@ fn main() {
             .expect("native source filename")
             .to_string_lossy();
         let object = out.join(format!("{name}.o"));
-        let status = Command::new(&cc)
-            .arg(optimization)
-            .arg("-fPIC")
+        let mut compiler = Command::new(&cc);
+        compiler.arg(optimization).arg("-fPIC");
+        if native_lto {
+            compiler.arg("-flto");
+        }
+        let status = compiler
             .arg(format!("-I{}", native.display()))
             .arg("-c")
             .arg(&input)
@@ -175,7 +184,7 @@ fn main() {
 
     println!("cargo:rustc-link-search=native={}", out.display());
     println!("cargo:rustc-link-lib=static=swisseph");
-    write_input_manifest(&out, &cc, optimization);
+    write_input_manifest(&out, &cc, optimization, native_lto);
 }
 
 /// Record which native inputs produced the linked archive without touching
@@ -185,7 +194,7 @@ fn main() {
 /// tracked native input, plus a best-effort compiler version line. It
 /// never shells out to Git, so it also works when built from an extracted
 /// package without version-control metadata.
-fn write_input_manifest(out: &Path, cc: &str, optimization: &str) {
+fn write_input_manifest(out: &Path, cc: &str, optimization: &str, native_lto: bool) {
     let manifest = out.join("native-inputs.txt");
     let mut content = String::from("pinned native inputs (see validation/source-pins.json):\n");
     for name in SOURCES.iter().chain(HEADERS.iter()) {
@@ -193,7 +202,8 @@ fn write_input_manifest(out: &Path, cc: &str, optimization: &str) {
     }
     content.push_str(&format!("{COMPAT_SOURCE}\n"));
     content.push_str(&format!("compiler: {cc}\n"));
-    content.push_str(&format!("cflags: {optimization} -fPIC\n"));
+    let lto_flag = if native_lto { " -flto" } else { "" };
+    content.push_str(&format!("cflags: {optimization} -fPIC{lto_flag}\n"));
     let version_line = Command::new(cc)
         .arg("--version")
         .output()
