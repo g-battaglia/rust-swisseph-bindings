@@ -1208,31 +1208,39 @@ pub fn pheno_ut(jd_ut: f64, body: i32, flags: i32) -> Result<Phenomena, Error> {
     if !jd_ut.is_finite() {
         return Err(Error::invalid_input("pheno_ut: Julian Day must be finite"));
     }
-    with_native_access(|| {
-        crate::domain::check_ut_locked("pheno_ut", jd_ut, flags)?;
-        let mut attr = [0.0; PHENO_LEN];
-        let mut serr = [0 as c_char; SERR_LEN];
-        // SAFETY: same contract as in [`pheno`].
-        let ret =
-            unsafe { ffi::swe_pheno_ut(jd_ut, body, flags, attr.as_mut_ptr(), serr.as_mut_ptr()) };
-        // SAFETY: same contract as in [`pheno`].
-        let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
-        if ret < 0 {
-            Err(Error::native(describe_physical_failure(
-                "pheno_ut",
-                jd_ut,
-                body,
-                flags,
-                &diagnostic,
-            )))
-        } else {
-            Ok(Phenomena {
-                values: attr,
-                returned_flags: ret,
-                diagnostic,
-            })
-        }
-    })
+    with_native_access(|| pheno_ut_locked(jd_ut, body, flags))
+}
+
+/// Execute UT phenomena while the native configuration lock is already held.
+/// Julian days, body, flags, all twenty words and native diagnostics retain the
+/// public operation's units and domain. No setters or alternate calculation run.
+pub(crate) fn pheno_ut_locked(jd_ut: f64, body: i32, flags: i32) -> Result<Phenomena, Error> {
+    if !jd_ut.is_finite() {
+        return Err(Error::invalid_input("pheno_ut: Julian Day must be finite"));
+    }
+    crate::domain::check_ut_locked("pheno_ut", jd_ut, flags)?;
+    let mut attr = [0.0; PHENO_LEN];
+    let mut serr = [0 as c_char; SERR_LEN];
+    // SAFETY: same contract as in [`pheno`].
+    let ret =
+        unsafe { ffi::swe_pheno_ut(jd_ut, body, flags, attr.as_mut_ptr(), serr.as_mut_ptr()) };
+    // SAFETY: same contract as in [`pheno`].
+    let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
+    if ret < 0 {
+        Err(Error::native(describe_physical_failure(
+            "pheno_ut",
+            jd_ut,
+            body,
+            flags,
+            &diagnostic,
+        )))
+    } else {
+        Ok(Phenomena {
+            values: attr,
+            returned_flags: ret,
+            diagnostic,
+        })
+    }
 }
 
 /// Osculating Keplerian elements as computed by

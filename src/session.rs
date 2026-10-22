@@ -407,6 +407,23 @@ impl Session {
         self.compute(|| calc_ut_locked(jd_ut, body, flags))
     }
 
+    /// Planetary phenomena for a Universal Time Julian Day.
+    ///
+    /// Apply this session's path, observer, sidereal, tidal and Delta-T settings
+    /// atomically with the same native operation as [`crate::pheno_ut`]. Body and
+    /// flags follow that function; all twenty words, returned flags and native
+    /// diagnostic are preserved. An unchanged path keeps files/caches open under
+    /// the existing session rules; public setters and explicit close still reload.
+    ///
+    /// Non-finite days fail before configuration is applied. Other domain,
+    /// native and lock errors follow the free operation without a retry.
+    pub fn pheno_ut(&self, jd_ut: f64, body: i32, flags: i32) -> Result<crate::Phenomena, Error> {
+        if !jd_ut.is_finite() {
+            return Err(Error::invalid_input("pheno_ut: Julian Day must be finite"));
+        }
+        self.compute(|| crate::observer::pheno_ut_locked(jd_ut, body, flags))
+    }
+
     /// Body position for an Ephemeris Time Julian Day.
     ///
     /// Same configuration dependence as [`Session::calc_ut`] through the
