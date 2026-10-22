@@ -448,13 +448,27 @@ pub fn smoke(empty_path: &str) -> Vec<Case> {
             ),
         ));
     }
-    for (index, angle) in [-360.0, -29.999999, -0.0, 0.0, 29.999999, 360.0]
-        .into_iter()
-        .enumerate()
+    for (index, angle) in [
+        -360.0,
+        -29.999999,
+        -0.0,
+        0.0,
+        29.999999,
+        360.0,
+        45.5,
+        13.3333333333,
+    ]
+    .into_iter()
+    .enumerate()
     {
         for flags in [
             0,
             SPLIT_DEG_ROUND_SEC,
+            SPLIT_DEG_ROUND_MIN,
+            SPLIT_DEG_ROUND_DEG,
+            SPLIT_DEG_ROUND_SEC | SPLIT_DEG_ROUND_MIN,
+            SPLIT_DEG_ROUND_MIN | SPLIT_DEG_ROUND_DEG,
+            SPLIT_DEG_ROUND_SEC | SPLIT_DEG_ROUND_MIN | SPLIT_DEG_ROUND_DEG,
             SPLIT_DEG_ZODIACAL,
             SPLIT_DEG_NAKSHATRA,
             SPLIT_DEG_ROUND_DEG | SPLIT_DEG_KEEP_DEG,
