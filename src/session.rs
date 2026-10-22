@@ -354,8 +354,23 @@ impl Session {
             {
                 return result;
             }
-            let files = std::array::from_fn(|slot| get_current_file_data_locked(slot as i32));
-            *self.file_data.lock().map_err(|_| Error::lock_poisoned())? = files;
+            match self.file_data.lock() {
+                Ok(mut files) => {
+                    // The native lock also serializes public snapshot readers.
+                    // Refresh every slot before publishing the complete snapshot,
+                    // reusing only the owned strings' allocation capacity.
+                    for (slot, file) in files.iter_mut().enumerate() {
+                        crate::config::capture_current_file_data_locked(slot as i32, file);
+                    }
+                }
+                Err(_) => {
+                    // Keep the same five observations before the existing lock
+                    // failure, including when the computation already failed.
+                    let _files: [Option<crate::CurrentFileData>; 5] =
+                        std::array::from_fn(|slot| get_current_file_data_locked(slot as i32));
+                    return Err(Error::lock_poisoned());
+                }
+            }
             result
         })
     }
@@ -818,3 +833,7 @@ impl Session {
         })
     }
 }
+
+#[cfg(test)]
+#[path = "session_snapshot_storage_tests.rs"]
+mod snapshot_storage_tests;

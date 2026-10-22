@@ -1039,15 +1039,24 @@ pub struct CurrentFileData {
 /// Caller must hold the native lock. A null return means "no file for
 /// this slot" and yields `None`.
 pub(crate) fn get_current_file_data_locked(ifno: i32) -> Option<CurrentFileData> {
+    let mut data = None;
+    capture_current_file_data_locked(ifno, &mut data);
+    data
+}
+
+/// Replace one owned snapshot with a fresh native file-slot observation.
+///
+/// The caller holds native access. Every call queries the requested slot and
+/// copies its current path bytes and scalar fields; a null path clears the
+/// snapshot. Existing path capacity is reused, without retaining a native
+/// pointer, skipping a query or comparing against earlier field values.
+pub(crate) fn capture_current_file_data_locked(ifno: i32, target: &mut Option<CurrentFileData>) {
     let mut tfstart: c_double = 0.0;
     let mut tfend: c_double = 0.0;
     let mut denum: std::ffi::c_int = 0;
-    // SAFETY: each out variable owns exactly one writable slot of
-    // the declared type and outlives this call under the caller's native
-    // lock. A null return means "no file for this slot" and leaves
-    // the out parameters untouched (established by probing); a
-    // non-null return aliases native static storage and is copied
-    // into owned storage before the lock is released.
+    // SAFETY: each out variable has the native declared type and remains live
+    // under the caller's lock. A non-null path is NUL-terminated static native
+    // storage, copied immediately before any subsequent native call.
     unsafe {
         let ptr = ffi::swe_get_current_file_data(
             ifno as std::ffi::c_int,
@@ -1056,14 +1065,27 @@ pub(crate) fn get_current_file_data_locked(ifno: i32) -> Option<CurrentFileData>
             &mut denum,
         );
         if ptr.is_null() {
-            return None;
+            *target = None;
+            return;
         }
-        Some(CurrentFileData {
-            path: crate::ffi::copy_returned_string(ptr, b""),
-            tfstart,
-            tfend,
-            denum,
-        })
+        let path = std::ffi::CStr::from_ptr(ptr).to_string_lossy();
+        match target {
+            Some(data) => {
+                data.path.clear();
+                data.path.push_str(&path);
+                data.tfstart = tfstart;
+                data.tfend = tfend;
+                data.denum = denum;
+            }
+            None => {
+                *target = Some(CurrentFileData {
+                    path: path.into_owned(),
+                    tfstart,
+                    tfend,
+                    denum,
+                });
+            }
+        }
     }
 }
 
