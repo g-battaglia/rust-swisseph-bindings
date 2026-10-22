@@ -2938,7 +2938,6 @@ pub fn lun_occult_where_full(
         ));
     }
     check_occult_star_input("lun_occult_where", star_name)?;
-    // Fixed-instant Moon geometry is finite; only event searches reject self-targets.
     with_native_access(|| lun_occult_where_full_locked(jd_ut, body, star_name, flags))
 }
 
@@ -2958,6 +2957,14 @@ pub(crate) fn lun_occult_where_full_locked(
         ));
     }
     check_occult_star_input("lun_occult_where", star_name)?;
+    // A coincident lunar target has no defined occultation geometry: the
+    // native calculation produces non-finite geographic components. Keep the
+    // existing safe boundary's explicit rejection rather than exposing them.
+    if body == crate::MOON && star_name.is_none_or(str::is_empty) {
+        return Err(Error::invalid_input(
+            "lun_occult_where: the Moon cannot be its own occultation target",
+        ));
+    }
     // Fixed-instant Moon geometry is finite; only event searches reject self-targets.
     // Same caller-owned star buffer contract as in
     // [`lun_occult_when_glob`].
@@ -3016,6 +3023,8 @@ pub(crate) fn lun_occult_where_full_locked(
 /// Project native occultation geography to the retained longitude/latitude API.
 ///
 /// UT days, body/star selection and source flags follow lun_occult_where_full.
+/// A Moon body target without an effective star name returns `InvalidInput`:
+/// self-occultation has no defined geographic position in the native engine.
 /// All twenty attributes, type and diagnostic survive. Geographic slots0/1 are
 /// degrees east/north; other geography is available through the full result.
 /// Native input, catalog and data failures propagate without an alternate call.

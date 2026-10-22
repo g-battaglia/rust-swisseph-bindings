@@ -6,10 +6,12 @@
 //! when its sources are absent the build fails with a message that names
 //! the missing prerequisite instead of an obscure compiler error.
 //!
-//! Library translation units follow the upstream `Makefile` (`SWEOBJ`):
+//! Engine translation units follow the upstream `Makefile` (`SWEOBJ`):
 //! command line tools (`swetest`, `swevents`, `swemini`, `obama`), test
 //! oracles and unrelated programs are excluded. All compiler outputs live
-//! under Cargo `OUT_DIR`; nothing is written into the submodule.
+//! under Cargo `OUT_DIR`; nothing is written into the submodule. The separately
+//! attributed 2.10.03 degree splitter is an explicit versioned compatibility
+//! unit under `src/native/`, without changing any pinned engine source.
 
 use std::env;
 use std::fs;
@@ -49,6 +51,9 @@ const HEADERS: &[&str] = &[
     "swenut2000a.h",
 ];
 
+/// Versioned upstream utility kept separately from the current engine.
+const COMPAT_SOURCE: &str = "src/native/split_deg_2_10_03.c";
+
 /// C probe asserting the ABI widths the Rust declarations rely on.
 ///
 /// `int32` is `int` (32 bit) outside 16-bit targets and `double` is IEEE
@@ -77,6 +82,7 @@ fn main() {
     // a changed compiler must rerun this script instead of silently
     // reusing the cached archive.
     println!("cargo:rerun-if-env-changed=CC");
+    println!("cargo:rerun-if-changed={COMPAT_SOURCE}");
     for name in SOURCES.iter().chain(HEADERS.iter()) {
         println!("cargo:rerun-if-changed=swisseph/{name}");
     }
@@ -93,6 +99,13 @@ fn main() {
     }
 
     let cc = env::var("CC").unwrap_or_else(|_| "cc".to_string());
+    // Use ordinary full optimization for a release build. This never enables
+    // fast-math, reassociation, reduced precision or host-specific instructions.
+    let optimization = if env::var("OPT_LEVEL").as_deref() == Ok("3") {
+        "-O3"
+    } else {
+        "-O2"
+    };
 
     // 1. ABI probe: verify native integer widths before compiling.
     let probe_path = out.join("abi_probe.c");
@@ -115,15 +128,23 @@ fn main() {
     }
 
     // 2. Compile each translation unit into OUT_DIR.
-    let mut objects = Vec::with_capacity(SOURCES.len());
-    for name in SOURCES {
+    let mut objects = Vec::with_capacity(SOURCES.len() + 1);
+    let inputs = SOURCES
+        .iter()
+        .map(|name| native.join(name))
+        .chain(std::iter::once(manifest.join(COMPAT_SOURCE)));
+    for input in inputs {
+        let name = input
+            .file_name()
+            .expect("native source filename")
+            .to_string_lossy();
         let object = out.join(format!("{name}.o"));
         let status = Command::new(&cc)
-            .arg("-O2")
+            .arg(optimization)
             .arg("-fPIC")
             .arg(format!("-I{}", native.display()))
             .arg("-c")
-            .arg(native.join(name))
+            .arg(&input)
             .arg("-o")
             .arg(&object)
             .status();
@@ -131,7 +152,8 @@ fn main() {
             Ok(status) if status.success() => objects.push(object),
             Ok(status) => {
                 panic!(
-                    "compiling swisseph/{name} failed (exit {status}); see compiler output above"
+                    "compiling {} failed (exit {status}); see compiler output above",
+                    input.display()
                 )
             }
             Err(err) => panic!("cannot run C compiler `{cc}`: {err}"),
@@ -153,7 +175,7 @@ fn main() {
 
     println!("cargo:rustc-link-search=native={}", out.display());
     println!("cargo:rustc-link-lib=static=swisseph");
-    write_input_manifest(&out, &cc);
+    write_input_manifest(&out, &cc, optimization);
 }
 
 /// Record which native inputs produced the linked archive without touching
@@ -163,14 +185,15 @@ fn main() {
 /// tracked native input, plus a best-effort compiler version line. It
 /// never shells out to Git, so it also works when built from an extracted
 /// package without version-control metadata.
-fn write_input_manifest(out: &Path, cc: &str) {
+fn write_input_manifest(out: &Path, cc: &str, optimization: &str) {
     let manifest = out.join("native-inputs.txt");
     let mut content = String::from("pinned native inputs (see validation/source-pins.json):\n");
     for name in SOURCES.iter().chain(HEADERS.iter()) {
         content.push_str(&format!("swisseph/{name}\n"));
     }
+    content.push_str(&format!("{COMPAT_SOURCE}\n"));
     content.push_str(&format!("compiler: {cc}\n"));
-    content.push_str("cflags: -O2 -fPIC\n");
+    content.push_str(&format!("cflags: {optimization} -fPIC\n"));
     let version_line = Command::new(cc)
         .arg("--version")
         .output()

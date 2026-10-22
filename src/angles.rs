@@ -649,8 +649,8 @@ pub fn cs2degstr(cs: i32) -> Result<String, Error> {
 /// Returned by [`split_deg`]: `deg` holds whole degrees (within the
 /// zodiac sign or nakshatra when those flags are used, otherwise the
 /// total absolute degrees), `min` and `sec` hold whole arcminutes and
-/// arcseconds (0-59), `secfr` holds the fractional arcseconds — or, when
-/// a rounding flag is active, the rounded whole seconds as a float — and
+/// arcseconds (0-59), `secfr` holds the fractional arcseconds (zero when
+/// rounding in the current engine, rounded whole seconds in 2.10.03) and
 /// `sign` holds `+1`/`−1` for an ordinary split, the 0-11 zodiac segment
 /// with [`SPLIT_DEG_ZODIACAL`](crate::SPLIT_DEG_ZODIACAL), or the
 /// nakshatra index with
@@ -663,7 +663,7 @@ pub struct SplitDeg {
     pub min: i32,
     /// Whole arcseconds (0-59).
     pub sec: i32,
-    /// Fractional arcseconds, or the rounded seconds when rounding.
+    /// Fractional arcseconds; the versioned 2.10.03 utility retains rounded seconds.
     pub secfr: f64,
     /// Sign (+1/−1) or segment index, per the flags used.
     pub sign: i32,
@@ -715,6 +715,43 @@ pub struct SplitDeg {
 /// # Ok::<(), swisseph_bindings::Error>(())
 /// ```
 pub fn split_deg(degree: f64, roundflag: i32) -> Result<SplitDeg, Error> {
+    split_deg_with(degree, roundflag, ffi::swe_split_deg)
+}
+
+/// Split decimal degrees with the exact Swiss Ephemeris 2.10.03 output contract.
+///
+/// Inputs, flag precedence, sign/segment numbering and units follow
+/// [`split_deg`]. Unlike the current engine, rounding retains the lower minute
+/// and second fields and places rounded whole seconds in `secfr`. This calls
+/// the separately attributed original C utility; it does not reconstruct a
+/// result from the current engine. The current [`split_deg`] entry is unchanged.
+/// Nakshatra splitting reads the active native sidereal mode under the same
+/// process-wide lock, including the True Sheoran offset.
+///
+/// Non-finite degrees and values outside ±2,147,483,647 degrees return
+/// [`crate::ErrorKind::InvalidInput`]. Native lock poisoning and reentry retain
+/// their ordinary errors. No ephemeris files or position calculations are used.
+///
+/// ```
+/// let legacy = swisseph_bindings::split_deg_2_10_03(12.345678, 1)?;
+/// assert_eq!(legacy.secfr, f64::from(legacy.sec));
+/// assert_eq!(swisseph_bindings::split_deg(12.345678, 1)?.secfr, 0.0);
+/// # Ok::<(), swisseph_bindings::Error>(())
+/// ```
+pub fn split_deg_2_10_03(degree: f64, roundflag: i32) -> Result<SplitDeg, Error> {
+    split_deg_with(degree, roundflag, ffi::swe_split_deg_2_10_03)
+}
+
+/// Native ABI shared by the current and explicitly versioned split utilities.
+type SplitDegreeFunction =
+    unsafe extern "C" fn(c_double, i32, *mut i32, *mut i32, *mut i32, *mut c_double, *mut i32);
+
+/// Admit the common finite domain and copy all five native output fields.
+fn split_deg_with(
+    degree: f64,
+    roundflag: i32,
+    operation: SplitDegreeFunction,
+) -> Result<SplitDeg, Error> {
     if !degree.is_finite() || degree < -2147483647.0 || degree > 2147483647.0 {
         return Err(Error::invalid_input(format!(
             "split_deg: degree must be finite and within +-2147483647.0 ({degree})"
@@ -731,7 +768,7 @@ pub fn split_deg(degree: f64, roundflag: i32) -> Result<SplitDeg, Error> {
         // lock. The engine writes all five slots. The domain check above
         // keeps every native floating-to-integer conversion in-range.
         unsafe {
-            ffi::swe_split_deg(
+            operation(
                 degree as c_double,
                 roundflag,
                 &mut deg,

@@ -143,3 +143,17 @@ A missing extended catalog retains the original negative status and diagnostic
 of the safe legacy `fixstar_mag` preflight. `native_operation()` identifies the
 actual preflight rather than implying that the withheld extended query ran.
 Extended magnitude failures after admission retain their own actual C metadata.
+
+### Versioned degree splitting
+
+`split_deg` returns the pinned native engine's current output. Applications
+that require the original Swiss Ephemeris 2.10.03 field layout can explicitly
+use `split_deg_2_10_03`: rounding retains the lower minute/second fields and
+returns rounded whole seconds in `secfr`. Its separately attributed upstream
+C utility is included under `src/native/`; the engine submodule is unchanged.
+Both entries use the same finite input capacity, native lock and sidereal
+state. No ephemeris data or positional approximation is involved.
+
+`Session::copy_captured_file_path_into` projects an already-owned file-path
+snapshot without acquiring native C access. It preserves owned bytes and
+reuses caller storage; calculations still refresh every native file slot.

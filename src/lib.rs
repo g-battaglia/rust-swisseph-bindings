@@ -48,6 +48,7 @@ mod version;
 pub use angles::{
     SplitDeg, cotrans, cotrans_sp, cs2degstr, cs2lonlatstr, cs2timestr, csnorm, csroundsec, d2l,
     deg_midp, degnorm, difcs2n, difcsn, difdeg2n, difdegn, difrad2n, rad_midp, radnorm, split_deg,
+    split_deg_2_10_03,
 };
 pub use config::{
     Ayanamsha, CurrentFileData, MAX_EPHE_PATH_LEN, MAX_JPL_FILE_LEN, close, ensure_ephe_path,

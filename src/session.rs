@@ -822,21 +822,40 @@ impl Session {
         ifno: i32,
         target: &mut Option<String>,
     ) -> Result<(), Error> {
-        with_native_access(|| {
-            let files = self.file_data.lock().map_err(|_| Error::lock_poisoned())?;
-            let file = usize::try_from(ifno)
-                .ok()
-                .and_then(|slot| files.get(slot))
-                .ok_or_else(|| Error::invalid_input("file slot must be in 0..=4"))?;
-            match file {
-                Some(file) => match target {
-                    Some(path) => path.clone_from(&file.path),
-                    None => *target = Some(file.path.clone()),
-                },
-                None => *target = None,
-            }
-            Ok(())
-        })
+        with_native_access(|| self.copy_captured_file_path_into(ifno, target))
+    }
+
+    /// Copy an already-owned session snapshot path without acquiring native C.
+    ///
+    /// `ifno` is a file slot in `0..=4`. Output bytes, capacity reuse and empty
+    /// snapshots follow [`Self::get_current_file_path_into`]. This operation
+    /// locks only the owned snapshot: it neither applies configuration nor
+    /// reads native state. It is suitable for projecting metadata immediately
+    /// after a calculation, and concurrent calculations publish a complete
+    /// snapshot before readers can acquire it. No native pointer escapes.
+    ///
+    /// Invalid slots return [`crate::ErrorKind::InvalidInput`], and a poisoned
+    /// snapshot mutex returns [`crate::ErrorKind::LockPoisoned`]. Errors leave
+    /// `target` unchanged. Unlike the native-access query, an unrelated native
+    /// lock failure does not prevent reading this independently owned data.
+    pub fn copy_captured_file_path_into(
+        &self,
+        ifno: i32,
+        target: &mut Option<String>,
+    ) -> Result<(), Error> {
+        let files = self.file_data.lock().map_err(|_| Error::lock_poisoned())?;
+        let file = usize::try_from(ifno)
+            .ok()
+            .and_then(|slot| files.get(slot))
+            .ok_or_else(|| Error::invalid_input("file slot must be in 0..=4"))?;
+        match file {
+            Some(file) => match target {
+                Some(path) => path.clone_from(&file.path),
+                None => *target = Some(file.path.clone()),
+            },
+            None => *target = None,
+        }
+        Ok(())
     }
 
     /// Report a native file slot captured after this session's last
