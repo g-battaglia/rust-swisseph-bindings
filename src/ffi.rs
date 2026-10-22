@@ -153,9 +153,13 @@ pub(crate) const HELIACAL_PHENO_LEN: usize = 30;
 /// Established by probing the pinned build with sentinel-filled buffers:
 /// a visible instant writes all eight slots, while the below-horizon and
 /// error paths write only slots 0-6 (slot 0 carries -100 below the
-/// horizon, 0.0 on error). The safe wrapper passes a zero-initialized
-/// eight-slot buffer and exposes all of it.
+/// horizon, 0.0 on error). The retained convenience result exposes these
+/// eight slots from the initialized full transport.
 pub(crate) const VISLIM_DRET_LEN: usize = 8;
+
+/// Complete initialized visibility transport, including two unwritten tail
+/// slots. The native calculation still defines only [`VISLIM_DRET_LEN`] slots.
+pub(crate) const VISLIM_FULL_LEN: usize = 10;
 
 /// Native `dgeo` width for the heliacal calls: eastern longitude
 /// (degrees), latitude (degrees), eye height (meters above sea level).

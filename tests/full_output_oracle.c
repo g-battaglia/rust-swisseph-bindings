@@ -6,7 +6,7 @@
 #include <string.h>
 
 int main(int argc, char **argv) {
-  if (argc != 5) return 2;
+  if (argc != 5 && argc != 6) return 2;
   swe_set_ephe_path(argv[1]);
   const char *jpl = getenv("SWISSEPH_JPL_FILE");
   if (jpl) {
@@ -15,7 +15,7 @@ int main(int argc, char **argv) {
   }
   double jd = strtod(argv[3], NULL);
   int32 flags = (int32)strtol(argv[4], NULL, 10), status;
-  double geo[10] = {0}, attr[20] = {0}, values[50] = {0};
+  double geo[10] = {0}, attr[20] = {0}, values[50] = {0}, visibility[10] = {0};
   char diagnostic[256] = {0};
   uint32_t count;
   if (!strcmp(argv[2], "solar")) {
@@ -31,8 +31,19 @@ int main(int argc, char **argv) {
     status = swe_heliacal_pheno_ut(jd, site, atm, observer, object,
                                   SE_HELIACAL_RISING, flags, values, diagnostic);
     count = 50;
+  } else if (!strcmp(argv[2], "vislim")) {
+    double site[3] = {0, 51.5, 0}, atm[4] = {0}, observer[6] = {0};
+    char object[256] = "Venus";
+    if (argc == 6) {
+      if (strlen(argv[5]) >= sizeof(object)) return 2;
+      strcpy(object, argv[5]);
+    }
+    status = swe_vis_limit_mag(jd, site, atm, observer, object, flags,
+                              visibility, diagnostic);
+    count = 10;
   } else return 3;
-  if (status < 0) count = 0; /* Undefined failure buffers are never compared. */
+  /* Below-horizon visibility is data, not an undefined failure buffer. */
+  if (status < 0 && !(count == 10 && status == -2)) count = 0;
   uint32_t text_len = (uint32_t)strlen(diagnostic);
   fwrite(&status, sizeof(status), 1, stdout);
   fwrite(&count, sizeof(count), 1, stdout);
@@ -40,6 +51,7 @@ int main(int argc, char **argv) {
     fwrite(geo, sizeof(double), 10, stdout);
     fwrite(attr, sizeof(double), 20, stdout);
   } else if (count == 50) fwrite(values, sizeof(double), 50, stdout);
+  else if (count == 10) fwrite(visibility, sizeof(double), 10, stdout);
   fwrite(&text_len, sizeof(text_len), 1, stdout);
   fwrite(diagnostic, 1, text_len, stdout);
   swe_close();

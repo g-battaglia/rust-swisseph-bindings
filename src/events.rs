@@ -37,7 +37,8 @@ use crate::error::Error;
 use crate::ffi::{
     self, ECLIPSE_ATTR_LEN, ECLIPSE_GEOPOS_LEN, ECLIPSE_TRET_LEN, HELIACAL_ATM_LEN,
     HELIACAL_DRET_LEN, HELIACAL_GEO_LEN, HELIACAL_OBS_LEN, HELIACAL_PHENO_LEN,
-    LOCAL_SOLAR_TRET_LEN, SERR_LEN, TEXT_BUF_LEN, VISLIM_DRET_LEN, read_native_text,
+    LOCAL_SOLAR_TRET_LEN, SERR_LEN, TEXT_BUF_LEN, VISLIM_DRET_LEN, VISLIM_FULL_LEN,
+    read_native_text,
 };
 use crate::state::with_native_access;
 
@@ -3456,6 +3457,24 @@ pub enum VisibilityOutcome {
     BelowHorizon(BelowHorizon),
 }
 
+/// Complete initialized transport from [`vis_limit_mag_full`].
+///
+/// Slots 0-7 have the same units and meanings as [`VisibilityLimit::values`].
+/// The native engine does not write slots 8-9: they retain the zero
+/// initialization of the actual ten-slot buffer passed to C, and are not
+/// additional astronomical quantities. Below the horizon, only slots 0-6 are
+/// written; slot 0 is the native -100 marker and no limiting magnitude exists.
+#[derive(Debug, Clone, PartialEq)]
+pub struct VisibilityFull {
+    /// Native vision-mode status (0-3), or [`crate::HELFLAG_BELOW_HORIZON`]
+    /// (-2). The latter is valid data, not a native failure.
+    pub status: i32,
+    /// All ten initialized transport slots, preserved without reconstruction.
+    pub values: [f64; VISLIM_FULL_LEN],
+    /// Complete native diagnostic (`serr`), including below-horizon text.
+    pub diagnostic: String,
+}
+
 /// Check heliacal epoch/observer/atmosphere/object inputs before any
 /// native call.
 #[allow(clippy::too_many_arguments)]
@@ -3931,6 +3950,88 @@ pub fn vis_limit_mag(
     object: &str,
     helflag: i32,
 ) -> Result<VisibilityOutcome, Error> {
+    let full = vis_limit_mag_full(
+        jd_ut, longitude, latitude, altitude, atmosphere, observer, object, helflag,
+    )?;
+    let mut values = [0.0; VISLIM_DRET_LEN];
+    values.copy_from_slice(&full.values[..VISLIM_DRET_LEN]);
+    if full.status == crate::HELFLAG_BELOW_HORIZON {
+        Ok(VisibilityOutcome::BelowHorizon(BelowHorizon {
+            values,
+            diagnostic: full.diagnostic,
+        }))
+    } else {
+        Ok(VisibilityOutcome::Visible(VisibilityLimit {
+            status: full.status,
+            values,
+            diagnostic: full.diagnostic,
+        }))
+    }
+}
+
+/// Compute visual limiting magnitude with the complete initialized ten-slot
+/// transport passed directly to the native engine.
+///
+/// Inputs and process-global observer side effects follow [`vis_limit_mag`]:
+/// `jd_ut` is UT Julian days, longitude/latitude are east/north degrees,
+/// altitude is metres, and atmosphere/observer units, object and flags follow
+/// [`heliacal_ut`]. No event search runs. Configuration is inherited from the
+/// free setters; use [`crate::Session::vis_limit_mag_full`] for atomic settings.
+///
+/// Native slots 0-7 have the layout of [`VisibilityLimit`]. Slots 8-9 retain
+/// their initial zero values because the engine does not write them. They
+/// are transport slots, not additional astronomical results. Status -2 is
+/// returned as valid below-horizon data with the complete diagnostic.
+///
+/// # Errors
+///
+/// Non-finite inputs, unsafe observer heights, out-of-domain calendar dates
+/// and NUL-containing or overlong names are rejected under the same rules as
+/// [`vis_limit_mag`]. Native failure (-1), including the Sun or an unknown
+/// object, returns [`Error`] preserving the diagnostic. No failure buffer is
+/// exposed. No source fallback beyond the native engine's own policy is added.
+#[allow(clippy::too_many_arguments)]
+pub fn vis_limit_mag_full(
+    jd_ut: f64,
+    longitude: f64,
+    latitude: f64,
+    altitude: f64,
+    atmosphere: [f64; HELIACAL_ATM_LEN],
+    observer: [f64; HELIACAL_OBS_LEN],
+    object: &str,
+    helflag: i32,
+) -> Result<VisibilityFull, Error> {
+    check_heliacal_inputs(
+        "vis_limit_mag",
+        jd_ut,
+        longitude,
+        latitude,
+        altitude,
+        &atmosphere,
+        &observer,
+        object,
+    )?;
+    with_native_access(|| {
+        vis_limit_mag_full_locked(
+            jd_ut, longitude, latitude, altitude, atmosphere, observer, object, helflag,
+        )
+    })
+}
+
+/// Execute the full visibility call while the caller holds native access.
+/// Units, input limits, observer side effects and errors follow the public
+/// operation. No configuration, buffer reconstruction or second call is added.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn vis_limit_mag_full_locked(
+    jd_ut: f64,
+    longitude: f64,
+    latitude: f64,
+    altitude: f64,
+    atmosphere: [f64; HELIACAL_ATM_LEN],
+    observer: [f64; HELIACAL_OBS_LEN],
+    object: &str,
+    helflag: i32,
+) -> Result<VisibilityFull, Error> {
     check_heliacal_inputs(
         "vis_limit_mag",
         jd_ut,
@@ -3942,60 +4043,46 @@ pub fn vis_limit_mag(
         object,
     )?;
     let mut name_buffer = heliacal_name_buffer(object);
-    with_native_access(|| {
-        crate::domain::check_ut_locked("vis_limit_mag", jd_ut, -1)?;
-        let mut geopos = [0.0; HELIACAL_GEO_LEN];
-        geopos[0] = longitude;
-        geopos[1] = latitude;
-        geopos[2] = altitude;
-        // Same owned-copy contract for the defaulted blocks as in
-        // [`heliacal_ut`].
-        let mut datm = atmosphere;
-        let mut dobs = observer;
-        // Zero-initialized: the below-horizon and error paths write only
-        // slots 0-6, so slot 7 reads as 0.0 by construction (never
-        // uninitialized memory).
-        let mut dret = [0.0; VISLIM_DRET_LEN];
-        let mut serr = [0 as c_char; SERR_LEN];
-        // SAFETY: same contract as in [`heliacal_ut`]: every buffer is
-        // owned, correctly sized and held under the native lock, and the
-        // results are only exposed after the native status is classified.
-        let ret = unsafe {
-            ffi::swe_vis_limit_mag(
-                jd_ut,
-                geopos.as_mut_ptr(),
-                datm.as_mut_ptr(),
-                dobs.as_mut_ptr(),
-                name_buffer.as_mut_ptr(),
-                helflag,
-                dret.as_mut_ptr(),
-                serr.as_mut_ptr(),
-            )
-        };
-        // SAFETY: `serr` is our own fully initialized buffer; the read is
-        // bounded by SERR_LEN (see `read_native_text`).
-        let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
-        if ret == crate::HELFLAG_BELOW_HORIZON {
-            Ok(VisibilityOutcome::BelowHorizon(BelowHorizon {
-                values: dret,
-                diagnostic,
-            }))
-        } else if ret < 0 {
-            Err(Error::native(describe_vislim_failure(
-                "vis_limit_mag",
-                jd_ut,
-                object,
-                helflag,
-                &diagnostic,
-            )))
-        } else {
-            Ok(VisibilityOutcome::Visible(VisibilityLimit {
-                status: ret,
-                values: dret,
-                diagnostic,
-            }))
-        }
-    })
+    crate::domain::check_ut_locked("vis_limit_mag", jd_ut, -1)?;
+    let mut geopos = [longitude, latitude, altitude];
+    let mut datm = atmosphere;
+    let mut dobs = observer;
+    // C writes at most slots 0-7. The untouched tail is part of this actual
+    // initialized transport, not appended to the native result afterward.
+    let mut dret = [0.0; VISLIM_FULL_LEN];
+    let mut serr = [0 as c_char; SERR_LEN];
+    // SAFETY: the caller holds the native lock. Every owned buffer has the
+    // declared native capacity, the object name is checked and terminated,
+    // and no result is exposed until the native status is classified.
+    let ret = unsafe {
+        ffi::swe_vis_limit_mag(
+            jd_ut,
+            geopos.as_mut_ptr(),
+            datm.as_mut_ptr(),
+            dobs.as_mut_ptr(),
+            name_buffer.as_mut_ptr(),
+            helflag,
+            dret.as_mut_ptr(),
+            serr.as_mut_ptr(),
+        )
+    };
+    // SAFETY: serr is initialized and owned; this read is bounded by SERR_LEN.
+    let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
+    if ret < 0 && ret != crate::HELFLAG_BELOW_HORIZON {
+        Err(Error::native(describe_vislim_failure(
+            "vis_limit_mag",
+            jd_ut,
+            object,
+            helflag,
+            &diagnostic,
+        )))
+    } else {
+        Ok(VisibilityFull {
+            status: ret,
+            values: dret,
+            diagnostic,
+        })
+    }
 }
 
 /// Build the error message for a failed heliacal search, keeping the

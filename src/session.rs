@@ -95,7 +95,7 @@ use crate::state::with_native_access;
 use crate::time::deltat_locked;
 use crate::{
     Ayanamsha, EquationOfTime, GauquelinSectors, HeliacalPhenomenaFull, HousesWithSpeeds,
-    OccultationGeometryFull, SolarEclipseGeometryFull, StarMagnitude, StarPosition,
+    OccultationGeometryFull, SolarEclipseGeometryFull, StarMagnitude, StarPosition, VisibilityFull,
 };
 
 /// Builder for [`Session`].
@@ -632,6 +632,31 @@ impl Session {
             crate::events::heliacal_pheno_ut_full_locked(
                 jd_ut, longitude, latitude, altitude, atmosphere, observer, object, event_type,
                 helflag,
+            )
+        })
+    }
+    /// Run [`crate::vis_limit_mag_full`] after applying this session's
+    /// configuration under one native acquisition. UT days, east/north
+    /// degrees, metres, atmosphere/observer domains and flags follow the free
+    /// operation. Return all ten initialized slots, actual vision-mode or
+    /// below-horizon status and diagnostic. Input, native and poisoned-state
+    /// errors are preserved. No reconstructed values, alternate engine or
+    /// isolation against external raw-C clients is introduced.
+    #[allow(clippy::too_many_arguments)]
+    pub fn vis_limit_mag_full(
+        &self,
+        jd_ut: f64,
+        longitude: f64,
+        latitude: f64,
+        altitude: f64,
+        atmosphere: [f64; HELIACAL_ATM_LEN],
+        observer: [f64; HELIACAL_OBS_LEN],
+        object: &str,
+        helflag: i32,
+    ) -> Result<VisibilityFull, Error> {
+        self.compute(|| {
+            crate::events::vis_limit_mag_full_locked(
+                jd_ut, longitude, latitude, altitude, atmosphere, observer, object, helflag,
             )
         })
     }

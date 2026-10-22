@@ -2,6 +2,9 @@
 //! Binary numerical responses remain in memory; assertions identify slots only.
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::Mutex;
+
+static CONFIGURATION: Mutex<()> = Mutex::new(());
 use swisseph_bindings::*;
 
 /// Build the independent caller against the archive used by this Cargo target.
@@ -93,6 +96,7 @@ fn compare(
 
 #[test]
 fn complete_geography_and_heliacal_buffers_match_native_c() {
+    let _configuration = CONFIGURATION.lock().unwrap();
     let Some(data) = std::env::var_os("SWISSEPH_EPHE_DIR") else {
         eprintln!("SKIP full native output data cases: SWISSEPH_EPHE_DIR is not selected");
         return;
@@ -173,5 +177,209 @@ fn complete_geography_and_heliacal_buffers_match_native_c() {
     assert!(lun_occult_where_full(f64::INFINITY, SUN, None, FLG_SWIEPH).is_err());
     eprintln!(
         "PASS full native output cases={cases}; complete30/50 slots, status and diagnostic; invalid clocks rejected"
+    );
+}
+
+/// Read the complete initialized visibility buffer from the independent caller.
+/// The source and data path are identical to the safe binding call.
+fn visibility_oracle(
+    bin: &Path,
+    data: &str,
+    flags: i32,
+    jd: f64,
+    object: &str,
+) -> (i32, Vec<f64>, String) {
+    let output = Command::new(bin)
+        .args([data, "vislim", &jd.to_string(), &flags.to_string(), object])
+        .env_remove("SE_EPHE_PATH")
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let bytes = &output.stdout;
+    let status = i32::from_ne_bytes(bytes[0..4].try_into().unwrap());
+    let count = u32::from_ne_bytes(bytes[4..8].try_into().unwrap()) as usize;
+    let text_at = 8 + count * 8;
+    let text_len = u32::from_ne_bytes(bytes[text_at..text_at + 4].try_into().unwrap()) as usize;
+    assert_eq!(bytes.len(), text_at + 4 + text_len);
+    let values = bytes[8..text_at]
+        .as_chunks::<8>()
+        .0
+        .iter()
+        .map(|word| f64::from_ne_bytes(*word))
+        .collect();
+    let diagnostic = std::str::from_utf8(&bytes[text_at + 4..])
+        .unwrap()
+        .to_owned();
+    (status, values, diagnostic)
+}
+
+#[test]
+fn complete_visibility_buffer_matches_native_c() {
+    let _configuration = CONFIGURATION.lock().unwrap();
+    let data = std::env::var("SWISSEPH_EPHE_DIR").unwrap_or_default();
+    let mut sources = vec![FLG_MOSEPH];
+    if !data.is_empty() {
+        for (name, size) in [("sepl_18.se1", 484061), ("semo_18.se1", 1304771)] {
+            assert_eq!(
+                std::fs::metadata(Path::new(&data).join(name))
+                    .unwrap()
+                    .len(),
+                size,
+                "identified visibility data file {name}"
+            );
+        }
+        sources.push(FLG_SWIEPH);
+    }
+    set_ephe_path(Some(&data)).unwrap();
+    set_delta_t_userdef(None).unwrap();
+    let source = calc_ut(2451545.0, VENUS, FLG_MOSEPH).unwrap();
+    require_source_flags(&source, FLG_MOSEPH).unwrap();
+    let event = heliacal_ut(
+        2451545.0,
+        0.0,
+        51.5,
+        0.0,
+        [0.0; 4],
+        [0.0; 6],
+        "Venus",
+        HELIACAL_RISING,
+        FLG_MOSEPH,
+    )
+    .unwrap();
+    let bin = oracle();
+    let mut cases = 0;
+    for flags in sources {
+        let source = calc_ut(2451545.0, VENUS, flags).unwrap();
+        require_source_flags(&source, flags).unwrap();
+        let event = heliacal_ut(
+            2451545.0,
+            0.0,
+            51.5,
+            0.0,
+            [0.0; 4],
+            [0.0; 6],
+            "Venus",
+            HELIACAL_RISING,
+            flags,
+        )
+        .unwrap();
+        for (label, jd, below) in [
+            ("visible", event.optimum(), false),
+            ("below-horizon", event.optimum() - 0.25, true),
+        ] {
+            let (expected_status, expected, diagnostic) =
+                visibility_oracle(&bin, &data, flags, jd, "Venus");
+            assert_eq!(expected.len(), 10);
+            assert_eq!(expected_status == HELFLAG_BELOW_HORIZON, below);
+            let actual =
+                vis_limit_mag_full(jd, 0.0, 51.5, 0.0, [0.0; 4], [0.0; 6], "Venus", flags).unwrap();
+            assert_eq!(actual.status, expected_status);
+            assert_eq!(actual.diagnostic, diagnostic);
+            assert_eq!(actual.values.len(), expected.len());
+            for (slot, actual) in actual.values.iter().enumerate() {
+                assert!(
+                    actual.to_bits() == expected[slot].to_bits(),
+                    "{label} slot{slot}"
+                );
+            }
+            let (status, values, text) = match vis_limit_mag(
+                jd, 0.0, 51.5, 0.0, [0.0; 4], [0.0; 6], "Venus", flags,
+            )
+            .unwrap()
+            {
+                VisibilityOutcome::Visible(value) => (value.status, value.values, value.diagnostic),
+                VisibilityOutcome::BelowHorizon(value) => {
+                    (HELFLAG_BELOW_HORIZON, value.values, value.diagnostic)
+                }
+            };
+            assert_eq!(status, actual.status);
+            assert_eq!(text, actual.diagnostic);
+            assert_eq!(values.len(), 8);
+            assert!(
+                values
+                    .iter()
+                    .zip(&actual.values)
+                    .all(|(a, b)| a.to_bits() == b.to_bits()),
+                "{label} retained eight-slot projection"
+            );
+            eprintln!(
+                "PASS visibility {label}: source_flags={flags}, status={}, full_slots=10, legacy_slots=8, direct_c_slots=10",
+                actual.status
+            );
+            cases += 1;
+        }
+    }
+    for object in ["Sun", "NoSuchBodyXYZ"] {
+        let (status, values, diagnostic) =
+            visibility_oracle(&bin, &data, FLG_MOSEPH, 2451545.0, object);
+        assert_eq!(status, -1);
+        assert!(values.is_empty());
+        assert!(!diagnostic.is_empty());
+        let error = vis_limit_mag_full(
+            2451545.0, 0.0, 51.5, 0.0, [0.0; 4], [0.0; 6], object, FLG_MOSEPH,
+        )
+        .map_or_else(|error| error, |_| panic!("expected visibility error"));
+        assert_eq!(error.kind(), ErrorKind::Native);
+        assert!(error.message().contains(&diagnostic));
+        let legacy = vis_limit_mag(
+            2451545.0, 0.0, 51.5, 0.0, [0.0; 4], [0.0; 6], object, FLG_MOSEPH,
+        )
+        .map_or_else(|error| error, |_| panic!("expected visibility error"));
+        assert_eq!(error.message(), legacy.message());
+        cases += 1;
+    }
+    let session = SessionBuilder::new()
+        .delta_t_override(0.001)
+        .build()
+        .unwrap();
+    set_delta_t_userdef(Some(0.001)).unwrap();
+    let expected = vis_limit_mag_full(
+        event.optimum(),
+        0.0,
+        51.5,
+        0.0,
+        [0.0; 4],
+        [0.0; 6],
+        "Venus",
+        FLG_MOSEPH,
+    )
+    .unwrap();
+    set_delta_t_userdef(Some(0.002)).unwrap();
+    let actual = session
+        .vis_limit_mag_full(
+            event.optimum(),
+            0.0,
+            51.5,
+            0.0,
+            [0.0; 4],
+            [0.0; 6],
+            "Venus",
+            FLG_MOSEPH,
+        )
+        .unwrap();
+    assert!(
+        actual == expected,
+        "owned session must apply its configuration"
+    );
+    set_delta_t_userdef(None).unwrap();
+    for (jd, object) in [(f64::NAN, "Venus"), (2451545.0, "Ve\0nus")] {
+        let error = vis_limit_mag_full(jd, 0.0, 51.5, 0.0, [0.0; 4], [0.0; 6], object, FLG_MOSEPH)
+            .map_or_else(|error| error, |_| panic!("expected visibility error"));
+        assert_eq!(error.kind(), ErrorKind::InvalidInput);
+        assert_eq!(
+            session
+                .vis_limit_mag_full(jd, 0.0, 51.5, 0.0, [0.0; 4], [0.0; 6], object, FLG_MOSEPH,)
+                .map_or_else(|error| error, |_| panic!("expected visibility error"))
+                .kind(),
+            ErrorKind::InvalidInput
+        );
+    }
+    set_delta_t_userdef(None).unwrap();
+    let archive = Path::new(env!("OUT_DIR")).join("libswisseph.a");
+    eprintln!(
+        "PASS visibility cases={cases}; session configuration and invalid inputs; engine={} configured_data={} archive_sha256={}",
+        version().unwrap(),
+        !data.is_empty(),
+        fingerprint(&archive)
     );
 }
