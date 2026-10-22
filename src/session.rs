@@ -803,6 +803,42 @@ impl Session {
         })
     }
 
+    /// Copy a captured native file path into caller-owned string storage.
+    ///
+    /// `ifno` is a native file slot in `0..=4`, with no physical units. Like
+    /// [`Self::get_current_file_data`], this reads the last completed session
+    /// snapshot without applying configuration or observing native slots again.
+    /// The caller receives owned UTF-8 bytes, using the same path conversion as
+    /// the full snapshot. An existing string reuses its capacity when sufficient;
+    /// an empty slot or a session with no captured file sets `target` to `None`.
+    /// Clones share the session snapshot, never the caller's output storage.
+    ///
+    /// An invalid slot returns [`crate::ErrorKind::InvalidInput`]. Native or
+    /// metadata lock poisoning and same-thread native reentry use the existing
+    /// error categories. Every error leaves `target` unchanged. Lock order is
+    /// native access, then metadata; no user callback runs under either lock.
+    pub fn get_current_file_path_into(
+        &self,
+        ifno: i32,
+        target: &mut Option<String>,
+    ) -> Result<(), Error> {
+        with_native_access(|| {
+            let files = self.file_data.lock().map_err(|_| Error::lock_poisoned())?;
+            let file = usize::try_from(ifno)
+                .ok()
+                .and_then(|slot| files.get(slot))
+                .ok_or_else(|| Error::invalid_input("file slot must be in 0..=4"))?;
+            match file {
+                Some(file) => match target {
+                    Some(path) => path.clone_from(&file.path),
+                    None => *target = Some(file.path.clone()),
+                },
+                None => *target = None,
+            }
+            Ok(())
+        })
+    }
+
     /// Report a native file slot captured after this session's last
     /// computation attempt.
     ///
