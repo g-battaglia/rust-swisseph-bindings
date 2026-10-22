@@ -424,6 +424,32 @@ impl Session {
         self.compute(|| crate::observer::pheno_ut_locked(jd_ut, body, flags))
     }
 
+    /// Nodes and apsides for a Universal Time Julian Day.
+    ///
+    /// Apply this session's path, observer, sidereal, tidal and Delta-T settings
+    /// atomically with the same native operation as [`crate::nod_aps_ut`]. Body,
+    /// flags and method follow that function. All four six-word arrays, native
+    /// status and diagnostic are preserved, including units selected by flags.
+    /// An unchanged path retains open files under the existing session rules;
+    /// public setters and explicit close continue to invalidate that state.
+    ///
+    /// Non-finite days fail before configuration is applied. Other domain,
+    /// native and lock errors follow the free operation without a retry.
+    pub fn nod_aps_ut(
+        &self,
+        jd_ut: f64,
+        body: i32,
+        flags: i32,
+        method: i32,
+    ) -> Result<crate::NodesApsides, Error> {
+        if !jd_ut.is_finite() {
+            return Err(Error::invalid_input(
+                "nod_aps_ut: Julian Day must be finite",
+            ));
+        }
+        self.compute(|| crate::observer::nod_aps_ut_locked(jd_ut, body, flags, method))
+    }
+
     /// Body position for an Ephemeris Time Julian Day.
     ///
     /// Same configuration dependence as [`Session::calc_ut`] through the

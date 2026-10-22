@@ -211,49 +211,61 @@ pub fn nod_aps_ut(jd_ut: f64, body: i32, flags: i32, method: i32) -> Result<Node
             "nod_aps_ut: Julian Day must be finite",
         ));
     }
-    with_native_access(|| {
-        crate::domain::check_ut_locked("nod_aps_ut", jd_ut, flags)?;
-        let mut xnasc = [0.0; POSITION_LEN];
-        let mut xndsc = [0.0; POSITION_LEN];
-        let mut xperi = [0.0; POSITION_LEN];
-        let mut xaphe = [0.0; POSITION_LEN];
-        let mut serr = [0 as c_char; SERR_LEN];
-        // SAFETY: same contract as in [`nod_aps`].
-        let ret = unsafe {
-            ffi::swe_nod_aps_ut(
-                jd_ut,
-                body,
-                flags,
-                method,
-                xnasc.as_mut_ptr(),
-                xndsc.as_mut_ptr(),
-                xperi.as_mut_ptr(),
-                xaphe.as_mut_ptr(),
-                serr.as_mut_ptr(),
-            )
-        };
-        // SAFETY: same contract as in [`nod_aps`].
-        let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
-        if ret < 0 {
-            Err(Error::native(describe_nodes_failure(
-                "nod_aps_ut",
-                jd_ut,
-                body,
-                flags,
-                method,
-                &diagnostic,
-            )))
-        } else {
-            Ok(NodesApsides {
-                ascending: xnasc,
-                descending: xndsc,
-                perihelion: xperi,
-                aphelion: xaphe,
-                returned_flags: ret,
-                diagnostic,
-            })
-        }
-    })
+    with_native_access(|| nod_aps_ut_locked(jd_ut, body, flags, method))
+}
+
+/// Compute UT nodes/apsides while the native lock is already held.
+///
+/// The caller applies the desired configuration under that lock. This is the
+/// same domain check, native call, complete output and error projection used by
+/// the free operation and configured sessions.
+pub(crate) fn nod_aps_ut_locked(
+    jd_ut: f64,
+    body: i32,
+    flags: i32,
+    method: i32,
+) -> Result<NodesApsides, Error> {
+    crate::domain::check_ut_locked("nod_aps_ut", jd_ut, flags)?;
+    let mut xnasc = [0.0; POSITION_LEN];
+    let mut xndsc = [0.0; POSITION_LEN];
+    let mut xperi = [0.0; POSITION_LEN];
+    let mut xaphe = [0.0; POSITION_LEN];
+    let mut serr = [0 as c_char; SERR_LEN];
+    // SAFETY: same contract as in [`nod_aps`].
+    let ret = unsafe {
+        ffi::swe_nod_aps_ut(
+            jd_ut,
+            body,
+            flags,
+            method,
+            xnasc.as_mut_ptr(),
+            xndsc.as_mut_ptr(),
+            xperi.as_mut_ptr(),
+            xaphe.as_mut_ptr(),
+            serr.as_mut_ptr(),
+        )
+    };
+    // SAFETY: same contract as in [`nod_aps`].
+    let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
+    if ret < 0 {
+        Err(Error::native(describe_nodes_failure(
+            "nod_aps_ut",
+            jd_ut,
+            body,
+            flags,
+            method,
+            &diagnostic,
+        )))
+    } else {
+        Ok(NodesApsides {
+            ascending: xnasc,
+            descending: xndsc,
+            perihelion: xperi,
+            aphelion: xaphe,
+            returned_flags: ret,
+            diagnostic,
+        })
+    }
 }
 
 /// Build the error message for a failed nodes/apsides computation,
