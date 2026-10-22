@@ -389,8 +389,8 @@ pub(crate) fn apply_delta_t_locked(native_dt: f64) -> Result<(), Error> {
 /// path. The native library copies the path, so the Rust string does not
 /// need to outlive the call.
 /// Every call reloads native files and caches, even for an unchanged path.
-/// Configured [`crate::Session`] computations may instead reuse an unchanged
-/// installation while holding the same process-wide lock.
+/// [`ensure_ephe_path`] and configured [`crate::Session`] computations may
+/// instead reuse an unchanged installation under the process-wide lock.
 ///
 /// # Environment interaction
 ///
@@ -413,7 +413,41 @@ pub(crate) fn apply_delta_t_locked(native_dt: f64) -> Result<(), Error> {
 /// # Ok::<(), swisseph_bindings::Error>(())
 /// ```
 pub fn set_ephe_path(path: Option<&str>) -> Result<(), Error> {
-    let native_path = match path {
+    let native_path = ephe_path_argument(path)?;
+    with_native_access(|| {
+        apply_ephe_path_locked(native_path.as_ref())?;
+        Ok(())
+    })
+}
+
+/// Install an ephemeris search path only when its effective configuration changes.
+///
+/// `path` uses the same UTF-8 byte limits and `None`/empty/default conventions as
+/// [`set_ephe_path`], including native `SE_EPHE_PATH` precedence. An unchanged
+/// request retains open files and calculation caches. A changed request,
+/// environment, relevant working directory, native thread, explicit [`crate::close`]
+/// or binding-owned manual tidal setting requires path installation again.
+///
+/// Use [`set_ephe_path`] to force a reload even when the spelling is unchanged,
+/// for example after replacing a data file. Like that setter, this function
+/// releases native access before returning: a later free computation needs
+/// caller serialization. Prefer [`crate::Session`] to configure and compute in
+/// one native acquisition. Raw C changes outside these bindings are not tracked.
+///
+/// # Errors
+///
+/// Path admission and diagnostics are identical to [`set_ephe_path`]: interior
+/// NUL bytes and paths longer than [`MAX_EPHE_PATH_LEN`] bytes are rejected before
+/// changing native state. Native lock failures propagate without retry.
+pub fn ensure_ephe_path(path: Option<&str>) -> Result<(), Error> {
+    let native_path = ephe_path_argument(path)?;
+    with_native_access(|| ensure_ephe_path_locked(native_path.as_ref()))
+}
+
+/// Admit the exact path bytes shared by explicit and guarded installations.
+/// No native state is touched before length/NUL validation succeeds.
+fn ephe_path_argument(path: Option<&str>) -> Result<Option<CString>, Error> {
+    Ok(match path {
         Some(text) => {
             if text.as_bytes().contains(&0) {
                 return Err(Error::invalid_input(
@@ -431,10 +465,6 @@ pub fn set_ephe_path(path: Option<&str>) -> Result<(), Error> {
             })?)
         }
         None => None,
-    };
-    with_native_access(|| {
-        apply_ephe_path_locked(native_path.as_ref())?;
-        Ok(())
     })
 }
 
