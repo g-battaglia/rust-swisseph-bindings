@@ -27,6 +27,50 @@ unsafe extern "C" {
 }
 
 #[test]
+fn one_session_reinstalls_its_data_path_across_distinct_threads() {
+    if !isolated::without_ephe_override(
+        "one_session_reinstalls_its_data_path_across_distinct_threads",
+    ) {
+        return;
+    }
+    let data = test_data::ephemeris_dir().expect("complete external ephemeris data");
+    let session = SessionBuilder::new().ephe_path(&data).build().unwrap();
+    let flags = FLG_SWIEPH | swisseph_bindings::FLG_SPEED;
+    let expected = session.calc_ut(JD, MARS, flags).unwrap();
+    require_source_flags(&expected, FLG_SWIEPH).unwrap();
+    let parent = std::thread::current().id();
+    let mut identities = std::collections::HashSet::new();
+    for _ in 0..4 {
+        let worker_session = session.clone();
+        let worker_expected = expected.clone();
+        let directory = data.clone();
+        let identity = std::thread::spawn(move || {
+            for _ in 0..3 {
+                let actual = worker_session.calc_ut(JD, MARS, flags).unwrap();
+                assert!(
+                    actual == worker_expected,
+                    "thread migration changed the native result"
+                );
+                let file = get_current_file_data(0).unwrap().unwrap();
+                assert!(
+                    file.path.starts_with(&directory),
+                    "native data path differs"
+                );
+            }
+            std::thread::current().id()
+        })
+        .join()
+        .expect("native worker succeeds");
+        assert_ne!(identity, parent);
+        assert!(
+            identities.insert(identity),
+            "worker identities must remain distinct"
+        );
+        assert!(session.calc_ut(JD, MARS, flags).unwrap() == expected);
+    }
+}
+
+#[test]
 fn reused_session_positions_match_direct_native_calls() {
     if !isolated::without_ephe_override("reused_session_positions_match_direct_native_calls") {
         return;

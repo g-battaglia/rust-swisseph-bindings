@@ -16,6 +16,19 @@ use crate::state::with_native_access;
 /// Native `SE_SIDBIT_USER_UT`, verified in the pinned public header.
 const USER_UT_BIT: i32 = 1024;
 
+thread_local! {
+    /// Immutable identity of this thread, independent of native settings.
+    static CONFIGURATION_THREAD: std::thread::ThreadId = std::thread::current().id();
+}
+
+/// Read the thread identity used to track native path installation.
+/// Thread IDs remain fixed throughout their thread's lifetime and are never
+/// reused; copying the ID avoids acquiring an owning thread handle per read.
+/// This retains no native configuration, computation or result.
+fn configuration_thread_id() -> std::thread::ThreadId {
+    CONFIGURATION_THREAD.with(|identity| *identity)
+}
+
 /// Working-directory identity needed only by a relative native search entry.
 #[derive(Default, PartialEq, Eq)]
 enum EphemerisDirectory {
@@ -223,7 +236,7 @@ fn ephe_path_directory(
 pub(crate) fn apply_ephe_path_locked(path: Option<&CString>) -> Result<(), Error> {
     let key = (path.cloned(), std::env::var_os("SE_EPHE_PATH"));
     let directory = ephe_path_directory(path, key.1.as_deref());
-    let thread = std::thread::current().id();
+    let thread = configuration_thread_id();
     let mut settings = VALIDATION_SETTINGS
         .lock()
         .map_err(|_| Error::lock_poisoned())?;
@@ -292,7 +305,7 @@ pub(crate) fn ensure_ephe_path_locked(path: Option<&CString>) -> Result<(), Erro
         same_selection
             && working_directory != EphemerisDirectory::Unavailable
             && working_directory == settings.ephe_path_directory
-            && settings.ephe_path_thread == Some(std::thread::current().id())
+            && settings.ephe_path_thread == Some(configuration_thread_id())
             // Binding-owned manual tidal writes clear this marker. Automatic
             // selection changes during calculations are part of native state,
             // not a path change: replaying the setter would reset its caches.
