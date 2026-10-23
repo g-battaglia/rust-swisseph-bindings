@@ -996,11 +996,11 @@ pub fn get_ayanamsa_name(mode: i32) -> Result<String, Error> {
 ///
 /// This is process-wide and explicit: cached data is dropped for every
 /// subsequent computation, which then lazily re-initializes on next use.
-/// The pinned native close also resets the sidereal mode and Delta-T override;
-/// their private validation metadata is cleared under the same native lock.
-/// It is the only reset operation; in particular, dropping a Rust value
-/// never closes anything, so one consumer cannot invalidate another's
-/// data or configuration.
+/// The pinned native close resets sidereal and observer state, but retains
+/// the search path and explicit Delta-T override. This API clears all private
+/// validation metadata, requiring path installation at the next configured
+/// read. Use [`close_preserving_path`] to retain native path reuse instead.
+/// Dropping a Rust value never closes anything.
 pub fn close() -> Result<(), Error> {
     with_native_access(|| {
         let mut settings = VALIDATION_SETTINGS
@@ -1012,6 +1012,39 @@ pub fn close() -> Result<(), Error> {
             ffi::swe_close();
         }
         *settings = ValidationSettings::default();
+        Ok(())
+    })
+}
+
+/// Close native files and reset calculation state while retaining path reuse.
+///
+/// Run the same native close as [`close`], without re-installing an unchanged
+/// search path at the next configured read. Native close retains that path;
+/// re-installing it would eagerly read the modern Moon file and can change
+/// automatic Delta-T selection for a subsequent date outside that file.
+/// No file or calculated result is retained. Other path owners, environment,
+/// relevant working-directory and native-thread changes still require ordinary
+/// path installation. Native sidereal, observer and tidal state is reset;
+/// the explicit Delta-T override is retained, matching the C operation.
+///
+/// This process-wide operation has no physical input or output units. Native
+/// lock failures propagate without retry. Raw C writes outside the binding's
+/// locking contract are not tracked. The existing [`close`] policy is unchanged.
+pub fn close_preserving_path() -> Result<(), Error> {
+    with_native_access(|| {
+        let mut settings = VALIDATION_SETTINGS
+            .lock()
+            .map_err(|_| Error::lock_poisoned())?;
+        // SAFETY: native access is held; the no-argument C operation drops
+        // files/caches and resets mode/site/tidal state, retaining path and
+        // the explicit Delta-T override. No caller pointer is exposed.
+        unsafe { ffi::swe_close() };
+        let previous = std::mem::take(&mut *settings);
+        settings.delta_t = previous.delta_t;
+        settings.ephe_path = previous.ephe_path;
+        settings.ephe_path_directory = previous.ephe_path_directory;
+        settings.ephe_path_thread = previous.ephe_path_thread;
+        settings.ephe_path_automatic_tidal = settings.ephe_path.is_some();
         Ok(())
     })
 }

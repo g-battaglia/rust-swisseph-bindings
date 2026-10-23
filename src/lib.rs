@@ -51,10 +51,10 @@ pub use angles::{
     split_deg_2_10_03,
 };
 pub use config::{
-    Ayanamsha, CurrentFileData, MAX_EPHE_PATH_LEN, MAX_JPL_FILE_LEN, close, ensure_ephe_path,
-    get_ayanamsa, get_ayanamsa_ex, get_ayanamsa_ex_ut, get_ayanamsa_name, get_ayanamsa_ut,
-    get_current_file_data, get_tid_acc, set_delta_t_userdef, set_ephe_path, set_jpl_file,
-    set_sid_mode, set_tid_acc, set_topo,
+    Ayanamsha, CurrentFileData, MAX_EPHE_PATH_LEN, MAX_JPL_FILE_LEN, close, close_preserving_path,
+    ensure_ephe_path, get_ayanamsa, get_ayanamsa_ex, get_ayanamsa_ex_ut, get_ayanamsa_name,
+    get_ayanamsa_ut, get_current_file_data, get_tid_acc, set_delta_t_userdef, set_ephe_path,
+    set_jpl_file, set_sid_mode, set_tid_acc, set_topo,
 };
 pub use constants::{
     ACRONYCHAL_RISING, ACRONYCHAL_SETTING, ADMETOS, APOLLON, APP_TO_TRUE, ARMC, ASC, AST_OFFSET,
