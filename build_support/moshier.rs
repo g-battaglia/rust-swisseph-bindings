@@ -31,8 +31,7 @@ struct Term {
 
 #[derive(Debug, PartialEq)]
 struct Argument {
-    planet: u8,
-    harmonic: u8,
+    index: u8,
     negative: bool,
 }
 
@@ -60,7 +59,7 @@ pub fn generate(native: &Path, out: &Path) -> Generated {
     let mut header = String::from(
         "/* Generated from pinned swemptab.h; immutable structure only. */\n\
          struct swe_moshier_term { unsigned char count, degree, polynomial; };\n\
-         struct swe_moshier_argument { unsigned char planet, harmonic, negative; };\n\
+         struct swe_moshier_argument { unsigned char index, negative; };\n\
          struct swe_moshier_plan {\n\
            const struct swe_moshier_term *terms;\n\
            const struct swe_moshier_argument *arguments;\n\
@@ -90,14 +89,7 @@ pub fn generate(native: &Path, out: &Path) -> Generated {
         )
         .unwrap();
         for arg in &plan.arguments {
-            writeln!(
-                header,
-                "  {{{}, {}, {}}},",
-                arg.planet,
-                arg.harmonic,
-                u8::from(arg.negative)
-            )
-            .unwrap();
+            writeln!(header, "  {{{}, {}}},", arg.index, u8::from(arg.negative)).unwrap();
         }
         writeln!(
             header,
@@ -232,8 +224,7 @@ fn decode_arguments(args: &[i16], harmonics: &[i16], max_degree: i16) -> Result<
                 return Err("harmonic outside the declared planet table".into());
             }
             plan.arguments.push(Argument {
-                planet: planet as u8,
-                harmonic: (harmonic.unsigned_abs() - 1) as u8,
+                index: harmonic_index(planet as u8, (harmonic.unsigned_abs() - 1) as u8)?,
                 negative: harmonic < 0,
             });
         }
@@ -250,6 +241,16 @@ fn decode_arguments(args: &[i16], harmonics: &[i16], max_degree: i16) -> Result<
             polynomial,
         });
     }
+}
+
+/// Byte-sized index into the complete 9-by-24 harmonic object. Native code
+/// uses its byte representation, never arithmetic beyond the first subarray.
+fn harmonic_index(planet: u8, harmonic: u8) -> Result<u8, String> {
+    if planet >= 9 || harmonic >= 24 {
+        return Err("harmonic outside the complete native object".into());
+    }
+    u8::try_from(u16::from(planet) * 24 + u16::from(harmonic))
+        .map_err(|_| "harmonic index does not fit metadata".into())
 }
 
 fn tokens(body: &str) -> Result<Vec<String>, String> {
@@ -370,18 +371,37 @@ mod tests {
             plan.arguments,
             [
                 Argument {
-                    planet: 1,
-                    harmonic: 2,
+                    index: 26,
                     negative: true
                 },
                 Argument {
-                    planet: 0,
-                    harmonic: 0,
+                    index: 0,
                     negative: false
                 }
             ]
         );
         assert_eq!(plan.coefficients, 7);
+    }
+
+    #[test]
+    fn linear_indices_round_trip_every_planet_harmonic_and_sign() {
+        for planet in 0..9 {
+            for harmonic in 1..=24 {
+                for sign in [-1, 1] {
+                    let plan =
+                        decode_arguments(&[1, sign * harmonic, planet + 1, 0, -1], &[24; 9], 0)
+                            .unwrap();
+                    let argument = &plan.arguments[0];
+                    assert_eq!(i16::from(argument.index / 24), planet);
+                    assert_eq!(i16::from(argument.index % 24), harmonic - 1);
+                    assert_eq!(argument.negative, sign < 0);
+                }
+            }
+        }
+        assert_eq!(harmonic_index(0, 0).unwrap(), 0);
+        assert_eq!(harmonic_index(8, 23).unwrap(), 215);
+        assert!(harmonic_index(9, 0).is_err());
+        assert!(harmonic_index(0, 24).is_err());
     }
 
     #[test]

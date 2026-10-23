@@ -68,6 +68,17 @@
  * Only immutable argument decoding changes. Coefficient streams, floating
  * expressions, Horner steps and their accumulation order remain original.
  */
+
+/* The caller supplies the byte representation of the WHOLE ss/cc array.
+ * An index is proved to be 0..215 by the generator. Its byte offset remains
+ * inside that object and identifies an aligned, existing double subobject.
+ * Starting from ss[0] instead would not permit crossing a row boundary. */
+static inline double swe_moshier_harmonic_value(const unsigned char *object,
+                                               unsigned char index)
+{
+  return *(const double *)(object + sizeof(double) * index);
+}
+
 int swi_moshplan2 (double J, int iplm, double *pobj)
 {
   int i, j, ip, nt;
@@ -126,19 +137,19 @@ int swi_moshplan2 (double J, int iplm, double *pobj)
 
       /* Assign the first angle, without multiplying by an identity. Negate
        * the sine exactly as C does, including a possible negative zero. */
-      su = ss[argument->planet][argument->harmonic];
+      su = swe_moshier_harmonic_value((const unsigned char *)&ss, argument->index);
       if (argument->negative)
         su = -su;
-      cu = cc[argument->planet][argument->harmonic];
+      cu = swe_moshier_harmonic_value((const unsigned char *)&cc, argument->index);
       sv = su;
       cv = cu;
       argument++;
       for (ip = 1; ip < term->count; ip++, argument++)
         {
-          su = ss[argument->planet][argument->harmonic];
+          su = swe_moshier_harmonic_value((const unsigned char *)&ss, argument->index);
           if (argument->negative)
             su = -su;
-          cu = cc[argument->planet][argument->harmonic];
+          cu = swe_moshier_harmonic_value((const unsigned char *)&cc, argument->index);
           t = su * cv + cu * sv;
           cv = cu * cv - su * sv;
           sv = t;
