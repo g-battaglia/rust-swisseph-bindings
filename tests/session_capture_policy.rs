@@ -57,6 +57,20 @@ fn disabled_file_capture_preserves_native_houses_and_independent_snapshots() {
         "disabling capture must preserve input validation"
     );
 
+    // Both metadata policies retain input-admission and native-failure details.
+    for (day, latitude) in [(f64::NAN, 41.9), (2451545.0, 89.5)] {
+        let expected = observed
+            .houses_ex2(day, 0, latitude, 12.5, b'P')
+            .unwrap_err();
+        let actual = unobserved
+            .houses_ex2(day, 0, latitude, 12.5, b'P')
+            .unwrap_err();
+        assert!(
+            actual.kind() == expected.kind() && actual.to_string() == expected.to_string(),
+            "disabled snapshots must preserve input/native errors exactly"
+        );
+    }
+
     // With explicitly selected data, also require a populated owned snapshot.
     let flags = if std::env::var_os("SWISSEPH_EPHE_DIR").is_some() {
         swisseph_bindings::FLG_SWIEPH

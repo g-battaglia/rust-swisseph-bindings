@@ -269,17 +269,27 @@ pub(crate) fn apply_ephe_path_locked(path: Option<&CString>) -> Result<(), Error
 /// path installation restores automatic selection, even for an equal value.
 pub(crate) fn ensure_ephe_path_locked(path: Option<&CString>) -> Result<(), Error> {
     let environment = std::env::var_os("SE_EPHE_PATH");
-    let working_directory = ephe_path_directory(path, environment.as_deref());
     let reusable = {
         let settings = VALIDATION_SETTINGS
             .lock()
             .map_err(|_| Error::lock_poisoned())?;
-        settings
-            .ephe_path
-            .as_ref()
-            .is_some_and(|(saved, saved_environment)| {
-                saved.as_ref() == path && *saved_environment == environment
-            })
+        let same_selection =
+            settings
+                .ephe_path
+                .as_ref()
+                .is_some_and(|(saved, saved_environment)| {
+                    saved.as_ref() == path && *saved_environment == environment
+                });
+        // Identical absolute-only bytes retain their proven cwd independence.
+        // Relative/unavailable selections still resolve the current directory;
+        // environment, thread and tidal checks remain fresh on every call.
+        let working_directory =
+            if same_selection && settings.ephe_path_directory == EphemerisDirectory::Independent {
+                EphemerisDirectory::Independent
+            } else {
+                ephe_path_directory(path, environment.as_deref())
+            };
+        same_selection
             && working_directory != EphemerisDirectory::Unavailable
             && working_directory == settings.ephe_path_directory
             && settings.ephe_path_thread == Some(std::thread::current().id())

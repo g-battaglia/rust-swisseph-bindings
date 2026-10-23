@@ -385,13 +385,20 @@ impl Session {
     /// Lock order is always native access, then the metadata mutex.
     #[inline(always)]
     fn compute<R>(&self, operation: impl FnOnce() -> Result<R, Error>) -> Result<R, Error> {
+        // With no requested snapshot, forward the operation result directly;
+        // it need not remain live across the snapshot-policy/error branches.
+        if !self.capture_file_data {
+            return with_native_access(|| {
+                self.apply_locked()?;
+                operation()
+            });
+        }
         with_native_access(|| {
             self.apply_locked()?;
             let result = operation();
-            if !self.capture_file_data
-                || result
-                    .as_ref()
-                    .is_err_and(|error| error.kind() == crate::ErrorKind::InvalidInput)
+            if result
+                .as_ref()
+                .is_err_and(|error| error.kind() == crate::ErrorKind::InvalidInput)
             {
                 return result;
             }
