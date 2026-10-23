@@ -425,12 +425,14 @@ pub(crate) fn houses_ex2_locked(
             hsys as char,
         )));
     }
-    Ok(pack_houses_with_speeds(
-        &cusps,
-        &ascmc,
-        &cusp_speed,
-        &ascmc_speed,
-    ))
+    // Build the success payload directly from the native output slices, so
+    // the complete packed value need not cross another helper return slot.
+    Ok(HousesWithSpeeds {
+        cusps: std::array::from_fn(|index| cusps[index + 1]),
+        angles: std::array::from_fn(|index| ascmc[index]),
+        cusp_speeds: std::array::from_fn(|index| cusp_speed[index + 1]),
+        angle_speeds: std::array::from_fn(|index| ascmc_speed[index]),
+    })
 }
 
 /// Calculate the Gauquelin 36-sector layout with angles and speeds.
