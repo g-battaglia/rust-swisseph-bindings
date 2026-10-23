@@ -578,6 +578,7 @@ impl Session {
     /// output, real flags/status/diagnostic where provided; preserve native,
     /// input and poisoned-lock errors. No callback, inferred value, alternate
     /// engine or isolation against external raw-C clients is introduced.
+    #[inline(always)]
     pub fn houses_ex2(
         &self,
         jd_ut: f64,
