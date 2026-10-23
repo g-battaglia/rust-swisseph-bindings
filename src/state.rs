@@ -49,12 +49,15 @@ thread_local! {
     static NATIVE_DEPTH: Cell<usize> = const { Cell::new(0) };
 }
 
-/// Guard resetting the thread-local depth even when `operation` panics.
-struct DepthGuard;
+/// Guard resetting the current thread's depth even when `operation` panics.
+/// The enclosing TLS scope keeps this cell valid until the guard is dropped.
+struct DepthGuard<'a> {
+    depth: &'a Cell<usize>,
+}
 
-impl Drop for DepthGuard {
+impl Drop for DepthGuard<'_> {
     fn drop(&mut self) {
-        NATIVE_DEPTH.with(|depth| depth.set(depth.get().saturating_sub(1)));
+        self.depth.set(self.depth.get().saturating_sub(1));
     }
 }
 
@@ -69,19 +72,21 @@ impl Drop for DepthGuard {
 pub(crate) fn with_native_access<R>(
     operation: impl FnOnce() -> Result<R, Error>,
 ) -> Result<R, Error> {
-    if NATIVE_DEPTH.with(|depth| depth.get()) > 0 {
-        return Err(Error::invalid_input(
-            "native access is already held on this thread; nested config-plus-computation is unsupported (use one Session call per atomic sequence)",
-        ));
-    }
-    match NATIVE_LOCK.lock() {
-        Ok(_guard) => {
-            NATIVE_DEPTH.with(|depth| depth.set(depth.get().saturating_add(1)));
-            let _depth = DepthGuard;
-            operation()
+    NATIVE_DEPTH.with(|depth| {
+        if depth.get() > 0 {
+            return Err(Error::invalid_input(
+                "native access is already held on this thread; nested config-plus-computation is unsupported (use one Session call per atomic sequence)",
+            ));
         }
-        Err(_) => Err(Error::lock_poisoned()),
-    }
+        match NATIVE_LOCK.lock() {
+            Ok(_guard) => {
+                depth.set(depth.get().saturating_add(1));
+                let _depth = DepthGuard { depth };
+                operation()
+            }
+            Err(_) => Err(Error::lock_poisoned()),
+        }
+    })
 }
 
 #[cfg(test)]
@@ -97,6 +102,28 @@ mod tests {
     // unaffected.
     #[test]
     fn poisoned_lock_is_reported_as_classified_error() {
+        // Reentry is refused before taking the non-reentrant lock, without
+        // changing the outer depth or running the nested operation.
+        with_native_access(|| {
+            let mut nested_ran = false;
+            let error = with_native_access(|| {
+                nested_ran = true;
+                Ok(())
+            })
+            .expect_err("nested native access must be refused");
+            assert_eq!(error.kind(), ErrorKind::InvalidInput);
+            assert!(!nested_ran);
+            NATIVE_DEPTH.with(|depth| assert_eq!(depth.get(), 1));
+            Ok(())
+        })
+        .unwrap();
+        NATIVE_DEPTH.with(|depth| assert_eq!(depth.get(), 0));
+        // An ordinary error also releases the same scope and allows reuse.
+        let error = with_native_access::<()>(|| Err(Error::invalid_input("test refusal")))
+            .expect_err("the operation error must propagate");
+        assert_eq!(error.kind(), ErrorKind::InvalidInput);
+        with_native_access(|| Ok(())).unwrap();
+
         // Panic while the lock is held: `with_native_access` holds the
         // mutex guard across `operation`, so unwinding through the guard
         // poisons `NATIVE_LOCK`, modelling a panic during a native call.
@@ -109,6 +136,7 @@ mod tests {
             caught.is_err(),
             "probe panic must unwind through the lock guard"
         );
+        NATIVE_DEPTH.with(|depth| assert_eq!(depth.get(), 0));
         // Every later acquisition short-circuits without running the closure.
         let mut ran = false;
         let err = with_native_access(|| {
