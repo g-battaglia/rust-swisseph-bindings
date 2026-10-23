@@ -98,6 +98,14 @@ The build compiles native sources into Cargo's output directory. It does not
 download ephemeris data. The upstream pin and runtime version are recorded in
 [source-pins.json](validation/source-pins.json).
 
+The dependency checkout remains unmodified. A declared build overlay replaces
+the v1 fixed-star reader's repeated ASCII-space deletion with a single in-place
+pass on the already truncated name. The generated `OUT_DIR/sweph.c` includes
+the owned helper; the build requires exactly one matching pinned fragment and
+records the overlay in `native-inputs.txt`. File scanning, matching order,
+locale handling, diagnostics, session lifecycle and every astronomical statement
+remain unchanged. No catalog or calculated positions are cached by this change.
+
 Run the example or generate local documentation:
 
 ```sh

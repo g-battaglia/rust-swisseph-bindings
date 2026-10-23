@@ -1,4 +1,4 @@
-//! Build script: compile the pinned, unmodified native Swiss Ephemeris
+//! Build script: compile the pinned native Swiss Ephemeris
 //! library and link it into this crate.
 //!
 //! The submodule `swisseph/` must be checked out at the commit recorded in
@@ -12,6 +12,9 @@
 //! under Cargo `OUT_DIR`; nothing is written into the submodule. The separately
 //! attributed 2.10.03 degree splitter is an explicit versioned compatibility
 //! unit under `src/native/`, without changing any pinned engine source.
+//! One declared build overlay compacts ASCII spaces in a catalog name in one
+//! pass. Only the generated OUT_DIR copy changes; lookup order and numerical
+//! calculations remain the pinned implementation.
 
 use std::env;
 use std::fs;
@@ -54,6 +57,13 @@ const HEADERS: &[&str] = &[
 /// Versioned upstream utility kept separately from the current engine.
 const COMPAT_SOURCE: &str = "src/native/split_deg_2_10_03.c";
 
+/// Lossless string operation compiled into the generated catalog reader.
+const CATALOG_COMPACTION: &str = "src/native/fixed_star_ascii_space_compaction.h";
+
+/// Exact pinned fragment replaced once, after the existing name truncation.
+const CATALOG_SPACE_LOOP: &str =
+    "    while ((sp = strchr(fstar, ' ')) != NULL)\n      swi_strcpy(sp, sp+1);";
+
 /// C probe asserting the ABI widths the Rust declarations rely on.
 ///
 /// `int32` is `int` (32 bit) outside 16-bit targets and `double` is IEEE
@@ -83,6 +93,7 @@ fn main() {
     // reusing the cached archive.
     println!("cargo:rerun-if-env-changed=CC");
     println!("cargo:rerun-if-changed={COMPAT_SOURCE}");
+    println!("cargo:rerun-if-changed={CATALOG_COMPACTION}");
     for name in SOURCES.iter().chain(HEADERS.iter()) {
         println!("cargo:rerun-if-changed=swisseph/{name}");
     }
@@ -135,9 +146,16 @@ fn main() {
 
     // 2. Compile each translation unit into OUT_DIR.
     let mut objects = Vec::with_capacity(SOURCES.len() + 1);
+    let catalog_input = compacted_catalog_source(&native, &out);
     let inputs = SOURCES
         .iter()
-        .map(|name| native.join(name))
+        .map(|name| {
+            if *name == "sweph.c" {
+                catalog_input.clone()
+            } else {
+                native.join(name)
+            }
+        })
         .chain(std::iter::once(manifest.join(COMPAT_SOURCE)));
     for input in inputs {
         let name = input
@@ -152,6 +170,7 @@ fn main() {
         }
         let status = compiler
             .arg(format!("-I{}", native.display()))
+            .arg(format!("-I{}", manifest.join("src/native").display()))
             .arg("-c")
             .arg(&input)
             .arg("-o")
@@ -187,6 +206,30 @@ fn main() {
     write_input_manifest(&out, &cc, optimization, native_lto);
 }
 
+/// Generate exactly one lossless catalog-string substitution in OUT_DIR.
+/// A changed or missing pinned fragment fails closed before compilation;
+/// the dependency checkout and every numerical statement remain untouched.
+fn compacted_catalog_source(native: &Path, out: &Path) -> PathBuf {
+    let original = fs::read_to_string(native.join("sweph.c")).expect("read pinned catalog source");
+    assert_eq!(
+        original.matches(CATALOG_SPACE_LOOP).count(),
+        1,
+        "pinned fixed-star space loop differs; refusing an unreviewed transformation"
+    );
+    let transformed = original.replacen(
+        CATALOG_SPACE_LOOP,
+        "    swe_compact_fixed_star_ascii_spaces(fstar);",
+        1,
+    );
+    let generated = out.join("sweph.c");
+    fs::write(
+        &generated,
+        format!("#include \"fixed_star_ascii_space_compaction.h\"\n{transformed}"),
+    )
+    .expect("write generated catalog source");
+    generated
+}
+
 /// Record which native inputs produced the linked archive without touching
 /// the submodule checkout.
 ///
@@ -201,6 +244,9 @@ fn write_input_manifest(out: &Path, cc: &str, optimization: &str, native_lto: bo
         content.push_str(&format!("swisseph/{name}\n"));
     }
     content.push_str(&format!("{COMPAT_SOURCE}\n"));
+    content.push_str(&format!("{CATALOG_COMPACTION}\n"));
+    content
+        .push_str("native-overlay: fixed-star ASCII-space compaction; generated OUT_DIR/sweph.c\n");
     content.push_str(&format!("compiler: {cc}\n"));
     let lto_flag = if native_lto { " -flto" } else { "" };
     content.push_str(&format!("cflags: {optimization} -fPIC{lto_flag}\n"));

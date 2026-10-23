@@ -4,6 +4,8 @@
 //! from the `swisseph/` submodule by `build.rs`); this crate contributes
 //! ownership, error handling and serialized access, never astronomical
 //! algorithms of its own.
+//! A declared build overlay removes ASCII spaces from a truncated catalog name
+//! in one pass; the original lookup policy and numerical calculations remain.
 //!
 //! # Public API style
 //!
