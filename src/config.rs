@@ -281,35 +281,48 @@ pub(crate) fn apply_ephe_path_locked(path: Option<&CString>) -> Result<(), Error
 /// their forced-reload behavior. Manual tidal writes disable reuse because
 /// path installation restores automatic selection, even for an equal value.
 pub(crate) fn ensure_ephe_path_locked(path: Option<&CString>) -> Result<(), Error> {
-    let environment = std::env::var_os("SE_EPHE_PATH");
+    ensure_ephe_path_with_environment_locked(path, true)
+}
+
+/// Reuse installed path metadata under native access. When refresh is disabled,
+/// only an actual installation samples the environment, as the C setter does.
+/// Directory and thread checks use the last globally installed selection.
+pub(crate) fn ensure_ephe_path_with_environment_locked(
+    path: Option<&CString>,
+    refresh_environment: bool,
+) -> Result<(), Error> {
+    let environment = refresh_environment.then(|| std::env::var_os("SE_EPHE_PATH"));
     let reusable = {
         let settings = VALIDATION_SETTINGS
             .lock()
             .map_err(|_| Error::lock_poisoned())?;
-        let same_selection =
-            settings
-                .ephe_path
-                .as_ref()
-                .is_some_and(|(saved, saved_environment)| {
-                    saved.as_ref() == path && *saved_environment == environment
-                });
-        // Identical absolute-only bytes retain their proven cwd independence.
-        // Relative/unavailable selections still resolve the current directory;
-        // environment, thread and tidal checks remain fresh on every call.
-        let working_directory =
-            if same_selection && settings.ephe_path_directory == EphemerisDirectory::Independent {
-                EphemerisDirectory::Independent
-            } else {
-                ephe_path_directory(path, environment.as_deref())
-            };
-        same_selection
-            && working_directory != EphemerisDirectory::Unavailable
-            && working_directory == settings.ephe_path_directory
-            && settings.ephe_path_thread == Some(configuration_thread_id())
-            // Binding-owned manual tidal writes clear this marker. Automatic
-            // selection changes during calculations are part of native state,
-            // not a path change: replaying the setter would reset its caches.
-            && settings.ephe_path_automatic_tidal
+        settings
+            .ephe_path
+            .as_ref()
+            .is_some_and(|(saved, saved_environment)| {
+                if saved.as_ref() != path
+                    || environment
+                        .as_ref()
+                        .is_some_and(|current| current != saved_environment)
+                {
+                    return false;
+                }
+                // The saved environment describes what C actually installed, even
+                // when a different session last wrote it. Relative entries must
+                // still observe cwd changes before deciding to reuse native state.
+                let working_directory =
+                    if settings.ephe_path_directory == EphemerisDirectory::Independent {
+                        EphemerisDirectory::Independent
+                    } else {
+                        ephe_path_directory(path, saved_environment.as_deref())
+                    };
+                working_directory != EphemerisDirectory::Unavailable
+                && working_directory == settings.ephe_path_directory
+                && settings.ephe_path_thread == Some(configuration_thread_id())
+                // Explicit manual tidal writes require the setter's automatic
+                // selection effect, even if the numeric value was unchanged.
+                && settings.ephe_path_automatic_tidal
+            })
     };
     if reusable {
         Ok(())

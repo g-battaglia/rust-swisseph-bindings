@@ -70,6 +70,10 @@ Free functions share process-global native configuration. Each call is
 serialized, but a free setter followed by a calculation can interleave with
 another caller. Use `SessionBuilder` and fully specify settings that must remain
 consistent for a computation. Unset session settings inherit global state.
+Configured paths check `SE_EPHE_PATH` on every computation by default. Select
+`refresh_ephe_path_environment(false)` to sample it only when installing a path,
+following the native setter lifecycle. Explicit setters always sample again;
+path, close, thread, relative-directory and tidal invalidations still reinstall.
 
 Swiss and JPL data files are external to the Cargo package. Configure the data
 path through `set_ephe_path` or the session builder. `SWISSEPH_EPHE_DIR` selects

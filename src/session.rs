@@ -30,6 +30,9 @@
 //! close, or a tidal-state change that
 //! requires its automatic-selection side effect. The public path setter remains
 //! a forced reload, including when the same path is supplied again.
+//! By default each computation samples `SE_EPHE_PATH`; callers that require
+//! the C setter's environment lifecycle can select installation-only sampling
+//! with [`SessionBuilder::refresh_ephe_path_environment`].
 //!
 //! # Reset semantics
 //!
@@ -82,7 +85,7 @@ use std::sync::{Arc, Mutex};
 use crate::config::{
     MAX_EPHE_PATH_LEN, MAX_JPL_FILE_LEN, apply_delta_t_locked, apply_jpl_file_locked,
     apply_sid_mode_locked, apply_tid_acc_locked, apply_topo_locked, check_sidereal_request_locked,
-    ensure_ephe_path_locked, get_ayanamsa_ut_locked, get_current_file_data_locked,
+    ensure_ephe_path_with_environment_locked, get_ayanamsa_ut_locked, get_current_file_data_locked,
 };
 use crate::error::Error;
 use crate::ffi::{HELIACAL_ATM_LEN, HELIACAL_OBS_LEN};
@@ -116,12 +119,30 @@ pub struct SessionBuilder {
     delta_t: Option<Option<f64>>,
     lapse_rate: Option<f64>,
     excluded_file_data_slots: [bool; 5],
+    ephe_path_environment_on_installation: bool,
 }
 
 impl SessionBuilder {
     /// Start a session builder with every knob unset (fully inherited).
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Choose when a configured path observes `SE_EPHE_PATH`.
+    ///
+    /// Enabled by default: every computation checks for an environment change.
+    /// With `false`, an unchanged installed path retains its effective native
+    /// environment until a path installation is otherwise required, matching
+    /// the C setter's sampling lifecycle. Explicit path setters always sample
+    /// the current environment, even for the same path spelling. Close, path,
+    /// native thread, relative working-directory and manual tidal changes can
+    /// require installation and therefore also sample the current environment.
+    /// The last globally installed selection is authoritative across sessions.
+    /// Unset paths inherit native state and are unaffected by this policy.
+    /// This changes no input validation, computation or file-snapshot policy.
+    pub fn refresh_ephe_path_environment(&mut self, enabled: bool) -> &mut Self {
+        self.ephe_path_environment_on_installation = !enabled;
+        self
     }
 
     /// Enable or disable owned file-metadata snapshots after computations.
@@ -337,6 +358,7 @@ impl SessionBuilder {
             tid_acc: self.tid_acc,
             delta_t: self.delta_t,
             lapse_rate: self.lapse_rate,
+            ephe_path_environment_on_installation: self.ephe_path_environment_on_installation,
             capture_file_data: capture_file_slots.iter().any(|enabled| *enabled),
             capture_file_slots,
             file_data: Arc::new(Mutex::new(std::array::from_fn(|_| None))),
@@ -369,6 +391,8 @@ pub struct Session {
     tid_acc: Option<f64>,
     delta_t: Option<Option<f64>>,
     lapse_rate: Option<f64>,
+    /// Sample the native path environment only when installation is required.
+    ephe_path_environment_on_installation: bool,
     /// Whether computations publish an owned snapshot of the native file slots.
     capture_file_data: bool,
     /// Native file slots selected for owned observation after computations.
@@ -433,7 +457,10 @@ impl Session {
     /// the computation and the metadata snapshot).
     fn apply_locked(&self) -> Result<(), Error> {
         if let Some(path) = &self.ephe_path {
-            ensure_ephe_path_locked(path.as_ref())?;
+            ensure_ephe_path_with_environment_locked(
+                path.as_ref(),
+                !self.ephe_path_environment_on_installation,
+            )?;
         }
         if let Some(jpl) = &self.jpl_file {
             match jpl {
