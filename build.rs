@@ -12,9 +12,12 @@
 //! under Cargo `OUT_DIR`; nothing is written into the submodule. The separately
 //! attributed 2.10.03 degree splitter is an explicit versioned compatibility
 //! unit under `src/native/`, without changing any pinned engine source.
-//! One declared build overlay compacts ASCII spaces in a catalog name in one
-//! pass. Only the generated OUT_DIR copy changes; lookup order and numerical
-//! calculations remain the pinned implementation.
+//! Declared OUT_DIR overlays compact catalog spaces and decode immutable
+//! Moshier argument metadata. Lookup and floating-point evaluation retain
+//! their pinned order; the dependency checkout is never modified.
+
+#[path = "build_support/moshier.rs"]
+mod moshier;
 
 use std::env;
 use std::fs;
@@ -94,6 +97,9 @@ fn main() {
     println!("cargo:rerun-if-env-changed=CC");
     println!("cargo:rerun-if-changed={COMPAT_SOURCE}");
     println!("cargo:rerun-if-changed={CATALOG_COMPACTION}");
+    for input in moshier::INPUTS {
+        println!("cargo:rerun-if-changed={input}");
+    }
     for name in SOURCES.iter().chain(HEADERS.iter()) {
         println!("cargo:rerun-if-changed=swisseph/{name}");
     }
@@ -147,11 +153,14 @@ fn main() {
     // 2. Compile each translation unit into OUT_DIR.
     let mut objects = Vec::with_capacity(SOURCES.len() + 1);
     let catalog_input = compacted_catalog_source(&native, &out);
+    let moshier_input = moshier::generate(&native, &out);
     let inputs = SOURCES
         .iter()
         .map(|name| {
             if *name == "sweph.c" {
                 catalog_input.clone()
+            } else if *name == "swemplan.c" {
+                moshier_input.source.clone()
             } else {
                 native.join(name)
             }
@@ -245,8 +254,19 @@ fn write_input_manifest(out: &Path, cc: &str, optimization: &str, native_lto: bo
     }
     content.push_str(&format!("{COMPAT_SOURCE}\n"));
     content.push_str(&format!("{CATALOG_COMPACTION}\n"));
+    for input in moshier::INPUTS {
+        content.push_str(&format!("{input}\n"));
+    }
     content
         .push_str("native-overlay: fixed-star ASCII-space compaction; generated OUT_DIR/sweph.c\n");
+    content.push_str("native-overlay: immutable Moshier argument metadata; generated OUT_DIR/swemplan.c and moshier_terms.generated.h\n");
+    for name in ["swemplan.c", "moshier_terms.generated.h"] {
+        let bytes = fs::read(out.join(name)).expect("read generated overlay identity");
+        content.push_str(&format!(
+            "generated-fnv1a64: {name} {:016x}\n",
+            moshier::fingerprint(&bytes)
+        ));
+    }
     content.push_str(&format!("compiler: {cc}\n"));
     let lto_flag = if native_lto { " -flto" } else { "" };
     content.push_str(&format!("cflags: {optimization} -fPIC{lto_flag}\n"));

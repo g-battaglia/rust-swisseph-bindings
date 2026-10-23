@@ -12,5 +12,13 @@
     "helper": "src/native/fixed_star_ascii_space_compaction.h",
     "application": "build.rs generates OUT_DIR/sweph.c; exact pinned fragment required once",
     "effect": "Single-pass removal of ASCII spaces from an already truncated catalog name; lookup, lifecycle, errors and astronomical calculations unchanged"
+  }, {
+    "id": "immutable-moshier-argument-metadata",
+    "base_source": "swisseph/swemplan.c",
+    "base_tables": "swisseph/swemptab.h",
+    "generator": "build_support/moshier.rs",
+    "helper": "src/native/moshier_metadata_eval.h",
+    "application": "build.rs generates OUT_DIR/swemplan.c and moshier_terms.generated.h; exact evaluator fingerprint and complete table decoding required",
+    "effect": "Build-time decoding of immutable term structure; original coefficient streams, floating expressions, Horner steps, accumulation order and native calls retained; no time-dependent or result cache"
   }]
 }

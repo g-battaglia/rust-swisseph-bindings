@@ -28,6 +28,7 @@ include = [
     "LICENSE",
     "README.md",
     "build.rs",
+    "build_support/**",
     "rust-toolchain.toml",
     "src/**",
     "tests/**",

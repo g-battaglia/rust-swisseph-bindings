@@ -113,6 +113,15 @@ records the overlay in `native-inputs.txt`. File scanning, matching order,
 locale handling, diagnostics, session lifecycle and every astronomical statement
 remain unchanged. No catalog or calculated positions are cached by this change.
 
+A second overlay generates `OUT_DIR/swemplan.c` and immutable Moshier term
+metadata from the pinned argument tables. A source-fragment fingerprint and
+fail-closed decoder check signed-byte structure, planet order, harmonic bounds,
+sentinels and complete coefficient consumption. The evaluator uses the original
+coefficient arrays and preserves every floating expression, Horner step and
+accumulation order; only repeated argument decoding changes. Generated content
+identities are recorded in `native-inputs.txt`. No time-dependent data or
+calculated results are cached.
+
 Run the example or generate local documentation:
 
 ```sh
