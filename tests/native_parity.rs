@@ -495,13 +495,14 @@ fn driver() -> Result<(), String> {
             source,
         )?;
         println!(
-            "PASS Session state: inherits/partial/reset/clear/clone-drop/lapse-atmosphere/native errors; computations={} builders={} rejections={} native_errors={} absences={} fields={}",
+            "PASS Session state: inherits/partial/reset/clear/clone-drop/lapse-atmosphere/native errors; computations={} builders={} rejections={} native_errors={} absences={} fields={} path_reuses={}",
             state.computations,
             state.builders,
             state.rejections,
             state.native_errors,
             state.absences,
-            state.fields
+            state.fields,
+            state.path_reuses
         );
         let (scripts, fields) =
             cold_driver::run(&oracle, &executable, &empty, empty_text, deadline)?;

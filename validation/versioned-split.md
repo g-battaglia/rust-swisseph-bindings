@@ -36,11 +36,42 @@ The new `Session::copy_captured_file_path_into` reads only owned snapshot bytes
 under the metadata mutex. The existing native-access query retains its native
 lock/reentry behavior. Native calculations still capture every file slot.
 
-An unrestricted native-parity smoke run remains failed at
-`SESSION_DEFAULT_CLEAR_CLOSE_RESET`, owner 6 / file slot 0, with a snapshot
-result-layout mismatch. This is not relabeled as global conformance. The same
-run passes the seven-operation Session A/B comparison, contention and clone
-history group (630 results / 196 rejections / 8,106 fields). The existing
-self-target geometry rejection control initially exposed undefined native
-geographic components; the missing safe-boundary check is now applied while
-keeping the original rejection control intact.
+The original unrestricted native-parity smoke failed at
+`SESSION_DEFAULT_CLEAR_CLOSE_RESET`, owner 6 / file slot 0. That failed run
+remains historical evidence. The state-script oracle repeated the native path
+setter before each operation, closing its own file slots; the public Session
+correctly retained its unchanged path and open files. The mismatch concerned
+different native lifecycles, not a truncated buffer or numerical correction.
+
+The oracle now tracks only successful path, tidal and close inputs. Session
+operations reuse an unchanged path; explicit free setters always execute.
+Working directory, environment and worker thread remain fixed in this serial
+script. Every status, file slot, scalar field, path and diagnostic still compares
+exactly against independent C results. A separate direct-C regression verifies
+default-path snapshot retention and explicit reload, with an actual asteroid
+file that the native path setter does not reopen.
+
+The unrestricted smoke now passes, including 630 Session A/B/contention/clone
+results, 196 rejections and 8,106 fields; 48 state-script computations, 17
+builders, 36 rejections and 3,218 fields; and four cold/reset scripts with 332
+fields. Four Session path reuses are reported explicitly. Existing controls
+retain path-owner changes, free writes, close, manual/equal tidal writes,
+working-directory/environment changes and thread migration. This establishes
+the executed smoke scope, not independent scientific certification.
+The smoke executes 1,347 cases, 14,111 comparison/rejection fields and 243
+constant/status fields. The configured full suite passes 277 Rust tests and
+doctests with no failures or ignored tests; the outer test runner is serial,
+while the explicit contention tests retain their worker threads. Strict
+all-target Clippy and formatting also pass.
+
+Broader test execution also exposed stale admission fixtures and shared-state
+races. The four geometry pairs now use the supported Sun target, while four
+Moon self-occultation inputs explicitly require safe rejection and never reach
+C. Admission, catalog and extended-session tests run in isolated children with
+the native path environment removed; threaded contention inside each selected
+test remains intact. Each admission compiler owns a distinct process-named
+oracle executable, preventing concurrent replacement during launch.
+
+The existing self-target geometry rejection control initially exposed undefined
+native geographic components; the missing safe-boundary check remains applied
+while keeping the original rejection control intact.
