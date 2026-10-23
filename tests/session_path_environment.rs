@@ -123,6 +123,96 @@ fn environment(path: &std::path::Path) {
     unsafe { std::env::set_var("SE_EPHE_PATH", path) };
 }
 
+/// Compare Sunshine's full C buffers before any configured wrapper acquisition.
+fn sunshine_matches_native(session: &swisseph_bindings::Session) -> bool {
+    let (mut cusps, mut angles, mut speeds, mut angle_speeds) =
+        ([0.0; 13], [0.0; 10], [0.0; 13], [0.0; 10]);
+    let mut diagnostic = [0 as c_char; 256];
+    // SAFETY: isolated single-thread child, public I layout and complete buffers.
+    let status = unsafe {
+        swe_houses_ex2(
+            2379000.5,
+            0,
+            41.9,
+            12.5,
+            i32::from(b'I'),
+            cusps.as_mut_ptr(),
+            angles.as_mut_ptr(),
+            speeds.as_mut_ptr(),
+            angle_speeds.as_mut_ptr(),
+            diagnostic.as_mut_ptr(),
+        )
+    };
+    assert!(status >= 0, "native Sunshine houses must succeed");
+    let actual = session.houses_ex2(2379000.5, 0, 41.9, 12.5, b'I').unwrap();
+    actual
+        .cusps
+        .iter()
+        .zip(&cusps[1..])
+        .chain(actual.angles.iter().zip(&angles[..8]))
+        .chain(actual.cusp_speeds.iter().zip(&speeds[1..]))
+        .chain(actual.angle_speeds.iter().zip(&angle_speeds[..8]))
+        .all(|(a, b)| a.to_bits() == b.to_bits())
+}
+
+#[test]
+fn native_relative_lifecycle_preserves_sunshine_results_across_directory_changes() {
+    if !isolated::without_ephe_override(
+        "native_relative_lifecycle_preserves_sunshine_results_across_directory_changes",
+    ) {
+        return;
+    }
+    let data = test_data::ephemeris_dir().expect("complete external data");
+    let root =
+        std::env::temp_dir().join(format!("swisseph-native-relative-{}", std::process::id()));
+    let first = root.join("first");
+    let second = root.join("second");
+    let empty = root.join("empty");
+    for parent in [&first, &second] {
+        let full = parent.join("relative-full");
+        std::fs::create_dir_all(&full).unwrap();
+        for name in ["sepl_18.se1", "semo_18.se1"] {
+            std::os::unix::fs::symlink(std::path::Path::new(&data).join(name), full.join(name))
+                .unwrap();
+        }
+    }
+    std::fs::create_dir(&empty).unwrap();
+    let original = std::env::current_dir().unwrap();
+    let mut builder = SessionBuilder::new();
+    builder
+        .ephe_path("/nonexistent/native-relative")
+        .refresh_ephe_path_environment(false);
+    let restoring = builder.build().unwrap();
+    let retaining = builder
+        .reinstall_ephe_path_on_directory_change(false)
+        .build()
+        .unwrap();
+    for (session, expected_match) in [(&restoring, false), (&retaining, true)] {
+        std::env::set_current_dir(&first).unwrap();
+        environment(std::path::Path::new("relative-full"));
+        set_ephe_path(Some("/nonexistent/native-relative")).unwrap();
+        assert!(
+            sunshine_matches_native(session),
+            "initial native result differs"
+        );
+        environment(&empty);
+        std::env::set_current_dir(&second).unwrap();
+        assert!(
+            sunshine_matches_native(session) == expected_match,
+            "directory policy must preserve its explicit native state contract"
+        );
+        // The opt-in retains state only until an actual explicit installation.
+        set_ephe_path(Some("/nonexistent/native-relative")).unwrap();
+        assert!(
+            sunshine_matches_native(session),
+            "explicit reinstallation differs"
+        );
+    }
+    std::env::set_current_dir(original).unwrap();
+    close().unwrap();
+    std::fs::remove_dir_all(root).unwrap();
+}
+
 #[test]
 fn installation_policy_matches_c_and_default_policy_still_refreshes() {
     if !isolated::without_ephe_override(

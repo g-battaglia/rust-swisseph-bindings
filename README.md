@@ -74,6 +74,9 @@ Configured paths check `SE_EPHE_PATH` on every computation by default. Select
 `refresh_ephe_path_environment(false)` to sample it only when installing a path,
 following the native setter lifecycle. Explicit setters always sample again;
 path, close, thread, relative-directory and tidal invalidations still reinstall.
+Independently, `reinstall_ephe_path_on_directory_change(false)` retains C's
+installed relative path and open files when cwd changes; later native file opens
+use the current directory. The default remains relative-directory tracking.
 
 Swiss and JPL data files are external to the Cargo package. Configure the data
 path through `set_ephe_path` or the session builder. `SWISSEPH_EPHE_DIR` selects

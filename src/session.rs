@@ -33,6 +33,8 @@
 //! By default each computation samples `SE_EPHE_PATH`; callers that require
 //! the C setter's environment lifecycle can select installation-only sampling
 //! with [`SessionBuilder::refresh_ephe_path_environment`].
+//! Relative paths normally track directory changes; native open-file behavior
+//! is available with [`SessionBuilder::reinstall_ephe_path_on_directory_change`].
 //!
 //! # Reset semantics
 //!
@@ -120,6 +122,7 @@ pub struct SessionBuilder {
     lapse_rate: Option<f64>,
     excluded_file_data_slots: [bool; 5],
     ephe_path_environment_on_installation: bool,
+    keep_relative_ephe_path: bool,
 }
 
 impl SessionBuilder {
@@ -142,6 +145,23 @@ impl SessionBuilder {
     /// This changes no input validation, computation or file-snapshot policy.
     pub fn refresh_ephe_path_environment(&mut self, enabled: bool) -> &mut Self {
         self.ephe_path_environment_on_installation = !enabled;
+        self
+    }
+
+    /// Choose whether a cwd change reinstalls a configured relative path.
+    ///
+    /// Enabled by default: relative path sessions restore their configuration
+    /// after a directory change. With `false`, retain the installed native path
+    /// and its open files, following the C library's relative-path lifecycle.
+    /// Later native file opens resolve relative entries from the then-current
+    /// directory; already open native files retain C's ordinary behavior.
+    /// Explicit setters, other path selections, close, thread and manual tidal
+    /// invalidations still reinstall. This policy does not change environment
+    /// sampling; select [`Self::refresh_ephe_path_environment`] independently.
+    /// It performs no computation and changes no values, flags or diagnostics
+    /// produced by the C operation under its selected installed state.
+    pub fn reinstall_ephe_path_on_directory_change(&mut self, enabled: bool) -> &mut Self {
+        self.keep_relative_ephe_path = !enabled;
         self
     }
 
@@ -359,6 +379,7 @@ impl SessionBuilder {
             delta_t: self.delta_t,
             lapse_rate: self.lapse_rate,
             ephe_path_environment_on_installation: self.ephe_path_environment_on_installation,
+            keep_relative_ephe_path: self.keep_relative_ephe_path,
             capture_file_data: capture_file_slots.iter().any(|enabled| *enabled),
             capture_file_slots,
             file_data: Arc::new(Mutex::new(std::array::from_fn(|_| None))),
@@ -393,6 +414,8 @@ pub struct Session {
     lapse_rate: Option<f64>,
     /// Sample the native path environment only when installation is required.
     ephe_path_environment_on_installation: bool,
+    /// Keep the installed relative C path and its open files after cwd changes.
+    keep_relative_ephe_path: bool,
     /// Whether computations publish an owned snapshot of the native file slots.
     capture_file_data: bool,
     /// Native file slots selected for owned observation after computations.
@@ -460,6 +483,7 @@ impl Session {
             ensure_ephe_path_with_environment_locked(
                 path.as_ref(),
                 !self.ephe_path_environment_on_installation,
+                !self.keep_relative_ephe_path,
             )?;
         }
         if let Some(jpl) = &self.jpl_file {
