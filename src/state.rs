@@ -65,6 +65,7 @@ impl Drop for DepthGuard {
 /// lock short-circuits to [`Error`] without running the closure. A nested
 /// call on the thread already holding access is rejected with
 /// `InvalidInput` instead of deadlocking.
+#[inline(always)]
 pub(crate) fn with_native_access<R>(
     operation: impl FnOnce() -> Result<R, Error>,
 ) -> Result<R, Error> {

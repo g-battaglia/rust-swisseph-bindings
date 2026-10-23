@@ -383,6 +383,7 @@ impl Session {
     /// Apply configuration, compute and optionally capture native file slots under
     /// one acquisition. No user-provided callback reaches this helper.
     /// Lock order is always native access, then the metadata mutex.
+    #[inline(always)]
     fn compute<R>(&self, operation: impl FnOnce() -> Result<R, Error>) -> Result<R, Error> {
         with_native_access(|| {
             self.apply_locked()?;
