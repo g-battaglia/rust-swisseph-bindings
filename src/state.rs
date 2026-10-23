@@ -49,15 +49,12 @@ thread_local! {
     static NATIVE_DEPTH: Cell<usize> = const { Cell::new(0) };
 }
 
-/// Guard resetting the current thread's depth even when `operation` panics.
-/// The enclosing TLS scope keeps this cell valid until the guard is dropped.
-struct DepthGuard<'a> {
-    depth: &'a Cell<usize>,
-}
+/// Guard resetting the thread-local depth even when `operation` panics.
+struct DepthGuard;
 
-impl Drop for DepthGuard<'_> {
+impl Drop for DepthGuard {
     fn drop(&mut self) {
-        self.depth.set(self.depth.get().saturating_sub(1));
+        NATIVE_DEPTH.with(|depth| depth.set(depth.get().saturating_sub(1)));
     }
 }
 
@@ -72,21 +69,19 @@ impl Drop for DepthGuard<'_> {
 pub(crate) fn with_native_access<R>(
     operation: impl FnOnce() -> Result<R, Error>,
 ) -> Result<R, Error> {
-    NATIVE_DEPTH.with(|depth| {
-        if depth.get() > 0 {
-            return Err(Error::invalid_input(
-                "native access is already held on this thread; nested config-plus-computation is unsupported (use one Session call per atomic sequence)",
-            ));
+    if NATIVE_DEPTH.with(|depth| depth.get()) > 0 {
+        return Err(Error::invalid_input(
+            "native access is already held on this thread; nested config-plus-computation is unsupported (use one Session call per atomic sequence)",
+        ));
+    }
+    match NATIVE_LOCK.lock() {
+        Ok(_guard) => {
+            NATIVE_DEPTH.with(|depth| depth.set(depth.get().saturating_add(1)));
+            let _depth = DepthGuard;
+            operation()
         }
-        match NATIVE_LOCK.lock() {
-            Ok(_guard) => {
-                depth.set(depth.get().saturating_add(1));
-                let _depth = DepthGuard { depth };
-                operation()
-            }
-            Err(_) => Err(Error::lock_poisoned()),
-        }
-    })
+        Err(_) => Err(Error::lock_poisoned()),
+    }
 }
 
 #[cfg(test)]
