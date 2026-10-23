@@ -64,6 +64,9 @@ struct ValidationSettings {
     /// Last binding-owned observer and full sidereal setting, for cache reset.
     topo: Option<(f64, f64, f64)>,
     sidereal_mode: Option<(i32, f64, f64)>,
+    /// Thread whose native sidereal setting and precession model are current.
+    /// Path/JPL setters can reset the model without changing the stored mode.
+    sidereal_thread: Option<std::thread::ThreadId>,
 }
 
 /// Fresh native defaults; explicit close resets both settings (ABI probe).
@@ -77,6 +80,7 @@ static VALIDATION_SETTINGS: Mutex<ValidationSettings> = Mutex::new(ValidationSet
     ephe_path_automatic_tidal: false,
     topo: None,
     sidereal_mode: None,
+    sidereal_thread: None,
 });
 
 /// Initialize native defaults before writes that native first use would
@@ -96,6 +100,7 @@ fn initialize_sidereal_locked() -> Result<(), Error> {
         unsafe { ffi::swe_set_sid_mode(crate::SIDM_FAGAN_BRADLEY, 0.0, 0.0) };
         settings.sidereal_initialized = true;
         settings.sidereal_mode = Some((crate::SIDM_FAGAN_BRADLEY, 0.0, 0.0));
+        settings.sidereal_thread = Some(configuration_thread_id());
     }
     Ok(())
 }
@@ -245,6 +250,10 @@ pub(crate) fn apply_ephe_path_locked(path: Option<&CString>) -> Result<(), Error
         || settings.ephe_path_directory != directory
         || settings.ephe_path_thread != Some(thread);
     let pointer = path.map_or(std::ptr::null(), |owned| owned.as_ptr());
+    // Even an equal forced path write clears native astronomical models.
+    // A changed path replays the remembered mode below; an unchanged write
+    // leaves it for the next configured Session to install explicitly.
+    settings.sidereal_thread = None;
     // SAFETY: native access is held; strings remain alive and are copied by C.
     // C's path setter retains the extended catalog. A real path change therefore
     // requires public close before path installation. Replay binding-owned
@@ -257,6 +266,7 @@ pub(crate) fn apply_ephe_path_locked(path: Option<&CString>) -> Result<(), Error
         if changed {
             if let Some((mode, t0, ayan)) = settings.sidereal_mode {
                 ffi::swe_set_sid_mode(mode, t0, ayan);
+                settings.sidereal_thread = Some(thread);
                 if let Some(dt) = settings.delta_t {
                     ffi::swe_set_delta_t_userdef(dt);
                 }
@@ -370,20 +380,55 @@ pub(crate) fn apply_sid_mode_locked(mode: i32, t0: f64, ayan_t0: f64) -> Result<
         (mode & 255 == crate::SIDM_USER && mode & USER_UT_BIT != 0).then_some(t0);
     settings.sidereal_initialized = true;
     settings.sidereal_mode = Some((mode, t0, ayan_t0));
+    settings.sidereal_thread = Some(configuration_thread_id());
     Ok(())
+}
+
+/// Retain an identical Session sidereal configuration on its native thread.
+///
+/// The caller holds native access. `t0` is a Julian Day and `ayan_t0` an angle
+/// in degrees; exact bits distinguish every finite admitted request. Explicit
+/// public setters still force the C write. This retains only configuration
+/// identity; every requested computation still enters C. A poisoned metadata
+/// mutex is an error. Unsynchronized external C writes are not tracked.
+pub(crate) fn ensure_sid_mode_locked(mode: i32, t0: f64, ayan_t0: f64) -> Result<(), Error> {
+    let reusable = {
+        let settings = VALIDATION_SETTINGS
+            .lock()
+            .map_err(|_| Error::lock_poisoned())?;
+        settings.sidereal_thread == Some(configuration_thread_id())
+            && settings
+                .sidereal_mode
+                .is_some_and(|(saved_mode, saved_t0, saved_ayan)| {
+                    saved_mode == mode
+                        && saved_t0.to_bits() == t0.to_bits()
+                        && saved_ayan.to_bits() == ayan_t0.to_bits()
+                })
+    };
+    if reusable {
+        Ok(())
+    } else {
+        apply_sid_mode_locked(mode, t0, ayan_t0)
+    }
 }
 
 /// Apply a JPL file selection while native access is already held.
 ///
 /// Caller must hold the native lock; the setter copies the name and
 /// closes cached file data.
-pub(crate) fn apply_jpl_file_locked(native_name: &CString) {
+pub(crate) fn apply_jpl_file_locked(native_name: &CString) -> Result<(), Error> {
+    let mut settings = VALIDATION_SETTINGS
+        .lock()
+        .map_err(|_| Error::lock_poisoned())?;
     // SAFETY: `native_name` is a live `CString`, hence non-null and
     // NUL-terminated as the native setter requires. The setter copies the
     // name, so no reference outlives this scope.
     unsafe {
         ffi::swe_set_jpl_file(native_name.as_ptr());
     }
+    // The C setter clears precession models while retaining the mode fields.
+    settings.sidereal_thread = None;
+    Ok(())
 }
 
 /// Apply a tidal acceleration while native access is already held.
@@ -634,10 +679,7 @@ pub fn set_jpl_file(fname: &str) -> Result<(), Error> {
     let native_name = CString::new(fname).map_err(|_| {
         Error::invalid_input("set_jpl_file: file name contains an interior NUL byte")
     })?;
-    with_native_access(|| {
-        apply_jpl_file_locked(&native_name);
-        Ok(())
-    })
+    with_native_access(|| apply_jpl_file_locked(&native_name))
 }
 
 /// Set the tidal acceleration of the Moon used in Delta-T calculations.

@@ -86,8 +86,9 @@ use std::sync::{Arc, Mutex};
 
 use crate::config::{
     MAX_EPHE_PATH_LEN, MAX_JPL_FILE_LEN, apply_delta_t_locked, apply_jpl_file_locked,
-    apply_sid_mode_locked, apply_tid_acc_locked, apply_topo_locked, check_sidereal_request_locked,
-    ensure_ephe_path_with_environment_locked, get_ayanamsa_ut_locked, get_current_file_data_locked,
+    apply_tid_acc_locked, apply_topo_locked, check_sidereal_request_locked,
+    ensure_ephe_path_with_environment_locked, ensure_sid_mode_locked, get_ayanamsa_ut_locked,
+    get_current_file_data_locked,
 };
 use crate::error::Error;
 use crate::ffi::{HELIACAL_ATM_LEN, HELIACAL_OBS_LEN};
@@ -492,13 +493,13 @@ impl Session {
                 // SAFETY: an empty `CString` is a valid empty C string;
                 // the native setter treats it as "close the JPL file".
                 None => apply_jpl_file_locked(&CString::new("").unwrap_or_default()),
-            }
+            }?;
         }
         if let Some((lon, lat, alt)) = self.topo {
             apply_topo_locked(lon, lat, alt)?;
         }
         if let Some((mode, t0, ayan_t0)) = self.sid_mode {
-            apply_sid_mode_locked(mode, t0, ayan_t0)?;
+            ensure_sid_mode_locked(mode, t0, ayan_t0)?;
         }
         if let Some(acc) = self.tid_acc {
             apply_tid_acc_locked(acc)?;
