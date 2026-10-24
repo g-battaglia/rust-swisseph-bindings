@@ -31,6 +31,8 @@ mod moshier;
 mod nutation;
 #[path = "build_support/period_remainder.rs"]
 mod period_remainder;
+#[path = "build_support/precession_pairs.rs"]
+mod precession_pairs;
 
 use std::env;
 use std::fs;
@@ -129,6 +131,9 @@ fn main() {
     for input in file_open::INPUTS {
         println!("cargo:rerun-if-changed={input}");
     }
+    for input in precession_pairs::INPUTS {
+        println!("cargo:rerun-if-changed={input}");
+    }
     for name in SOURCES.iter().chain(HEADERS.iter()) {
         println!("cargo:rerun-if-changed=swisseph/{name}");
     }
@@ -191,6 +196,7 @@ fn main() {
     let lunar_input = chewm_type_control::generate(&native, &out);
     let nutation_input = nutation::generate(&native, &out);
     period_remainder::apply(&native, &nutation_input);
+    precession_pairs::apply(&native, &nutation_input);
     let inputs = SOURCES
         .iter()
         .map(|name| {
@@ -311,6 +317,9 @@ fn write_input_manifest(out: &Path, cc: &str, optimization: &str, native_lto: bo
     for input in file_open::INPUTS {
         content.push_str(&format!("{input}\n"));
     }
+    for input in precession_pairs::INPUTS {
+        content.push_str(&format!("{input}\n"));
+    }
     content.push_str("build_support/c_source.rs\nbuild_support/nutation.rs\n");
     content
         .push_str("native-overlay: fixed-star ASCII-space compaction; generated OUT_DIR/sweph.c\n");
@@ -325,6 +334,7 @@ fn write_input_manifest(out: &Path, cc: &str, optimization: &str, native_lto: bo
     content.push_str(
         "native-overlay: read-only POSIX open/fdopen in swi_fopen; generated OUT_DIR/sweph.c\n",
     );
+    content.push_str("native-overlay: paired immutable Vondrak periodic coefficients; generated OUT_DIR/swephlib.c\n");
     for name in [
         "sweph.c",
         "swemmoon.c",

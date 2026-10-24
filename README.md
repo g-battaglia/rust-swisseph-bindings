@@ -163,6 +163,19 @@ remain intact. This trades 47,784 bytes of integer tables for 158,592 bytes of
 read-only doubles to avoid repeated conversions; it changes no precision or
 calculated result.
 
+The periodic precession overlay pairs the original C coefficient tokens for
+two independent coordinates, replacing the two original tables without adding
+coefficient copies. Only local arithmetic uses generic two-double compiler
+vectors when supported; other compilers retain the scalar body. Parameters,
+return values and stored records keep their scalar C types and alignment.
+Each coordinate retains a separately rounded sine product, the native
+contracted cosine contribution and a separate ordered total addition. Period
+division, trigonometric calls, polynomial terms and projection stay unchanged.
+Complete source/helper identities and an inverse source/token proof reject
+unreviewed changes. Independent controls cover the default and scalar paths,
+traced stages, signed zeros, cancellation, models and all four rounding modes.
+No CPU-specific flags, horizontal reduction or calculated-result cache is used.
+
 The angle normalizer overlay replaces only the remainder calls in
 `swe_degnorm` and `swe_radnorm` in `OUT_DIR/swephlib.c`. For their positive
 periods, 360 degrees and TWOPI radians, an upward reciprocal product supplies

@@ -42,6 +42,13 @@
     "application": "build.rs retains the original nutation consumer in OUT_DIR/swephlib.c and substitutes four table element types in generated swenut2000a.h; exact consumer fingerprint, complete uses, dimensions and signed integer domains required",
     "effect": "Exact static conversion of immutable integer inputs already promoted to double by every consumer expression; original literal tokens, comments, arithmetic, models and native calls retained; no time-dependent or result cache"
   }, {
+    "id": "paired-independent-precession-coordinates",
+    "base_source": "swisseph/swephlib.c",
+    "generator": "build_support/precession_pairs.rs",
+    "helper": "src/native/precession_pairs.h",
+    "application": "build.rs composes after the unchanged nutation/normalizer overlays in OUT_DIR/swephlib.c; complete original/preceding/helper fingerprints, all 110 original period/coefficient tokens and the complete four-edit source inverse are required; both original periodic tables are replaced without duplicate coefficients",
+    "effect": "Two independent coordinates use private generic compiler vector lanes when supported with an exact scalar fallback; original rounded sine products, cosine FMA contributions and separate ordered totals remain, with no horizontal reduction; periods, trig calls, polynomial terms, projection, model branches, scalar parameter/result/table types and alignment are retained; no CPU-specific flags, date restriction, precision reduction or result cache"
+  }, {
     "id": "bounded-exact-period-remainder",
     "base_source": "swisseph/swephlib.c",
     "generator": "build_support/period_remainder.rs",
