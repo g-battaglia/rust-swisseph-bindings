@@ -155,7 +155,11 @@ fn main() {
 
     // 1. ABI probe: verify native integer widths before compiling.
     let probe_path = out.join("abi_probe.c");
-    fs::write(&probe_path, ABI_PROBE).expect("write ABI probe");
+    fs::write(
+        &probe_path,
+        format!("{ABI_PROBE}\n{}", period_remainder::period_admission()),
+    )
+    .expect("write ABI and native-period probe");
     let probe_status = Command::new(&cc)
         .arg("-fsyntax-only")
         .arg(format!("-I{}", native.display()))

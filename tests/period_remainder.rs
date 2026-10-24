@@ -2,6 +2,10 @@
 
 use std::{fs, process::Command, time::SystemTime};
 
+#[allow(dead_code)]
+#[path = "../build_support/c_source.rs"]
+mod c_source;
+
 #[test]
 fn exact_period_remainder_matches_libc_and_integer_oracles_in_all_rounding_modes() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -37,6 +41,21 @@ double oracle_fmod(double x, double period)
 "#
     );
     fs::write(&oracle, oracle_source).unwrap();
+    let generated =
+        fs::read_to_string(std::path::Path::new(env!("OUT_DIR")).join("swephlib.c")).unwrap();
+    let mut control = fs::read_to_string(root.join("tests/period_remainder.c")).unwrap();
+    for (name, period, placeholder) in [
+        ("swe_degnorm", "360.0", "@DEGREE_RECIPROCAL@"),
+        ("swe_radnorm", "TWOPI", "@RADIAN_RECIPROCAL@"),
+    ] {
+        let body = c_source::body_after(&generated, &format!("double CALL_CONV {name}(double x)"))
+            .unwrap();
+        let call = format!("swe_exact_period_remainder(x, {period}, ");
+        let literal = body.split_once(&call).unwrap().1.split_once(')').unwrap().0;
+        control = control.replace(placeholder, literal);
+    }
+    let control_source = directory.join("control.c");
+    fs::write(&control_source, control).unwrap();
     let executable = directory.join("control");
     let compiled = Command::new("cc")
         .args([
@@ -47,7 +66,7 @@ double oracle_fmod(double x, double period)
         ])
         .arg(format!("-I{}", root.join("swisseph").display()))
         .arg(format!("-I{}", root.join("src/native").display()))
-        .arg(root.join("tests/period_remainder.c"))
+        .arg(&control_source)
         .arg(&oracle)
         .arg("-lm")
         .arg("-o")

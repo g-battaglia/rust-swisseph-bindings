@@ -14,6 +14,11 @@ extern double oracle_fmod(double, double);
 extern double oracle_degnorm(double);
 extern double oracle_radnorm(double);
 
+static double upward_reciprocal(double period)
+{
+  return period == 360.0 ? @DEGREE_RECIPROCAL@ : @RADIAN_RECIPROCAL@;
+}
+
 static uint64_t checks, integer_checks, nonfinite_checks;
 static uint64_t inexact_differences, quotient_corrections;
 
@@ -33,7 +38,7 @@ static double value(uint64_t representation)
 
 static double normalizer(double x, double p)
 {
-  double y = swe_exact_period_remainder(x,p);
+  double y = swe_exact_period_remainder(x, p, upward_reciprocal(p));
   if (fabs(y) < 1e-13) y = 0;
   if (y < 0.0) y += p;
   return y;
@@ -52,7 +57,7 @@ static double integer_oracle(double x, double p)
   uint64_t period_significand = (period_bits & UINT64_C(0xfffffffffffff)) | (UINT64_C(1) << 52);
   __uint128_t numerator = (__uint128_t)magnitude_significand << (magnitude_exponent - period_exponent);
   uint64_t remainder = (uint64_t)(numerator % period_significand);
-  if ((uint64_t)trunc(fabs(x) / p) > (uint64_t)(numerator / period_significand)) {
+  if ((uint64_t)trunc(fabs(x) * upward_reciprocal(p)) > (uint64_t)(numerator / period_significand)) {
     quotient_corrections++;
   }
   return copysign(ldexp((double)remainder, period_exponent - 1023 - 52), x);
@@ -60,7 +65,7 @@ static double integer_oracle(double x, double p)
 
 static int check(double x, double p, int period_index, int mode)
 {
-  double actual = swe_exact_period_remainder(x, p);
+  double actual = swe_exact_period_remainder(x, p, upward_reciprocal(p));
   double expected = oracle_fmod(x, p);
   checks++;
   if (bits(actual)!=bits(expected)) {
@@ -144,7 +149,7 @@ int main(void)
       }
       double x = p + 1.0;
       feclearexcept(FE_ALL_EXCEPT);
-      volatile double actual = swe_exact_period_remainder(x, p);
+      volatile double actual = swe_exact_period_remainder(x, p, upward_reciprocal(p));
       int candidate_flags = fetestexcept(FE_ALL_EXCEPT);
       feclearexcept(FE_ALL_EXCEPT);
       volatile double expected = oracle_fmod(x, p);

@@ -40,7 +40,7 @@
     "base_source": "swisseph/swephlib.c",
     "generator": "build_support/period_remainder.rs",
     "helper": "src/native/exact_period_remainder.h",
-    "application": "build.rs replaces only the swe_degnorm/swe_radnorm remainder calls in OUT_DIR/swephlib.c; complete source/helper fingerprints and binary64 ABI premises required",
-    "effect": "Exact bounded quotient/FMA remainder for positive periods 360.0 and TWOPI, with original libc fmod for larger or nonfinite inputs; signed zeros, thresholds, wrapping, rounding-direction results and native calls retained; no reciprocal approximation, reduced precision, date restriction or result cache; libc errno/fenv/trap side effects are not promised, including possible additional FE_INEXACT"
+    "application": "build.rs replaces only the swe_degnorm/swe_radnorm remainder calls in OUT_DIR/swephlib.c; complete source/helper fingerprints, exact integer reciprocal derivation, compile-only native-period admission and binary64 ABI premises required",
+    "effect": "Exact bounded quotient/FMA remainder for positive periods 360.0 and TWOPI; each upward reciprocal is the successor of an integer-derived nearest-even constant admitted against the actual C period macro, with original libc fmod for larger or nonfinite inputs; signed zeros, thresholds, wrapping, rounding-direction results and native calls retained; quotient estimation retains exact returned remainder bits; no reduced precision, date restriction or result cache; libc errno/fenv/trap side effects are not promised, including possible additional FE_INEXACT"
   }]
 }
