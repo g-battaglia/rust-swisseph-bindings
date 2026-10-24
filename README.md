@@ -122,6 +122,15 @@ accumulation order; only repeated argument decoding changes. Generated content
 identities are recorded in `native-inputs.txt`. No time-dependent data or
 calculated results are cached.
 
+The nutation overlay keeps `OUT_DIR/swephlib.c` byte-identical and changes only
+four static table element declarations in `OUT_DIR/swenut2000a.h` from integer
+to double. Every original use already promotes those exactly representable
+integers before arithmetic; a consumer fingerprint binds that assumption to the
+reviewed expressions. Literal tokens, comments, term order and all model branches
+remain intact. This trades 47,784 bytes of integer tables for 158,592 bytes of
+read-only doubles to avoid repeated conversions; it changes no precision or
+calculated result.
+
 Run the example or generate local documentation:
 
 ```sh

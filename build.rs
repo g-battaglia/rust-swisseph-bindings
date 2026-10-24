@@ -13,11 +13,16 @@
 //! attributed 2.10.03 degree splitter is an explicit versioned compatibility
 //! unit under `src/native/`, without changing any pinned engine source.
 //! Declared OUT_DIR overlays compact catalog spaces and decode immutable
-//! Moshier argument metadata. Lookup and floating-point evaluation retain
+//! Moshier argument metadata, with exact static conversion of nutation tables.
+//! Lookup and floating-point evaluation retain
 //! their pinned order; the dependency checkout is never modified.
 
+#[path = "build_support/c_source.rs"]
+mod c_source;
 #[path = "build_support/moshier.rs"]
 mod moshier;
+#[path = "build_support/nutation.rs"]
+mod nutation;
 
 use std::env;
 use std::fs;
@@ -97,6 +102,8 @@ fn main() {
     println!("cargo:rerun-if-env-changed=CC");
     println!("cargo:rerun-if-changed={COMPAT_SOURCE}");
     println!("cargo:rerun-if-changed={CATALOG_COMPACTION}");
+    println!("cargo:rerun-if-changed=build_support/c_source.rs");
+    println!("cargo:rerun-if-changed=build_support/nutation.rs");
     for input in moshier::INPUTS {
         println!("cargo:rerun-if-changed={input}");
     }
@@ -154,6 +161,7 @@ fn main() {
     let mut objects = Vec::with_capacity(SOURCES.len() + 1);
     let catalog_input = compacted_catalog_source(&native, &out);
     let moshier_input = moshier::generate(&native, &out);
+    let nutation_input = nutation::generate(&native, &out);
     let inputs = SOURCES
         .iter()
         .map(|name| {
@@ -161,6 +169,8 @@ fn main() {
                 catalog_input.clone()
             } else if *name == "swemplan.c" {
                 moshier_input.source.clone()
+            } else if *name == "swephlib.c" {
+                nutation_input.clone()
             } else {
                 native.join(name)
             }
@@ -257,14 +267,21 @@ fn write_input_manifest(out: &Path, cc: &str, optimization: &str, native_lto: bo
     for input in moshier::INPUTS {
         content.push_str(&format!("{input}\n"));
     }
+    content.push_str("build_support/c_source.rs\nbuild_support/nutation.rs\n");
     content
         .push_str("native-overlay: fixed-star ASCII-space compaction; generated OUT_DIR/sweph.c\n");
     content.push_str("native-overlay: immutable Moshier argument metadata; generated OUT_DIR/swemplan.c and moshier_terms.generated.h\n");
-    for name in ["swemplan.c", "moshier_terms.generated.h"] {
+    content.push_str("native-overlay: exact static nutation coefficient conversion; unchanged OUT_DIR/swephlib.c and generated swenut2000a.h\n");
+    for name in [
+        "swemplan.c",
+        "moshier_terms.generated.h",
+        "swephlib.c",
+        "swenut2000a.h",
+    ] {
         let bytes = fs::read(out.join(name)).expect("read generated overlay identity");
         content.push_str(&format!(
             "generated-fnv1a64: {name} {:016x}\n",
-            moshier::fingerprint(&bytes)
+            c_source::fingerprint(&bytes)
         ));
     }
     content.push_str(&format!("compiler: {cc}\n"));

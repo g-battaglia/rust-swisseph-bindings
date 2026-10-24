@@ -20,5 +20,12 @@
     "helper": "src/native/moshier_metadata_eval.h",
     "application": "build.rs generates OUT_DIR/swemplan.c and moshier_terms.generated.h; exact evaluator fingerprint and complete table decoding required",
     "effect": "Build-time decoding of immutable term structure; original coefficient streams, floating expressions, Horner steps, accumulation order and native calls retained; no time-dependent or result cache"
+  }, {
+    "id": "exact-static-nutation-coefficient-conversion",
+    "base_source": "swisseph/swephlib.c",
+    "base_tables": "swisseph/swenut2000a.h",
+    "generator": "build_support/nutation.rs",
+    "application": "build.rs copies unchanged OUT_DIR/swephlib.c and substitutes four table element types in generated swenut2000a.h; exact consumer fingerprint, complete uses, dimensions and signed integer domains required",
+    "effect": "Exact static conversion of immutable integer inputs already promoted to double by every consumer expression; original literal tokens, comments, arithmetic, models and native calls retained; no time-dependent or result cache"
   }]
 }
