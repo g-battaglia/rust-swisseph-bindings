@@ -59,15 +59,16 @@
 */
 
 /*
- * Metadata-only specialization of swi_moshplan2 in pinned swemplan.c.
+ * Lossless input-layout specialization of swi_moshplan2 in pinned swemplan.c.
  * Derived from the Swiss Ephemeris implementation by Astrodienst AG and
  * the Moshier planetary series; the original copyright and AGPL notices
  * remain in the generated translation unit and bundled native sources.
  *
  * The generator proves that every periodic term has nonzero harmonics.
  * Immutable argument decoding and iteration over independent channels change.
- * Coefficient streams, floating expressions and Horner steps within each
- * channel retain their original order, as do the per-term accumulations.
+ * Longitude/latitude coefficients retain their original C tokens in adjacent
+ * fields. Each field keeps its Horner and term order, without cross-field
+ * reductions; the radius uses its original native coefficient stream.
  */
 
 /* The caller supplies the byte representation of the WHOLE ss/cc array.
@@ -84,12 +85,14 @@ int swi_moshplan2 (double J, int iplm, double *pobj)
 {
   int i, j, ip, nt;
   unsigned int term_index;
-  double *pl, *pb, *pr;
+  double *pr;
   double su, cu, sv, cv, T;
-  double t, sl, sb, sr;
+  double t, sr;
+  struct swe_moshier_pair sum;
   const struct plantbl *plan = planets[iplm];
   const struct swe_moshier_plan *metadata = &swe_moshier_plans[iplm];
   const struct swe_moshier_argument *argument = metadata->arguments;
+  const struct swe_moshier_pair *coefficient = metadata->coefficients;
 
   T = (J - J2000) / TIMESCALE;
   /* Calculate sin( i*MM ), etc. for needed multiple angles. */
@@ -102,11 +105,9 @@ int swi_moshplan2 (double J, int iplm, double *pobj)
         }
     }
 
-  pl = plan->lon_tbl;
-  pb = plan->lat_tbl;
   pr = plan->rad_tbl;
-  sl = 0.0;
-  sb = 0.0;
+  sum.longitude = 0.0;
+  sum.latitude = 0.0;
   sr = 0.0;
 
   for (term_index = 0; term_index < metadata->count; term_index++)
@@ -115,19 +116,19 @@ int swi_moshplan2 (double J, int iplm, double *pobj)
       nt = term->degree;
       if (term->polynomial)
         {
-          double longitude = *pl++;
-          double latitude = *pb++;
+          struct swe_moshier_pair polynomial = *coefficient++;
           double radius = *pr++;
           /* Each immutable coefficient stream has the same degree. Keep its
            * Horner order, while exposing the independent channels together. */
           for (ip = 0; ip < nt; ip++)
             {
-              longitude = longitude * T + *pl++;
-              latitude = latitude * T + *pb++;
+              const struct swe_moshier_pair next = *coefficient++;
+              polynomial.longitude = polynomial.longitude * T + next.longitude;
+              polynomial.latitude = polynomial.latitude * T + next.latitude;
               radius = radius * T + *pr++;
             }
-          sl += mods3600 (longitude);
-          sb += latitude;
+          sum.longitude += mods3600 (polynomial.longitude);
+          sum.latitude += polynomial.latitude;
           sr += radius;
           continue;
         }
@@ -153,30 +154,30 @@ int swi_moshplan2 (double J, int iplm, double *pobj)
         }
 
       {
-        double longitude_cos = *pl++;
-        double longitude_sin = *pl++;
-        double latitude_cos = *pb++;
-        double latitude_sin = *pb++;
+        struct swe_moshier_pair cosine = *coefficient++;
+        struct swe_moshier_pair sine = *coefficient++;
         double radius_cos = *pr++;
         double radius_sin = *pr++;
         /* No horizontal reduction: every channel retains its own Horner
          * recurrence, then contributes to its original ordered accumulator. */
         for (ip = 0; ip < nt; ip++)
           {
-            longitude_cos = longitude_cos * T + *pl++;
-            longitude_sin = longitude_sin * T + *pl++;
-            latitude_cos = latitude_cos * T + *pb++;
-            latitude_sin = latitude_sin * T + *pb++;
+            const struct swe_moshier_pair next_cosine = *coefficient++;
+            const struct swe_moshier_pair next_sine = *coefficient++;
+            cosine.longitude = cosine.longitude * T + next_cosine.longitude;
+            cosine.latitude = cosine.latitude * T + next_cosine.latitude;
+            sine.longitude = sine.longitude * T + next_sine.longitude;
+            sine.latitude = sine.latitude * T + next_sine.latitude;
             radius_cos = radius_cos * T + *pr++;
             radius_sin = radius_sin * T + *pr++;
           }
-        sl += longitude_cos * cv + longitude_sin * sv;
-        sb += latitude_cos * cv + latitude_sin * sv;
+        sum.longitude += cosine.longitude * cv + sine.longitude * sv;
+        sum.latitude += cosine.latitude * cv + sine.latitude * sv;
         sr += radius_cos * cv + radius_sin * sv;
       }
     }
-  pobj[0] = STR * sl;
-  pobj[1] = STR * sb;
+  pobj[0] = STR * sum.longitude;
+  pobj[1] = STR * sum.latitude;
   pobj[2] = STR * plan->distance * sr + plan->distance;
   return OK;
 }

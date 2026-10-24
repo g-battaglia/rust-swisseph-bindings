@@ -113,16 +113,20 @@ records the overlay in `native-inputs.txt`. File scanning, matching order,
 locale handling, diagnostics, session lifecycle and every astronomical statement
 remain unchanged. No catalog or calculated positions are cached by this change.
 
-A second overlay generates `OUT_DIR/swemplan.c` and immutable Moshier term
-metadata from the pinned argument tables. A source-fragment fingerprint and
-fail-closed decoder check signed-byte structure, planet order, harmonic bounds,
-sentinels and complete coefficient consumption. The evaluator uses the original
-coefficient arrays and preserves every floating expression, Horner step and
-term-ordered accumulation within each channel. Independent longitude, latitude
-and radius recurrences share one loop without horizontal reductions; immutable
-argument decoding is also performed before compilation. Generated content
-identities are recorded in `native-inputs.txt`. No time-dependent data or
-calculated results are cached.
+A second overlay generates `OUT_DIR/swemplan.c`, `OUT_DIR/swemptab.h` and
+immutable Moshier term metadata from the pinned tables. A fail-closed decoder
+checks signed-byte structure, planet order, harmonic bounds, sentinels and
+complete coefficient consumption. Original longitude/latitude coefficient
+tokens are paired without parsing or rounding their values; radius retains its
+native stream. Independent recurrences share one loop, preserving every Horner
+step, floating expression and term-ordered accumulation within each channel,
+without horizontal reductions or CPU-specific source or flags. Complete consumer
+and table fingerprints bind the ownership proof for disconnecting just eighteen
+unused longitude/latitude pointers in the generated native table header. All
+other header bytes remain intact, including coefficients and notices; the C
+compiler can discard the redundant original arrays. New pointer reads or escapes
+require review. Generated content identities are recorded in `native-inputs.txt`.
+No time-dependent data or calculated results are cached.
 
 The nutation overlay keeps `OUT_DIR/swephlib.c` byte-identical and changes only
 four static table element declarations in `OUT_DIR/swenut2000a.h` from integer

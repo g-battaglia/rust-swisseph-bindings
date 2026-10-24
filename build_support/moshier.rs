@@ -1,9 +1,9 @@
 //! Decode immutable Moshier term structure before compiling the C evaluator.
 //!
-//! Only signed-byte argument metadata is transformed. Coefficients remain in
-//! the pinned arrays, and the evaluator retains their order and floating-point
-//! expressions. Unsupported table changes fail closed rather than silently
-//! changing the native calculation.
+//! Argument metadata and immutable longitude/latitude coefficient layout are
+//! transformed. Original C coefficient tokens are zipped without Rust floating
+//! parsing; the evaluator retains each channel's order and expressions.
+//! Unsupported table changes fail closed rather than changing the calculation.
 
 use super::c_source::{body_after, fingerprint, integers, tokens, unique_offset, without_comments};
 use std::fmt::Write;
@@ -17,10 +17,11 @@ const EVALUATOR: &str = "src/native/moshier_metadata_eval.h";
 // FNV-1a identifies the exact reviewed source fragment, not a security boundary.
 const PINNED_EVALUATOR_FINGERPRINT: u64 = 0x485d_2085_3d01_0d66;
 
-/// Generated translation unit and header, both confined to Cargo OUT_DIR.
+/// Generated translation unit and headers, all confined to Cargo OUT_DIR.
 pub struct Generated {
     pub source: PathBuf,
     pub header: PathBuf,
+    pub tables: PathBuf,
 }
 
 #[derive(Debug, PartialEq)]
@@ -36,10 +37,17 @@ struct Argument {
     negative: bool,
 }
 
+#[derive(Debug, PartialEq)]
+struct CoefficientPair {
+    longitude: String,
+    latitude: String,
+}
+
 struct Plan {
     terms: Vec<Term>,
     arguments: Vec<Argument>,
     coefficients: usize,
+    coefficient_pairs: Vec<CoefficientPair>,
 }
 
 /// Build the deterministic metadata header and an otherwise unchanged native
@@ -58,17 +66,30 @@ pub fn generate(native: &Path, out: &Path) -> Generated {
     );
 
     let mut header = String::from(
-        "/* Generated from pinned swemptab.h; immutable structure only. */\n\
+        "/* Generated from pinned swemptab.h; immutable input tokens preserved. */\n\
          struct swe_moshier_term { unsigned char count, degree, polynomial; };\n\
          struct swe_moshier_argument { unsigned char index, negative; };\n\
+         struct swe_moshier_pair { double longitude, latitude; };\n\
          struct swe_moshier_plan {\n\
            const struct swe_moshier_term *terms;\n\
            const struct swe_moshier_argument *arguments;\n\
+           const struct swe_moshier_pair *coefficients;\n\
            unsigned int count;\n\
          };\n",
     );
     for name in PLANETS {
         let plan = decode_plan(&clean, name).unwrap_or_else(|error| panic!("{name}: {error}"));
+        writeln!(
+            header,
+            "static const struct swe_moshier_pair {name}_coefficients[] = {{"
+        )
+        .unwrap();
+        for pair in &plan.coefficient_pairs {
+            // Copy the original C spelling, including exponents and signed
+            // zero. Parsing or formatting a Rust float here would lose it.
+            writeln!(header, "  {{{}, {}}},", pair.longitude, pair.latitude).unwrap();
+        }
+        header.push_str("};\n");
         writeln!(
             header,
             "static const struct swe_moshier_term {name}_terms[] = {{"
@@ -104,7 +125,7 @@ pub fn generate(native: &Path, out: &Path) -> Generated {
     for name in PLANETS {
         writeln!(
             header,
-            "  {{{name}_terms, {name}_arguments, sizeof({name}_terms) / sizeof({name}_terms[0])}},"
+            "  {{{name}_terms, {name}_arguments, {name}_coefficients, sizeof({name}_terms) / sizeof({name}_terms[0])}},"
         )
         .unwrap();
     }
@@ -132,14 +153,62 @@ pub fn generate(native: &Path, out: &Path) -> Generated {
     let generated = Generated {
         source: out.join("swemplan.c"),
         header: out.join("moshier_terms.generated.h"),
+        tables: out.join("swemptab.h"),
     };
+    let evaluator = fs::read_to_string(EVALUATOR).expect("read Moshier replacement evaluator");
+    let detached = detach_unused_streams(&table, &source, &evaluator)
+        .expect("reviewed Moshier coefficient ownership");
     fs::write(&generated.source, overlay).expect("write generated Moshier source");
     fs::write(&generated.header, header).expect("write generated Moshier metadata");
+    fs::write(&generated.tables, detached).expect("write generated Moshier table declarations");
     generated
 }
 
 /// Inputs declared to Cargo and the native-input manifest.
 pub const INPUTS: [&str; 2] = ["build_support/moshier.rs", EVALUATOR];
+
+/// Disconnect only the unused longitude/latitude pointers, letting the C
+/// compiler discard their original arrays after the lossless pair copy.
+/// Complete input fingerprints bind the ownership proof: the static planets
+/// never escape, and the replacement has no reader of either disconnected
+/// field. New reads, aliases or escapes require review, not a guessed C parse.
+fn detach_unused_streams(table: &str, source: &str, evaluator: &str) -> Result<String, String> {
+    for (label, text, expected) in [
+        ("native consumer", source, 0x7d88_a869_e2c7_8a0c_u64),
+        ("native tables", table, 0x3ff2_b63a_9c16_9938_u64),
+        ("replacement consumer", evaluator, 0xc8d9_c350_4d74_24de_u64),
+    ] {
+        if fingerprint(text.as_bytes()) != expected {
+            return Err(format!(
+                "unreviewed {label}; unused-pointer ownership requires review"
+            ));
+        }
+    }
+    let mut detached = table.to_owned();
+    for name in PLANETS {
+        replace_stream_pointers(
+            &mut detached,
+            name,
+            &format!("\n {name}tabl,\n {name}tabb,"),
+            "\n 0,\n 0,",
+        )?;
+    }
+    Ok(detached)
+}
+
+/// Replace one exact pointer pair inside its unique native initializer. All
+/// other bytes, including coefficient tokens and license text, remain intact.
+fn replace_stream_pointers(
+    table: &mut String,
+    name: &str,
+    original: &str,
+    replacement: &str,
+) -> Result<(), String> {
+    let body = body_after(table, &format!("static struct plantbl {name}404 ="))?;
+    let offset = unique_offset(table, body)? + unique_offset(body, original)?;
+    table.replace_range(offset..offset + original.len(), replacement);
+    Ok(())
+}
 
 fn decode_plan(source: &str, name: &str) -> Result<Plan, String> {
     let args = integers(body_after(
@@ -178,21 +247,65 @@ fn decode_plan(source: &str, name: &str) -> Result<Plan, String> {
         return Err("unexpected coefficient-table mapping".into());
     }
     let max_degree: i16 = fields[0].parse().map_err(|_| "invalid maximum degree")?;
-    let plan = decode_arguments(&args, &harmonics, max_degree)?;
-    for suffix in ["l", "b", "r"] {
-        let coefficients = tokens(body_after(
-            source,
-            &format!("static double {name}tab{suffix}[] ="),
-        )?)?;
-        if coefficients.len() != plan.coefficients {
-            return Err(format!(
-                "{suffix} coefficient count {} differs from consumed {}",
-                coefficients.len(),
-                plan.coefficients
-            ));
+    let mut plan = decode_arguments(&args, &harmonics, max_degree)?;
+    let longitude = coefficient_tokens(source, name, "l", plan.coefficients)?;
+    let latitude = coefficient_tokens(source, name, "b", plan.coefficients)?;
+    coefficient_tokens(source, name, "r", plan.coefficients)?;
+    plan.coefficient_pairs = zip_coefficients(longitude, latitude, &plan.terms)?;
+    Ok(plan)
+}
+
+fn coefficient_tokens(
+    source: &str,
+    name: &str,
+    suffix: &str,
+    expected: usize,
+) -> Result<Vec<String>, String> {
+    let values = tokens(body_after(
+        source,
+        &format!("static double {name}tab{suffix}[] ="),
+    )?)?;
+    if values.len() != expected {
+        return Err(format!(
+            "{suffix} coefficient count {} differs from consumed {expected}",
+            values.len()
+        ));
+    }
+    Ok(values)
+}
+
+/// Pair coefficient i with coefficient i, preserving its original C token.
+/// Prove that every polynomial/periodic term consumes its complete contiguous
+/// range, with no truncated zip, skipped coefficient or trailing data.
+fn zip_coefficients(
+    longitude: Vec<String>,
+    latitude: Vec<String>,
+    terms: &[Term],
+) -> Result<Vec<CoefficientPair>, String> {
+    if longitude.len() != latitude.len() {
+        return Err("longitude/latitude coefficient counts differ".into());
+    }
+    let mut offset = 0_usize;
+    for term in terms {
+        let width = if term.polynomial { 1 } else { 2 };
+        offset = offset
+            .checked_add((usize::from(term.degree) + 1) * width)
+            .ok_or("coefficient offset overflow")?;
+        if offset > longitude.len() {
+            return Err("term exceeds its coefficient stream".into());
         }
     }
-    Ok(plan)
+    if offset != longitude.len() {
+        return Err("unconsumed coefficient tokens".into());
+    }
+    Ok(longitude
+        .into_iter()
+        .zip(latitude)
+        .map(|(longitude, latitude)| CoefficientPair {
+            longitude,
+            latitude,
+        })
+        .collect())
 }
 
 fn decode_arguments(args: &[i16], harmonics: &[i16], max_degree: i16) -> Result<Plan, String> {
@@ -201,6 +314,7 @@ fn decode_arguments(args: &[i16], harmonics: &[i16], max_degree: i16) -> Result<
         terms: Vec::new(),
         arguments: Vec::new(),
         coefficients: 0,
+        coefficient_pairs: Vec::new(),
     };
     loop {
         let count = stream.next().ok_or("missing final sentinel")?;
@@ -369,5 +483,116 @@ mod tests {
             .is_err()
         );
         assert!(decode_plan(&source.replacen("merargs,", "venargs,", 1), "mer").is_err());
+    }
+
+    #[test]
+    fn preserves_every_paired_coefficient_and_native_term_offset() {
+        let source = without_comments(include_str!("../swisseph/swemptab.h")).unwrap();
+        for name in PLANETS {
+            let plan = decode_plan(&source, name).unwrap();
+            let longitude = coefficient_tokens(&source, name, "l", plan.coefficients).unwrap();
+            let latitude = coefficient_tokens(&source, name, "b", plan.coefficients).unwrap();
+            assert_eq!(plan.coefficient_pairs.len(), longitude.len());
+            let mut offset = 0;
+            for term in &plan.terms {
+                let width = if term.polynomial { 1 } else { 2 };
+                for step in 0..=usize::from(term.degree) {
+                    for component in 0..width {
+                        // Polynomial reads one pair per Horner step; periodic
+                        // reads cosine then sine, exactly as the native stream.
+                        let index = offset + step * width + component;
+                        assert_eq!(plan.coefficient_pairs[index].longitude, longitude[index]);
+                        assert_eq!(plan.coefficient_pairs[index].latitude, latitude[index]);
+                    }
+                }
+                offset += (usize::from(term.degree) + 1) * width;
+            }
+            assert_eq!(offset, longitude.len());
+        }
+    }
+
+    #[test]
+    fn zips_literal_spelling_and_rejects_truncation_or_trailing_tokens() {
+        let polynomial = [Term {
+            arguments: 0,
+            degree: 2,
+            polynomial: true,
+        }];
+        let longitude = vec!["-0.0", "1.2300e-4", "- 9.00"]
+            .into_iter()
+            .map(str::to_string)
+            .collect();
+        let latitude = vec!["0.0", "-5E+2", "7.000"]
+            .into_iter()
+            .map(str::to_string)
+            .collect();
+        let pairs = zip_coefficients(longitude, latitude, &polynomial).unwrap();
+        assert_eq!(pairs[0].longitude, "-0.0");
+        assert_eq!(pairs[1].longitude, "1.2300e-4");
+        assert_eq!(pairs[1].latitude, "-5E+2");
+        assert_eq!(pairs[2].longitude, "- 9.00");
+        assert!(zip_coefficients(vec!["1".into()], Vec::new(), &polynomial).is_err());
+        assert!(zip_coefficients(vec!["1".into()], vec!["2".into()], &polynomial).is_err());
+        assert!(zip_coefficients(vec!["1".into()], vec!["2".into()], &[]).is_err());
+    }
+
+    #[test]
+    fn disconnects_only_eighteen_unused_pointer_tokens() {
+        let table = include_str!("../swisseph/swemptab.h");
+        let mut detached = detach_unused_streams(
+            table,
+            include_str!("../swisseph/swemplan.c"),
+            include_str!("../src/native/moshier_metadata_eval.h"),
+        )
+        .unwrap();
+        assert_eq!(detached.matches("\n 0,\n 0,").count(), PLANETS.len());
+        for name in PLANETS {
+            replace_stream_pointers(
+                &mut detached,
+                name,
+                "\n 0,\n 0,",
+                &format!("\n {name}tabl,\n {name}tabb,"),
+            )
+            .unwrap();
+        }
+        // Restoring only the pointers recovers every original byte: all
+        // coefficients, radius references, harmonics, distances and notices.
+        assert_eq!(detached, table);
+    }
+
+    #[test]
+    fn rejects_unreviewed_coefficient_ownership_and_ambiguous_pointers() {
+        let table = include_str!("../swisseph/swemptab.h");
+        let source = include_str!("../swisseph/swemplan.c");
+        let evaluator = include_str!("../src/native/moshier_metadata_eval.h");
+        for (table, source, evaluator) in [
+            (
+                table.to_owned(),
+                format!("{source}\nvoid *escape = planets;"),
+                evaluator.to_owned(),
+            ),
+            (
+                table.replacen("mertabl,", "ventabl,", 1),
+                source.to_owned(),
+                evaluator.to_owned(),
+            ),
+            (
+                table.to_owned(),
+                source.to_owned(),
+                format!("{evaluator}\ndouble *read = planets[0]->lon_tbl;"),
+            ),
+        ] {
+            assert!(detach_unused_streams(&table, &source, &evaluator).is_err());
+        }
+        assert!(replace_stream_pointers(&mut table.to_owned(), "mer", "missing", "0").is_err());
+        assert!(
+            replace_stream_pointers(
+                &mut format!("{table}\nstatic struct plantbl mer404 = {{0}};"),
+                "mer",
+                "\n mertabl,\n mertabb,",
+                "\n 0,\n 0,",
+            )
+            .is_err()
+        );
     }
 }

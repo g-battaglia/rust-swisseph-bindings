@@ -270,10 +270,11 @@ fn write_input_manifest(out: &Path, cc: &str, optimization: &str, native_lto: bo
     content.push_str("build_support/c_source.rs\nbuild_support/nutation.rs\n");
     content
         .push_str("native-overlay: fixed-star ASCII-space compaction; generated OUT_DIR/sweph.c\n");
-    content.push_str("native-overlay: immutable Moshier argument metadata; generated OUT_DIR/swemplan.c and moshier_terms.generated.h\n");
+    content.push_str("native-overlay: immutable Moshier argument metadata and paired coefficient layout; generated OUT_DIR/swemplan.c, swemptab.h and moshier_terms.generated.h\n");
     content.push_str("native-overlay: exact static nutation coefficient conversion; unchanged OUT_DIR/swephlib.c and generated swenut2000a.h\n");
     for name in [
         "swemplan.c",
+        "swemptab.h",
         "moshier_terms.generated.h",
         "swephlib.c",
         "swenut2000a.h",
