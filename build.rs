@@ -20,6 +20,8 @@
 
 #[path = "build_support/c_source.rs"]
 mod c_source;
+#[path = "build_support/file_open.rs"]
+mod file_open;
 #[path = "build_support/moshier.rs"]
 mod moshier;
 #[path = "build_support/nutation.rs"]
@@ -118,6 +120,9 @@ fn main() {
     for input in period_remainder::INPUTS {
         println!("cargo:rerun-if-changed={input}");
     }
+    for input in file_open::INPUTS {
+        println!("cargo:rerun-if-changed={input}");
+    }
     for name in SOURCES.iter().chain(HEADERS.iter()) {
         println!("cargo:rerun-if-changed=swisseph/{name}");
     }
@@ -171,6 +176,7 @@ fn main() {
     // 2. Compile each translation unit into OUT_DIR.
     let mut objects = Vec::with_capacity(SOURCES.len() + 1);
     let catalog_input = compacted_catalog_source(&native, &out);
+    file_open::apply(&native, &catalog_input);
     let moshier_input = moshier::generate(&native, &out);
     let nutation_input = nutation::generate(&native, &out);
     period_remainder::apply(&native, &nutation_input);
@@ -286,6 +292,9 @@ fn write_input_manifest(out: &Path, cc: &str, optimization: &str, native_lto: bo
     for input in period_remainder::INPUTS {
         content.push_str(&format!("{input}\n"));
     }
+    for input in file_open::INPUTS {
+        content.push_str(&format!("{input}\n"));
+    }
     content.push_str("build_support/c_source.rs\nbuild_support/nutation.rs\n");
     content
         .push_str("native-overlay: fixed-star ASCII-space compaction; generated OUT_DIR/sweph.c\n");
@@ -294,7 +303,11 @@ fn write_input_manifest(out: &Path, cc: &str, optimization: &str, native_lto: bo
         "native-overlay: exact static nutation coefficient conversion; generated swenut2000a.h\n",
     );
     content.push_str("native-overlay: bounded exact remainder in swe_degnorm/swe_radnorm; generated OUT_DIR/swephlib.c\n");
+    content.push_str(
+        "native-overlay: read-only POSIX open/fdopen in swi_fopen; generated OUT_DIR/sweph.c\n",
+    );
     for name in [
+        "sweph.c",
         "swemplan.c",
         "swemptab.h",
         "moshier_terms.generated.h",

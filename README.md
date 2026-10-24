@@ -113,7 +113,18 @@ records the overlay in `native-inputs.txt`. File scanning, matching order,
 locale handling, diagnostics, session lifecycle and every astronomical statement
 remain unchanged. No catalog or calculated positions are cached by this change.
 
-A second overlay generates `OUT_DIR/swemplan.c`, `OUT_DIR/swemptab.h` and
+The read-only file overlay replaces only `swi_fopen`'s open call in the same
+generated source. POSIX uses `open(O_RDONLY)` followed by `fdopen` with the
+original `BFILE_R_ACCESS` mode, rejecting absent paths before allocating a
+`FILE`. A successful `fdopen` owns the descriptor; failure closes it once.
+Other platforms retain ordinary `fopen`. Filename construction, search order,
+path limits, complete diagnostics and stream read/seek/close behavior remain
+unchanged. Every call observes the current filesystem. Complete source,
+consumer, preceding-overlay and helper fingerprints bind this substitution.
+Errno, cancellation and resource-error precedence are outside this helper's
+returned-stream contract.
+
+The Moshier overlay generates `OUT_DIR/swemplan.c`, `OUT_DIR/swemptab.h` and
 private Moshier coefficient/evaluator headers from the pinned tables. A
 fail-closed decoder checks signed-byte structure, planet order, harmonic bounds,
 sentinels and complete coefficient consumption. Original longitude/latitude
