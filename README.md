@@ -145,6 +145,15 @@ compiler can discard the redundant original arrays. New pointer reads or escapes
 require review. Generated content identities are recorded in `native-inputs.txt`.
 No time-dependent data or calculated results are cached.
 
+The lunar perturbation overlay generates `OUT_DIR/swemmoon.c`. Four private
+copies retain the exact native `chewm` body with its already literal kind made
+constant; each original call keeps its arguments and order. Tables, macro
+branches, floating expressions, first-angle/sign handling and the radius
+low-word guard stay unchanged. Complete source identity and an inverse byte
+proof reject unreviewed consumers or call sites. This changes only kind control,
+without coefficient conversion, recurrence changes or calculated-result caching.
+The generated source has its own identity in `native-inputs.txt`.
+
 The nutation table overlay changes only four static element declarations in
 `OUT_DIR/swenut2000a.h` from integer to double. Its original consumer expressions
 remain intact. Every original use already promotes those exactly representable

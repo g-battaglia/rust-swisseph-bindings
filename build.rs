@@ -14,12 +14,15 @@
 //! unit under `src/native/`, without changing any pinned engine source.
 //! Declared OUT_DIR overlays compact catalog spaces and decode immutable
 //! Moshier argument metadata, with exact static conversion of nutation tables
-//! and a bounded exact remainder in the two angle normalizers. Lookup and
+//! and a bounded exact remainder in the two angle normalizers. Literal lunar
+//! perturbation kinds retain exact reader bodies with constant control. Lookup and
 //! surrounding expressions retain their pinned order; the dependency checkout
 //! is never modified.
 
 #[path = "build_support/c_source.rs"]
 mod c_source;
+#[path = "build_support/chewm_type_control.rs"]
+mod chewm_type_control;
 #[path = "build_support/file_open.rs"]
 mod file_open;
 #[path = "build_support/moshier.rs"]
@@ -117,6 +120,9 @@ fn main() {
     for input in moshier::INPUTS {
         println!("cargo:rerun-if-changed={input}");
     }
+    for input in chewm_type_control::INPUTS {
+        println!("cargo:rerun-if-changed={input}");
+    }
     for input in period_remainder::INPUTS {
         println!("cargo:rerun-if-changed={input}");
     }
@@ -182,6 +188,7 @@ fn main() {
     let catalog_input = compacted_catalog_source(&native, &out);
     file_open::apply(&native, &catalog_input);
     let moshier_input = moshier::generate(&native, &out);
+    let lunar_input = chewm_type_control::generate(&native, &out);
     let nutation_input = nutation::generate(&native, &out);
     period_remainder::apply(&native, &nutation_input);
     let inputs = SOURCES
@@ -189,6 +196,8 @@ fn main() {
         .map(|name| {
             if *name == "sweph.c" {
                 catalog_input.clone()
+            } else if *name == "swemmoon.c" {
+                lunar_input.clone()
             } else if *name == "swemplan.c" {
                 moshier_input.source.clone()
             } else if *name == "swephlib.c" {
@@ -293,6 +302,9 @@ fn write_input_manifest(out: &Path, cc: &str, optimization: &str, native_lto: bo
     for input in moshier::INPUTS {
         content.push_str(&format!("{input}\n"));
     }
+    for input in chewm_type_control::INPUTS {
+        content.push_str(&format!("{input}\n"));
+    }
     for input in period_remainder::INPUTS {
         content.push_str(&format!("{input}\n"));
     }
@@ -304,6 +316,9 @@ fn write_input_manifest(out: &Path, cc: &str, optimization: &str, native_lto: bo
         .push_str("native-overlay: fixed-star ASCII-space compaction; generated OUT_DIR/sweph.c\n");
     content.push_str("native-overlay: immutable Moshier argument metadata and paired coefficient layout; generated OUT_DIR/swemplan.c, swemptab.h, moshier_terms.generated.h and private moshier_evaluators.generated.h\n");
     content.push_str(
+        "native-overlay: literal lunar perturbation kinds; generated OUT_DIR/swemmoon.c\n",
+    );
+    content.push_str(
         "native-overlay: exact static nutation coefficient conversion; generated swenut2000a.h\n",
     );
     content.push_str("native-overlay: bounded exact remainder in swe_degnorm/swe_radnorm; generated OUT_DIR/swephlib.c\n");
@@ -312,6 +327,7 @@ fn write_input_manifest(out: &Path, cc: &str, optimization: &str, native_lto: bo
     );
     for name in [
         "sweph.c",
+        "swemmoon.c",
         "swemplan.c",
         "swemptab.h",
         "moshier_terms.generated.h",

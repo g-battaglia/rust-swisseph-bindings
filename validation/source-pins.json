@@ -29,6 +29,12 @@
     "application": "build.rs generates OUT_DIR/swemplan.c, swemptab.h, moshier_terms.generated.h and private moshier_evaluators.generated.h; complete consumer/table/emitter fingerprints, exact evaluator fingerprint and complete table decoding required; OUT_DIR include search is added only to the Moshier translation unit",
     "effect": "Build-time decoding of immutable term structure, lossless pairing of original longitude/latitude coefficient tokens and nine private constant-control evaluators with ascending native harmonic preparation at validated constant bounds; original angle expressions and sscc recurrence, including its second-harmonic write for a single requested harmonic, remain unchanged; time scaling and projection remain shared; larger compiled bodies and stack frames replace runtime term/degree/argument loops without duplicating coefficients; eighteen unused native longitude/latitude pointer tokens become null, enabling removal of redundant arrays while every other table-header byte and the radius stream remain unchanged; per-channel floating stages and Horner order, rounded-product/FMA/contribution/addition boundaries, first-angle assignments, sine signs, polynomial mods3600, term-ordered accumulations and native calls retained; no horizontal reduction, CPU-specific source or flags, time-dependent or result cache"
   }, {
+    "id": "literal-lunar-perturbation-kinds",
+    "base_source": "swisseph/swemmoon.c",
+    "generator": "build_support/chewm_type_control.rs",
+    "application": "build.rs generates OUT_DIR/swemmoon.c; complete consumer/table fingerprint, all literal call-site counts and inverse byte equality required; generated source identity is included in native-inputs.txt",
+    "effect": "Four private copies retain the exact native chewm body with a constant kind, while original literal argument lists and table/macro branches remain unchanged; no coefficient conversion or precombination, row/angle reordering, new recurrence, call removal, date restriction or result cache; native low-word radius guard and first-angle/sign/zero handling are retained"
+  }, {
     "id": "exact-static-nutation-coefficient-conversion",
     "base_source": "swisseph/swephlib.c",
     "base_tables": "swisseph/swenut2000a.h",
