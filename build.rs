@@ -13,9 +13,10 @@
 //! attributed 2.10.03 degree splitter is an explicit versioned compatibility
 //! unit under `src/native/`, without changing any pinned engine source.
 //! Declared OUT_DIR overlays compact catalog spaces and decode immutable
-//! Moshier argument metadata, with exact static conversion of nutation tables.
-//! Lookup and floating-point evaluation retain
-//! their pinned order; the dependency checkout is never modified.
+//! Moshier argument metadata, with exact static conversion of nutation tables
+//! and a bounded exact remainder in the two angle normalizers. Lookup and
+//! surrounding expressions retain their pinned order; the dependency checkout
+//! is never modified.
 
 #[path = "build_support/c_source.rs"]
 mod c_source;
@@ -23,6 +24,8 @@ mod c_source;
 mod moshier;
 #[path = "build_support/nutation.rs"]
 mod nutation;
+#[path = "build_support/period_remainder.rs"]
+mod period_remainder;
 
 use std::env;
 use std::fs;
@@ -78,7 +81,12 @@ const CATALOG_SPACE_LOOP: &str =
 /// binary64; the probe turns a platform mismatch into a build failure here
 /// instead of silent FFI corruption later.
 const ABI_PROBE: &str = r#"
+#include <float.h>
 #include "sweodef.h"
+_Static_assert(FLT_RADIX == 2, "native double must use binary radix");
+_Static_assert(DBL_MANT_DIG == 53, "native double must have binary64 precision");
+_Static_assert(DBL_MIN_EXP == -1021, "native double must have binary64 minimum exponent");
+_Static_assert(DBL_MAX_EXP == 1024, "native double must have binary64 maximum exponent");
 #if !defined(_SWEODEF_INCLUDED)
 #error "sweodef.h did not provide the expected ABI types"
 #endif
@@ -105,6 +113,9 @@ fn main() {
     println!("cargo:rerun-if-changed=build_support/c_source.rs");
     println!("cargo:rerun-if-changed=build_support/nutation.rs");
     for input in moshier::INPUTS {
+        println!("cargo:rerun-if-changed={input}");
+    }
+    for input in period_remainder::INPUTS {
         println!("cargo:rerun-if-changed={input}");
     }
     for name in SOURCES.iter().chain(HEADERS.iter()) {
@@ -162,6 +173,7 @@ fn main() {
     let catalog_input = compacted_catalog_source(&native, &out);
     let moshier_input = moshier::generate(&native, &out);
     let nutation_input = nutation::generate(&native, &out);
+    period_remainder::apply(&native, &nutation_input);
     let inputs = SOURCES
         .iter()
         .map(|name| {
@@ -267,11 +279,17 @@ fn write_input_manifest(out: &Path, cc: &str, optimization: &str, native_lto: bo
     for input in moshier::INPUTS {
         content.push_str(&format!("{input}\n"));
     }
+    for input in period_remainder::INPUTS {
+        content.push_str(&format!("{input}\n"));
+    }
     content.push_str("build_support/c_source.rs\nbuild_support/nutation.rs\n");
     content
         .push_str("native-overlay: fixed-star ASCII-space compaction; generated OUT_DIR/sweph.c\n");
     content.push_str("native-overlay: immutable Moshier argument metadata and paired coefficient layout; generated OUT_DIR/swemplan.c, swemptab.h and moshier_terms.generated.h\n");
-    content.push_str("native-overlay: exact static nutation coefficient conversion; unchanged OUT_DIR/swephlib.c and generated swenut2000a.h\n");
+    content.push_str(
+        "native-overlay: exact static nutation coefficient conversion; generated swenut2000a.h\n",
+    );
+    content.push_str("native-overlay: bounded exact remainder in swe_degnorm/swe_radnorm; generated OUT_DIR/swephlib.c\n");
     for name in [
         "swemplan.c",
         "swemptab.h",

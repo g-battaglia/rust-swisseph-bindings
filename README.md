@@ -128,14 +128,26 @@ compiler can discard the redundant original arrays. New pointer reads or escapes
 require review. Generated content identities are recorded in `native-inputs.txt`.
 No time-dependent data or calculated results are cached.
 
-The nutation overlay keeps `OUT_DIR/swephlib.c` byte-identical and changes only
-four static table element declarations in `OUT_DIR/swenut2000a.h` from integer
-to double. Every original use already promotes those exactly representable
+The nutation table overlay changes only four static element declarations in
+`OUT_DIR/swenut2000a.h` from integer to double. Its original consumer expressions
+remain intact. Every original use already promotes those exactly representable
 integers before arithmetic; a consumer fingerprint binds that assumption to the
 reviewed expressions. Literal tokens, comments, term order and all model branches
 remain intact. This trades 47,784 bytes of integer tables for 158,592 bytes of
 read-only doubles to avoid repeated conversions; it changes no precision or
 calculated result.
+
+The angle normalizer overlay replaces only the remainder calls in
+`swe_degnorm` and `swe_radnorm` in `OUT_DIR/swephlib.c`. For their positive
+periods, 360 degrees and TWOPI radians, a truncated quotient and one fused
+operation compute the exact binary64 remainder when the magnitude is at most
+period times 2^50. Larger and nonfinite inputs retain libc `fmod`. Signed zero,
+the native 1e-13 zero threshold and wrapping remain intact. Complete source and
+helper fingerprints bind the transformation to the reviewed two consumers;
+the native ABI probe requires binary64 precision, radix and exponent range.
+The returned values retain their exact bits in all IEEE rounding directions.
+Libc errno, floating-environment and trap side effects are outside this helper's
+contract: quotient division may additionally raise `FE_INEXACT`.
 
 Run the example or generate local documentation:
 

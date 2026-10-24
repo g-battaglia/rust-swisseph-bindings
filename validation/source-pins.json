@@ -25,7 +25,14 @@
     "base_source": "swisseph/swephlib.c",
     "base_tables": "swisseph/swenut2000a.h",
     "generator": "build_support/nutation.rs",
-    "application": "build.rs copies unchanged OUT_DIR/swephlib.c and substitutes four table element types in generated swenut2000a.h; exact consumer fingerprint, complete uses, dimensions and signed integer domains required",
+    "application": "build.rs retains the original nutation consumer in OUT_DIR/swephlib.c and substitutes four table element types in generated swenut2000a.h; exact consumer fingerprint, complete uses, dimensions and signed integer domains required",
     "effect": "Exact static conversion of immutable integer inputs already promoted to double by every consumer expression; original literal tokens, comments, arithmetic, models and native calls retained; no time-dependent or result cache"
+  }, {
+    "id": "bounded-exact-period-remainder",
+    "base_source": "swisseph/swephlib.c",
+    "generator": "build_support/period_remainder.rs",
+    "helper": "src/native/exact_period_remainder.h",
+    "application": "build.rs replaces only the swe_degnorm/swe_radnorm remainder calls in OUT_DIR/swephlib.c; complete source/helper fingerprints and binary64 ABI premises required",
+    "effect": "Exact bounded quotient/FMA remainder for positive periods 360.0 and TWOPI, with original libc fmod for larger or nonfinite inputs; signed zeros, thresholds, wrapping, rounding-direction results and native calls retained; no reciprocal approximation, reduced precision, date restriction or result cache; libc errno/fenv/trap side effects are not promised, including possible additional FE_INEXACT"
   }]
 }

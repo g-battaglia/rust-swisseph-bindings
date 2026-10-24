@@ -10,3 +10,7 @@ mod nutation;
 #[allow(dead_code)]
 #[path = "../build_support/moshier.rs"]
 mod moshier;
+
+#[allow(dead_code)]
+#[path = "../build_support/period_remainder.rs"]
+mod period_remainder;
