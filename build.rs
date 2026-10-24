@@ -25,6 +25,8 @@ mod c_source;
 mod chewm_type_control;
 #[path = "build_support/file_message.rs"]
 mod file_message;
+#[path = "build_support/file_name.rs"]
+mod file_name;
 #[path = "build_support/file_open.rs"]
 mod file_open;
 #[path = "build_support/moshier.rs"]
@@ -136,6 +138,9 @@ fn main() {
     for input in file_message::INPUTS {
         println!("cargo:rerun-if-changed={input}");
     }
+    for input in file_name::INPUTS {
+        println!("cargo:rerun-if-changed={input}");
+    }
     for input in precession_pairs::INPUTS {
         println!("cargo:rerun-if-changed={input}");
     }
@@ -203,6 +208,7 @@ fn main() {
     let nutation_input = nutation::generate(&native, &out);
     period_remainder::apply(&native, &nutation_input);
     precession_pairs::apply(&native, &nutation_input);
+    file_name::apply(&native, &nutation_input);
     let inputs = SOURCES
         .iter()
         .map(|name| {
@@ -326,6 +332,9 @@ fn write_input_manifest(out: &Path, cc: &str, optimization: &str, native_lto: bo
     for input in file_message::INPUTS {
         content.push_str(&format!("{input}\n"));
     }
+    for input in file_name::INPUTS {
+        content.push_str(&format!("{input}\n"));
+    }
     for input in precession_pairs::INPUTS {
         content.push_str(&format!("{input}\n"));
     }
@@ -347,6 +356,9 @@ fn write_input_manifest(out: &Path, cc: &str, optimization: &str, native_lto: bo
         "native-overlay: exact bounded missing-file diagnostic; generated OUT_DIR/sweph.c\n",
     );
     content.push_str("native-overlay: paired immutable Vondrak periodic coefficients; generated OUT_DIR/swephlib.c\n");
+    content.push_str(
+        "native-overlay: exact native filename century suffix; generated OUT_DIR/swephlib.c\n",
+    );
     for name in [
         "sweph.c",
         "swemmoon.c",

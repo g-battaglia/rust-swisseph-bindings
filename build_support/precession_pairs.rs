@@ -185,9 +185,19 @@ mod tests {
 
     #[test]
     fn recovers_the_complete_preceding_source_and_reapplies_identically() {
-        let generated = include_str!(concat!(env!("OUT_DIR"), "/swephlib.c"));
+        // The final filename presentation overlay follows this numerical
+        // stage. Undo only its two exact edits, then require the independently
+        // qualified complete precession output before testing our own inverse.
+        let generated = include_str!(concat!(env!("OUT_DIR"), "/swephlib.c"))
+            .replacen("#include \"file_name_suffix.h\"\n", "", 1)
+            .replacen(
+                "  swe_append_file_century(fname + strlen(fname), (unsigned int) icty);",
+                "  sprintf(fname + strlen(fname), \"%02d.%s\", icty, SE_FILE_SUFFIX);",
+                1,
+            );
+        assert_eq!(fingerprint(generated.as_bytes()), 0x2e8a_8b17_e026_807e);
         let helper = include_str!("../src/native/precession_pairs.h");
-        let preceding = undo(generated, &source_edits(NATIVE).unwrap()).unwrap();
+        let preceding = undo(&generated, &source_edits(NATIVE).unwrap()).unwrap();
         assert_eq!(fingerprint(preceding.as_bytes()), PRECEDING_FINGERPRINT);
         assert_eq!(transformed(NATIVE, &preceding, helper).unwrap(), generated);
         assert!(transformed(NATIVE, &format!("{preceding}\n"), helper).is_err());
