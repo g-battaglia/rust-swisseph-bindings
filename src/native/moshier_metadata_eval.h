@@ -65,8 +65,9 @@
  * remain in the generated translation unit and bundled native sources.
  *
  * The generator proves that every periodic term has nonzero harmonics.
- * Only immutable argument decoding changes. Coefficient streams, floating
- * expressions, Horner steps and their accumulation order remain original.
+ * Immutable argument decoding and iteration over independent channels change.
+ * Coefficient streams, floating expressions and Horner steps within each
+ * channel retain their original order, as do the per-term accumulations.
  */
 
 /* The caller supplies the byte representation of the WHOLE ss/cc array.
@@ -114,24 +115,20 @@ int swi_moshplan2 (double J, int iplm, double *pobj)
       nt = term->degree;
       if (term->polynomial)
         {
-          cu = *pl++;
+          double longitude = *pl++;
+          double latitude = *pb++;
+          double radius = *pr++;
+          /* Each immutable coefficient stream has the same degree. Keep its
+           * Horner order, while exposing the independent channels together. */
           for (ip = 0; ip < nt; ip++)
             {
-              cu = cu * T + *pl++;
+              longitude = longitude * T + *pl++;
+              latitude = latitude * T + *pb++;
+              radius = radius * T + *pr++;
             }
-          sl += mods3600 (cu);
-          cu = *pb++;
-          for (ip = 0; ip < nt; ip++)
-            {
-              cu = cu * T + *pb++;
-            }
-          sb += cu;
-          cu = *pr++;
-          for (ip = 0; ip < nt; ip++)
-            {
-              cu = cu * T + *pr++;
-            }
-          sr += cu;
+          sl += mods3600 (longitude);
+          sb += latitude;
+          sr += radius;
           continue;
         }
 
@@ -155,30 +152,28 @@ int swi_moshplan2 (double J, int iplm, double *pobj)
           sv = t;
         }
 
-      cu = *pl++;
-      su = *pl++;
-      for (ip = 0; ip < nt; ip++)
-        {
-          cu = cu * T + *pl++;
-          su = su * T + *pl++;
-        }
-      sl += cu * cv + su * sv;
-      cu = *pb++;
-      su = *pb++;
-      for (ip = 0; ip < nt; ip++)
-        {
-          cu = cu * T + *pb++;
-          su = su * T + *pb++;
-        }
-      sb += cu * cv + su * sv;
-      cu = *pr++;
-      su = *pr++;
-      for (ip = 0; ip < nt; ip++)
-        {
-          cu = cu * T + *pr++;
-          su = su * T + *pr++;
-        }
-      sr += cu * cv + su * sv;
+      {
+        double longitude_cos = *pl++;
+        double longitude_sin = *pl++;
+        double latitude_cos = *pb++;
+        double latitude_sin = *pb++;
+        double radius_cos = *pr++;
+        double radius_sin = *pr++;
+        /* No horizontal reduction: every channel retains its own Horner
+         * recurrence, then contributes to its original ordered accumulator. */
+        for (ip = 0; ip < nt; ip++)
+          {
+            longitude_cos = longitude_cos * T + *pl++;
+            longitude_sin = longitude_sin * T + *pl++;
+            latitude_cos = latitude_cos * T + *pb++;
+            latitude_sin = latitude_sin * T + *pb++;
+            radius_cos = radius_cos * T + *pr++;
+            radius_sin = radius_sin * T + *pr++;
+          }
+        sl += longitude_cos * cv + longitude_sin * sv;
+        sb += latitude_cos * cv + latitude_sin * sv;
+        sr += radius_cos * cv + radius_sin * sv;
+      }
     }
   pobj[0] = STR * sl;
   pobj[1] = STR * sb;

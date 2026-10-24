@@ -19,7 +19,7 @@
     "generator": "build_support/moshier.rs",
     "helper": "src/native/moshier_metadata_eval.h",
     "application": "build.rs generates OUT_DIR/swemplan.c and moshier_terms.generated.h; exact evaluator fingerprint and complete table decoding required",
-    "effect": "Build-time decoding of immutable term structure; original coefficient streams, floating expressions, Horner steps, accumulation order and native calls retained; no time-dependent or result cache"
+    "effect": "Build-time decoding of immutable term structure and interleaving of independent longitude/latitude/radius recurrences; original coefficient streams, per-channel floating expressions and Horner order, term-ordered accumulations and native calls retained; no horizontal reduction, time-dependent or result cache"
   }, {
     "id": "exact-static-nutation-coefficient-conversion",
     "base_source": "swisseph/swephlib.c",

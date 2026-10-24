@@ -118,7 +118,9 @@ metadata from the pinned argument tables. A source-fragment fingerprint and
 fail-closed decoder check signed-byte structure, planet order, harmonic bounds,
 sentinels and complete coefficient consumption. The evaluator uses the original
 coefficient arrays and preserves every floating expression, Horner step and
-accumulation order; only repeated argument decoding changes. Generated content
+term-ordered accumulation within each channel. Independent longitude, latitude
+and radius recurrences share one loop without horizontal reductions; immutable
+argument decoding is also performed before compilation. Generated content
 identities are recorded in `native-inputs.txt`. No time-dependent data or
 calculated results are cached.
 
