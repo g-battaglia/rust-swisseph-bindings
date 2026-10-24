@@ -47,6 +47,12 @@ mod state;
 mod time;
 mod version;
 
+// Unit tests share one explicit data resolver, including its configuration
+// checks. Load it once so every private test module uses the same policy.
+#[cfg(test)]
+#[path = "../tests/data_dir.rs"]
+mod test_data;
+
 pub use angles::{
     SplitDeg, cotrans, cotrans_sp, cs2degstr, cs2lonlatstr, cs2timestr, csnorm, csroundsec, d2l,
     deg_midp, degnorm, difcs2n, difcsn, difdeg2n, difdegn, difrad2n, rad_midp, radnorm, split_deg,

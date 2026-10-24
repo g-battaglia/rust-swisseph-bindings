@@ -1,11 +1,10 @@
 //! Warm snapshot storage reuses capacity while every native read stays fresh.
 
 use super::*;
+use crate::test_data;
 
 #[path = "../tests/support/isolated.rs"]
 mod isolated;
-#[path = "../tests/data_dir.rs"]
-mod test_data;
 
 fn snapshot_storage(session: &Session) -> [Option<(usize, usize)>; 5] {
     with_native_access(|| {
