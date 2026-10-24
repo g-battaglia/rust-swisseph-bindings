@@ -23,6 +23,8 @@
 mod c_source;
 #[path = "build_support/chewm_type_control.rs"]
 mod chewm_type_control;
+#[path = "build_support/embofs_angles.rs"]
+mod embofs_angles;
 #[path = "build_support/file_message.rs"]
 mod file_message;
 #[path = "build_support/file_name.rs"]
@@ -126,6 +128,9 @@ fn main() {
     for input in moshier::INPUTS {
         println!("cargo:rerun-if-changed={input}");
     }
+    for input in embofs_angles::INPUTS {
+        println!("cargo:rerun-if-changed={input}");
+    }
     for input in chewm_type_control::INPUTS {
         println!("cargo:rerun-if-changed={input}");
     }
@@ -204,6 +209,7 @@ fn main() {
     file_open::apply(&native, &catalog_input);
     file_message::apply(&native, &catalog_input);
     let moshier_input = moshier::generate(&native, &out);
+    embofs_angles::apply(&native, &moshier_input.source);
     let lunar_input = chewm_type_control::generate(&native, &out);
     let nutation_input = nutation::generate(&native, &out);
     period_remainder::apply(&native, &nutation_input);
@@ -320,6 +326,9 @@ fn write_input_manifest(out: &Path, cc: &str, optimization: &str, native_lto: bo
     for input in moshier::INPUTS {
         content.push_str(&format!("{input}\n"));
     }
+    for input in embofs_angles::INPUTS {
+        content.push_str(&format!("{input}\n"));
+    }
     for input in chewm_type_control::INPUTS {
         content.push_str(&format!("{input}\n"));
     }
@@ -359,6 +368,7 @@ fn write_input_manifest(out: &Path, cc: &str, optimization: &str, native_lto: bo
     content.push_str(
         "native-overlay: exact native filename century suffix; generated OUT_DIR/swephlib.c\n",
     );
+    content.push_str("native-overlay: independent MP/D and F/M mean-angle cubics; generated OUT_DIR/swemplan.c\n");
     for name in [
         "sweph.c",
         "swemmoon.c",
