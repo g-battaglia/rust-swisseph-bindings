@@ -17,9 +17,10 @@
     "base_source": "swisseph/swemplan.c",
     "base_tables": "swisseph/swemptab.h",
     "generator": "build_support/moshier.rs",
+    "specializer": "build_support/moshier_specialized.rs",
     "helper": "src/native/moshier_metadata_eval.h",
-    "application": "build.rs generates OUT_DIR/swemplan.c, swemptab.h and moshier_terms.generated.h; complete consumer/table fingerprints, exact evaluator fingerprint and complete table decoding required",
-    "effect": "Build-time decoding of immutable term structure, lossless pairing of original longitude/latitude coefficient tokens and interleaving of independent recurrences; eighteen unused native longitude/latitude pointer tokens become null, enabling removal of redundant arrays while every other table-header byte and the radius stream remain unchanged; per-channel floating expressions and Horner order, term-ordered accumulations and native calls retained; no horizontal reduction, CPU-specific source or flags, time-dependent or result cache"
+    "application": "build.rs generates OUT_DIR/swemplan.c, swemptab.h, moshier_terms.generated.h and private moshier_evaluators.generated.h; complete consumer/table/emitter fingerprints, exact evaluator fingerprint and complete table decoding required; OUT_DIR include search is added only to the Moshier translation unit",
+    "effect": "Build-time decoding of immutable term structure, lossless pairing of original longitude/latitude coefficient tokens and nine private constant-control evaluators with shared harmonic preparation and projection; larger compiled bodies and stack frames replace runtime term/degree/argument loops without duplicating coefficients; eighteen unused native longitude/latitude pointer tokens become null, enabling removal of redundant arrays while every other table-header byte and the radius stream remain unchanged; per-channel floating stages and Horner order, rounded-product/FMA/contribution/addition boundaries, first-angle assignments, sine signs, polynomial mods3600, term-ordered accumulations and native calls retained; no horizontal reduction, CPU-specific source or flags, time-dependent or result cache"
   }, {
     "id": "exact-static-nutation-coefficient-conversion",
     "base_source": "swisseph/swephlib.c",

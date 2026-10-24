@@ -199,6 +199,10 @@ fn main() {
         if native_lto {
             compiler.arg("-flto");
         }
+        if input == moshier_input.source {
+            // The owned evaluator includes its private generated term bodies.
+            compiler.arg(format!("-I{}", out.display()));
+        }
         let status = compiler
             .arg(format!("-I{}", native.display()))
             .arg(format!("-I{}", manifest.join("src/native").display()))
@@ -285,7 +289,7 @@ fn write_input_manifest(out: &Path, cc: &str, optimization: &str, native_lto: bo
     content.push_str("build_support/c_source.rs\nbuild_support/nutation.rs\n");
     content
         .push_str("native-overlay: fixed-star ASCII-space compaction; generated OUT_DIR/sweph.c\n");
-    content.push_str("native-overlay: immutable Moshier argument metadata and paired coefficient layout; generated OUT_DIR/swemplan.c, swemptab.h and moshier_terms.generated.h\n");
+    content.push_str("native-overlay: immutable Moshier argument metadata and paired coefficient layout; generated OUT_DIR/swemplan.c, swemptab.h, moshier_terms.generated.h and private moshier_evaluators.generated.h\n");
     content.push_str(
         "native-overlay: exact static nutation coefficient conversion; generated swenut2000a.h\n",
     );
@@ -294,6 +298,7 @@ fn write_input_manifest(out: &Path, cc: &str, optimization: &str, native_lto: bo
         "swemplan.c",
         "swemptab.h",
         "moshier_terms.generated.h",
+        "moshier_evaluators.generated.h",
         "swephlib.c",
         "swenut2000a.h",
     ] {

@@ -10,10 +10,15 @@ use std::fmt::Write;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+#[path = "moshier_specialized.rs"]
+mod specialized;
+
 const PLANETS: [&str; 9] = [
     "mer", "ven", "ear", "mar", "jup", "sat", "ura", "nep", "plu",
 ];
 const EVALUATOR: &str = "src/native/moshier_metadata_eval.h";
+const SPECIALIZED: &str = "build_support/moshier_specialized.rs";
+const SPECIALIZED_FINGERPRINT: u64 = 0x06fdd669aac06262;
 // FNV-1a identifies the exact reviewed source fragment, not a security boundary.
 const PINNED_EVALUATOR_FINGERPRINT: u64 = 0x485d_2085_3d01_0d66;
 
@@ -22,6 +27,7 @@ pub struct Generated {
     pub source: PathBuf,
     pub header: PathBuf,
     pub tables: PathBuf,
+    pub evaluators: PathBuf,
 }
 
 #[derive(Debug, PartialEq)]
@@ -65,71 +71,38 @@ pub fn generate(native: &Path, out: &Path) -> Generated {
         "Moshier planet order differs"
     );
 
-    let mut header = String::from(
-        "/* Generated from pinned swemptab.h; immutable input tokens preserved. */\n\
-         struct swe_moshier_term { unsigned char count, degree, polynomial; };\n\
-         struct swe_moshier_argument { unsigned char index, negative; };\n\
-         struct swe_moshier_pair { double longitude, latitude; };\n\
-         struct swe_moshier_plan {\n\
-           const struct swe_moshier_term *terms;\n\
-           const struct swe_moshier_argument *arguments;\n\
-           const struct swe_moshier_pair *coefficients;\n\
-           unsigned int count;\n\
-         };\n",
+    let emitter = fs::read_to_string(SPECIALIZED).expect("read specialized Moshier emitter");
+    assert_eq!(
+        fingerprint(emitter.as_bytes()),
+        SPECIALIZED_FINGERPRINT,
+        "specialized Moshier expressions require review"
     );
-    for name in PLANETS {
-        let plan = decode_plan(&clean, name).unwrap_or_else(|error| panic!("{name}: {error}"));
+    let plans: Vec<_> = PLANETS
+        .into_iter()
+        .map(|name| {
+            (
+                name,
+                decode_plan(&clean, name).unwrap_or_else(|error| panic!("{name}: {error}")),
+            )
+        })
+        .collect();
+    let mut header = String::from(
+        "/* Generated from pinned swemptab.h; immutable coefficient tokens preserved. */\n\
+         struct swe_moshier_pair { double longitude, latitude; };\n",
+    );
+    for (name, plan) in &plans {
         writeln!(
             header,
             "static const struct swe_moshier_pair {name}_coefficients[] = {{"
         )
         .unwrap();
         for pair in &plan.coefficient_pairs {
-            // Copy the original C spelling, including exponents and signed
-            // zero. Parsing or formatting a Rust float here would lose it.
+            // Preserve C spelling; never parse or format a Rust float.
             writeln!(header, "  {{{}, {}}},", pair.longitude, pair.latitude).unwrap();
         }
         header.push_str("};\n");
-        writeln!(
-            header,
-            "static const struct swe_moshier_term {name}_terms[] = {{"
-        )
-        .unwrap();
-        for term in &plan.terms {
-            writeln!(
-                header,
-                "  {{{}, {}, {}}},",
-                term.arguments,
-                term.degree,
-                u8::from(term.polynomial)
-            )
-            .unwrap();
-        }
-        writeln!(
-            header,
-            "}};\nstatic const struct swe_moshier_argument {name}_arguments[] = {{"
-        )
-        .unwrap();
-        for arg in &plan.arguments {
-            writeln!(header, "  {{{}, {}}},", arg.index, u8::from(arg.negative)).unwrap();
-        }
-        writeln!(
-            header,
-            "}}; /* {} terms; {} original coefficients per axis. */",
-            plan.terms.len(),
-            plan.coefficients
-        )
-        .unwrap();
     }
-    header.push_str("static const struct swe_moshier_plan swe_moshier_plans[] = {\n");
-    for name in PLANETS {
-        writeln!(
-            header,
-            "  {{{name}_terms, {name}_arguments, {name}_coefficients, sizeof({name}_terms) / sizeof({name}_terms[0])}},"
-        )
-        .unwrap();
-    }
-    header.push_str("};\n");
+    let evaluators = specialized::generate(&plans).expect("complete specialized Moshier streams");
 
     let start = unique_offset(
         &source,
@@ -154,6 +127,7 @@ pub fn generate(native: &Path, out: &Path) -> Generated {
         source: out.join("swemplan.c"),
         header: out.join("moshier_terms.generated.h"),
         tables: out.join("swemptab.h"),
+        evaluators: out.join("moshier_evaluators.generated.h"),
     };
     let evaluator = fs::read_to_string(EVALUATOR).expect("read Moshier replacement evaluator");
     let detached = detach_unused_streams(&table, &source, &evaluator)
@@ -161,11 +135,12 @@ pub fn generate(native: &Path, out: &Path) -> Generated {
     fs::write(&generated.source, overlay).expect("write generated Moshier source");
     fs::write(&generated.header, header).expect("write generated Moshier metadata");
     fs::write(&generated.tables, detached).expect("write generated Moshier table declarations");
+    fs::write(&generated.evaluators, evaluators).expect("write specialized Moshier terms");
     generated
 }
 
 /// Inputs declared to Cargo and the native-input manifest.
-pub const INPUTS: [&str; 2] = ["build_support/moshier.rs", EVALUATOR];
+pub const INPUTS: [&str; 3] = ["build_support/moshier.rs", SPECIALIZED, EVALUATOR];
 
 /// Disconnect only the unused longitude/latitude pointers, letting the C
 /// compiler discard their original arrays after the lossless pair copy.
@@ -176,7 +151,7 @@ fn detach_unused_streams(table: &str, source: &str, evaluator: &str) -> Result<S
     for (label, text, expected) in [
         ("native consumer", source, 0x7d88_a869_e2c7_8a0c_u64),
         ("native tables", table, 0x3ff2_b63a_9c16_9938_u64),
-        ("replacement consumer", evaluator, 0xc8d9_c350_4d74_24de_u64),
+        ("replacement consumer", evaluator, 0x870e1f3041aea34d_u64),
     ] {
         if fingerprint(text.as_bytes()) != expected {
             return Err(format!(

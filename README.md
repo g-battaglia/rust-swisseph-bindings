@@ -114,14 +114,17 @@ locale handling, diagnostics, session lifecycle and every astronomical statement
 remain unchanged. No catalog or calculated positions are cached by this change.
 
 A second overlay generates `OUT_DIR/swemplan.c`, `OUT_DIR/swemptab.h` and
-immutable Moshier term metadata from the pinned tables. A fail-closed decoder
-checks signed-byte structure, planet order, harmonic bounds, sentinels and
-complete coefficient consumption. Original longitude/latitude coefficient
-tokens are paired without parsing or rounding their values; radius retains its
-native stream. Independent recurrences share one loop, preserving every Horner
-step, floating expression and term-ordered accumulation within each channel,
-without horizontal reductions or CPU-specific source or flags. Complete consumer
-and table fingerprints bind the ownership proof for disconnecting just eighteen
+private Moshier coefficient/evaluator headers from the pinned tables. A
+fail-closed decoder checks signed-byte structure, planet order, harmonic bounds,
+sentinels and complete coefficient consumption. Original longitude/latitude
+coefficient tokens are paired without parsing or rounding their values; radius retains its
+native stream. Nine private evaluators use constant term, degree and harmonic
+offsets; one shared entry retains harmonic preparation and final projection.
+Each channel preserves its Horner recurrence, rounded-product/FMA stages and
+term-ordered accumulation, without horizontal reductions or CPU-specific source
+or flags. Larger compiled bodies and stack use replace runtime control decoding;
+coefficient arrays are not duplicated. Complete consumer, emitter and table
+fingerprints bind the ownership proof for disconnecting just eighteen
 unused longitude/latitude pointers in the generated native table header. All
 other header bytes remain intact, including coefficients and notices; the C
 compiler can discard the redundant original arrays. New pointer reads or escapes

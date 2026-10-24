@@ -59,16 +59,12 @@
 */
 
 /*
- * Lossless input-layout specialization of swi_moshplan2 in pinned swemplan.c.
- * Derived from the Swiss Ephemeris implementation by Astrodienst AG and
- * the Moshier planetary series; the original copyright and AGPL notices
- * remain in the generated translation unit and bundled native sources.
- *
- * The generator proves that every periodic term has nonzero harmonics.
- * Immutable argument decoding and iteration over independent channels change.
- * Longitude/latitude coefficients retain their original C tokens in adjacent
- * fields. Each field keeps its Horner and term order, without cross-field
- * reductions; the radius uses its original native coefficient stream.
+ * Lossless specialization of the pinned swi_moshplan2 input/control layout.
+ * The original copyright and AGPL notices remain here and in the generated
+ * translation unit. The generator proves complete coefficient/argument use,
+ * nonzero harmonics and constant offsets into the SAME native objects.
+ * Each channel retains its Horner, rounded product/FMA and ordered sum stages.
+ * First-angle assignment, sine negation and polynomial mods3600 stay explicit.
  */
 
 /* The caller supplies the byte representation of the WHOLE ss/cc array.
@@ -81,18 +77,14 @@ static inline double swe_moshier_harmonic_value(const unsigned char *object,
   return *(const double *)(object + sizeof(double) * index);
 }
 
+#include "moshier_evaluators.generated.h"
+
 int swi_moshplan2 (double J, int iplm, double *pobj)
 {
-  int i, j, ip, nt;
-  unsigned int term_index;
-  double *pr;
-  double su, cu, sv, cv, T;
-  double t, sr;
+  int i, j;
+  double T, sr;
   struct swe_moshier_pair sum;
   const struct plantbl *plan = planets[iplm];
-  const struct swe_moshier_plan *metadata = &swe_moshier_plans[iplm];
-  const struct swe_moshier_argument *argument = metadata->arguments;
-  const struct swe_moshier_pair *coefficient = metadata->coefficients;
 
   T = (J - J2000) / TIMESCALE;
   /* Calculate sin( i*MM ), etc. for needed multiple angles. */
@@ -105,77 +97,9 @@ int swi_moshplan2 (double J, int iplm, double *pobj)
         }
     }
 
-  pr = plan->rad_tbl;
-  sum.longitude = 0.0;
-  sum.latitude = 0.0;
-  sr = 0.0;
-
-  for (term_index = 0; term_index < metadata->count; term_index++)
-    {
-      const struct swe_moshier_term *term = &metadata->terms[term_index];
-      nt = term->degree;
-      if (term->polynomial)
-        {
-          struct swe_moshier_pair polynomial = *coefficient++;
-          double radius = *pr++;
-          /* Each immutable coefficient stream has the same degree. Keep its
-           * Horner order, while exposing the independent channels together. */
-          for (ip = 0; ip < nt; ip++)
-            {
-              const struct swe_moshier_pair next = *coefficient++;
-              polynomial.longitude = polynomial.longitude * T + next.longitude;
-              polynomial.latitude = polynomial.latitude * T + next.latitude;
-              radius = radius * T + *pr++;
-            }
-          sum.longitude += mods3600 (polynomial.longitude);
-          sum.latitude += polynomial.latitude;
-          sr += radius;
-          continue;
-        }
-
-      /* Assign the first angle, without multiplying by an identity. Negate
-       * the sine exactly as C does, including a possible negative zero. */
-      su = swe_moshier_harmonic_value((const unsigned char *)&ss, argument->index);
-      if (argument->negative)
-        su = -su;
-      cu = swe_moshier_harmonic_value((const unsigned char *)&cc, argument->index);
-      sv = su;
-      cv = cu;
-      argument++;
-      for (ip = 1; ip < term->count; ip++, argument++)
-        {
-          su = swe_moshier_harmonic_value((const unsigned char *)&ss, argument->index);
-          if (argument->negative)
-            su = -su;
-          cu = swe_moshier_harmonic_value((const unsigned char *)&cc, argument->index);
-          t = su * cv + cu * sv;
-          cv = cu * cv - su * sv;
-          sv = t;
-        }
-
-      {
-        struct swe_moshier_pair cosine = *coefficient++;
-        struct swe_moshier_pair sine = *coefficient++;
-        double radius_cos = *pr++;
-        double radius_sin = *pr++;
-        /* No horizontal reduction: every channel retains its own Horner
-         * recurrence, then contributes to its original ordered accumulator. */
-        for (ip = 0; ip < nt; ip++)
-          {
-            const struct swe_moshier_pair next_cosine = *coefficient++;
-            const struct swe_moshier_pair next_sine = *coefficient++;
-            cosine.longitude = cosine.longitude * T + next_cosine.longitude;
-            cosine.latitude = cosine.latitude * T + next_cosine.latitude;
-            sine.longitude = sine.longitude * T + next_sine.longitude;
-            sine.latitude = sine.latitude * T + next_sine.latitude;
-            radius_cos = radius_cos * T + *pr++;
-            radius_sin = radius_sin * T + *pr++;
-          }
-        sum.longitude += cosine.longitude * cv + sine.longitude * sv;
-        sum.latitude += cosine.latitude * cv + sine.latitude * sv;
-        sr += radius_cos * cv + radius_sin * sv;
-      }
-    }
+  /* One private call evaluates the same ordered terms with constant offsets.
+   * Preparation, native harmonic objects and final projection stay shared. */
+  swe_moshier_evaluators[iplm](T, &sum, &sr);
   pobj[0] = STR * sum.longitude;
   pobj[1] = STR * sum.latitude;
   pobj[2] = STR * plan->distance * sr + plan->distance;
