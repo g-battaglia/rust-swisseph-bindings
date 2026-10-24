@@ -1,9 +1,12 @@
-//! Compare the selected native file consumer with its unmodified C body.
+//! Compare native file search, diagnostics and descriptor ownership with C.
 use std::{fs, path::Path, process::Command, time::SystemTime};
 
 #[allow(dead_code)]
 #[path = "../build_support/c_source.rs"]
 mod c_source;
+#[allow(dead_code)]
+#[path = "../build_support/file_message.rs"]
+mod file_message;
 #[allow(dead_code)]
 #[path = "../build_support/file_open.rs"]
 mod file_open;

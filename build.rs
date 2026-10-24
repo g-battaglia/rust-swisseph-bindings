@@ -23,6 +23,8 @@
 mod c_source;
 #[path = "build_support/chewm_type_control.rs"]
 mod chewm_type_control;
+#[path = "build_support/file_message.rs"]
+mod file_message;
 #[path = "build_support/file_open.rs"]
 mod file_open;
 #[path = "build_support/moshier.rs"]
@@ -131,6 +133,9 @@ fn main() {
     for input in file_open::INPUTS {
         println!("cargo:rerun-if-changed={input}");
     }
+    for input in file_message::INPUTS {
+        println!("cargo:rerun-if-changed={input}");
+    }
     for input in precession_pairs::INPUTS {
         println!("cargo:rerun-if-changed={input}");
     }
@@ -192,6 +197,7 @@ fn main() {
     let mut objects = Vec::with_capacity(SOURCES.len() + 1);
     let catalog_input = compacted_catalog_source(&native, &out);
     file_open::apply(&native, &catalog_input);
+    file_message::apply(&native, &catalog_input);
     let moshier_input = moshier::generate(&native, &out);
     let lunar_input = chewm_type_control::generate(&native, &out);
     let nutation_input = nutation::generate(&native, &out);
@@ -317,6 +323,9 @@ fn write_input_manifest(out: &Path, cc: &str, optimization: &str, native_lto: bo
     for input in file_open::INPUTS {
         content.push_str(&format!("{input}\n"));
     }
+    for input in file_message::INPUTS {
+        content.push_str(&format!("{input}\n"));
+    }
     for input in precession_pairs::INPUTS {
         content.push_str(&format!("{input}\n"));
     }
@@ -333,6 +342,9 @@ fn write_input_manifest(out: &Path, cc: &str, optimization: &str, native_lto: bo
     content.push_str("native-overlay: bounded exact remainder in swe_degnorm/swe_radnorm; generated OUT_DIR/swephlib.c\n");
     content.push_str(
         "native-overlay: read-only POSIX open/fdopen in swi_fopen; generated OUT_DIR/sweph.c\n",
+    );
+    content.push_str(
+        "native-overlay: exact bounded missing-file diagnostic; generated OUT_DIR/sweph.c\n",
     );
     content.push_str("native-overlay: paired immutable Vondrak periodic coefficients; generated OUT_DIR/swephlib.c\n");
     for name in [
