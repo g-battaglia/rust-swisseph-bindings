@@ -130,7 +130,10 @@ fail-closed decoder checks signed-byte structure, planet order, harmonic bounds,
 sentinels and complete coefficient consumption. Original longitude/latitude
 coefficient tokens are paired without parsing or rounding their values; radius retains its
 native stream. Nine private evaluators use constant term, degree and harmonic
-offsets; one shared entry retains harmonic preparation and final projection.
+offsets. Each prepares the native harmonics in ascending index order with the
+original angle expressions and `sscc` recurrence, using validated constant
+bounds. Even a single requested harmonic retains that helper's second-harmonic
+write. One shared entry retains time scaling and final projection.
 Each channel preserves its Horner recurrence, rounded-product/FMA stages and
 term-ordered accumulation, without horizontal reductions or CPU-specific source
 or flags. Larger compiled bodies and stack use replace runtime control decoding;

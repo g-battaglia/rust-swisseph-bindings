@@ -18,7 +18,7 @@ const PLANETS: [&str; 9] = [
 ];
 const EVALUATOR: &str = "src/native/moshier_metadata_eval.h";
 const SPECIALIZED: &str = "build_support/moshier_specialized.rs";
-const SPECIALIZED_FINGERPRINT: u64 = 0x06fdd669aac06262;
+const SPECIALIZED_FINGERPRINT: u64 = 0x32c4ad1aa128dd1a;
 // FNV-1a identifies the exact reviewed source fragment, not a security boundary.
 const PINNED_EVALUATOR_FINGERPRINT: u64 = 0x485d_2085_3d01_0d66;
 
@@ -50,6 +50,9 @@ struct CoefficientPair {
 }
 
 struct Plan {
+    /// Required harmonic count for each of the nine native fundamental angles.
+    /// The emitter specializes these validated bounds; sscc owns the recurrence.
+    max_harmonic: [i16; 9],
     terms: Vec<Term>,
     arguments: Vec<Argument>,
     coefficients: usize,
@@ -151,7 +154,7 @@ fn detach_unused_streams(table: &str, source: &str, evaluator: &str) -> Result<S
     for (label, text, expected) in [
         ("native consumer", source, 0x7d88_a869_e2c7_8a0c_u64),
         ("native tables", table, 0x3ff2_b63a_9c16_9938_u64),
-        ("replacement consumer", evaluator, 0x870e1f3041aea34d_u64),
+        ("replacement consumer", evaluator, 0xe163dcb6c62a60e6_u64),
     ] {
         if fingerprint(text.as_bytes()) != expected {
             return Err(format!(
@@ -286,6 +289,9 @@ fn zip_coefficients(
 fn decode_arguments(args: &[i16], harmonics: &[i16], max_degree: i16) -> Result<Plan, String> {
     let mut stream = args.iter().copied();
     let mut plan = Plan {
+        max_harmonic: harmonics
+            .try_into()
+            .map_err(|_| "invalid harmonic dimensions")?,
         terms: Vec::new(),
         arguments: Vec::new(),
         coefficients: 0,

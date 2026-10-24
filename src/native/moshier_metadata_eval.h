@@ -81,24 +81,14 @@ static inline double swe_moshier_harmonic_value(const unsigned char *object,
 
 int swi_moshplan2 (double J, int iplm, double *pobj)
 {
-  int i, j;
   double T, sr;
   struct swe_moshier_pair sum;
   const struct plantbl *plan = planets[iplm];
 
   T = (J - J2000) / TIMESCALE;
-  /* Calculate sin( i*MM ), etc. for needed multiple angles. */
-  for (i = 0; i < 9; i++)
-    {
-      if ((j = plan->max_harmonic[i]) > 0)
-        {
-          sr = (mods3600 (freqs[i] * T) + phases[i]) * STR;
-          sscc (i, sr, j);
-        }
-    }
-
-  /* One private call evaluates the same ordered terms with constant offsets.
-   * Preparation, native harmonic objects and final projection stay shared. */
+  /* The selected evaluator prepares the same native harmonics in ascending
+   * index order, then evaluates the unchanged terms with constant offsets.
+   * Time scaling, native sscc/objects and final projection remain shared. */
   swe_moshier_evaluators[iplm](T, &sum, &sr);
   pobj[0] = STR * sum.longitude;
   pobj[1] = STR * sum.latitude;

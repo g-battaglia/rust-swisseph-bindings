@@ -22,10 +22,27 @@ fn planet(name: &str, plan: &Plan) -> Result<String, String> {
     if plan.coefficient_pairs.len() != plan.coefficients {
         return Err("specialized coefficient count differs".into());
     }
+    // Preserve the original ascending preparation and full-expression double
+    // assignment. Even n=1 calls the original sscc and writes harmonic two;
+    // neither its recurrence nor any floating constant is duplicated here.
+    let mut preparation = String::from("  /* Native harmonic preparation. */\n");
+    for (index, count) in plan.max_harmonic.iter().enumerate() {
+        if *count > 0 {
+            writeln!(
+                preparation,
+                r#"  {{
+    const double argument = (mods3600 (freqs[{index}] * T) + phases[{index}]) * STR;
+    sscc ({index}, argument, {count});
+  }}"#
+            )
+            .unwrap();
+        }
+    }
+    preparation.push_str("  /* End native harmonic preparation. */\n");
     let mut output = format!(
         r#"static void swe_moshier_eval_{name}(double T, struct swe_moshier_pair *out, double *out_radius)
 {{
-  struct swe_moshier_pair sum = {{0.0, 0.0}};
+{preparation}  struct swe_moshier_pair sum = {{0.0, 0.0}};
   double sr = 0.0;
 "#
     );
@@ -173,6 +190,93 @@ mod tests {
                     .map(|(_, suffix)| suffix.split_once(']').unwrap().0.parse().unwrap())
             })
             .collect()
+    }
+
+    #[test]
+    fn prepares_the_native_harmonics_in_original_index_order() {
+        let tables = without_comments(include_str!("../swisseph/swemptab.h")).unwrap();
+        for name in PLANETS {
+            let plan = native(name);
+            let definition =
+                super::super::body_after(&tables, &format!("static struct plantbl {name}404 ="))
+                    .unwrap();
+            let end = definition.find('}').unwrap();
+            let expected =
+                super::super::integers::<i16>(definition[..end].trim().strip_prefix('{').unwrap())
+                    .unwrap();
+            assert_eq!(plan.max_harmonic.as_slice(), expected.as_slice());
+            let source = planet(name, &plan).unwrap();
+            let calls: Vec<_> = source
+                .lines()
+                .filter_map(|line| {
+                    let call = line.trim().strip_prefix("sscc (")?.strip_suffix(");")?;
+                    let (index, count) = call.split_once(", argument, ")?;
+                    Some((
+                        index.parse::<usize>().unwrap(),
+                        count.parse::<i16>().unwrap(),
+                    ))
+                })
+                .collect();
+            assert_eq!(
+                calls,
+                expected
+                    .into_iter()
+                    .enumerate()
+                    .filter(|(_, count)| *count > 0)
+                    .collect::<Vec<_>>()
+            );
+            for (index, _) in calls {
+                assert!(source.contains(&format!(
+                    "const double argument = (mods3600 (freqs[{index}] * T) + phases[{index}]) * STR;"
+                )));
+            }
+        }
+    }
+
+    #[test]
+    fn a_single_harmonic_still_calls_the_original_recurrence() {
+        let mut plan = native("mer");
+        plan.max_harmonic = [0; 9];
+        plan.max_harmonic[7] = 1;
+        let source = planet("mer", &plan).unwrap();
+        assert_eq!(source.matches("sscc (").count(), 1);
+        assert!(source.contains("sscc (7, argument, 1);"));
+        // The original helper writes index 1 before testing its loop. Keeping
+        // that helper/call preserves this otherwise easy-to-miss native write.
+        let native = include_str!("../swisseph/swemplan.c");
+        let helper =
+            super::super::body_after(native, "static void sscc (int k, double arg, int n)\n")
+                .unwrap();
+        assert!(
+            helper.find("ss[k][1] = sv;").unwrap()
+                < helper.find("for (i = 2; i < n; i++)").unwrap()
+        );
+    }
+
+    #[test]
+    fn removing_only_preparation_recovers_the_entire_reviewed_evaluator_header() {
+        let plans: Vec<_> = PLANETS
+            .into_iter()
+            .map(|name| (name, native(name)))
+            .collect();
+        let source = generate(&plans).unwrap();
+        let mut original = String::new();
+        let mut preparation = false;
+        for line in source.lines() {
+            match line.trim() {
+                "/* Native harmonic preparation. */" => preparation = true,
+                "/* End native harmonic preparation. */" => preparation = false,
+                _ if !preparation => writeln!(original, "{line}").unwrap(),
+                _ => {}
+            }
+        }
+        assert!(!preparation);
+        // Complete immutable generated source, including every coefficient
+        // access, angular stage, ordered sum and store; no result vector.
+        assert_eq!(
+            super::super::fingerprint(original.as_bytes()),
+            0x53fff8e0e3b26837
+        );
     }
 
     #[test]
