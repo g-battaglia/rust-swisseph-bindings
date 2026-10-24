@@ -73,11 +73,7 @@ fn paired_table(name: &str, dimension: &str, body: &str, count: usize) -> Result
     for (index, period) in columns[0].iter().enumerate() {
         paired.push_str(&format!(
             "  {{ {}, {{ {}, {} }}, {{ {}, {} }} }},\n",
-            period,
-            columns[1][index],
-            columns[2][index],
-            columns[3][index],
-            columns[4][index]
+            period, columns[1][index], columns[2][index], columns[3][index], columns[4][index]
         ));
     }
     paired.push_str("};");
