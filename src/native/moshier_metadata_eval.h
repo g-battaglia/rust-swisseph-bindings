@@ -77,6 +77,7 @@ static inline double swe_moshier_harmonic_value(const unsigned char *object,
   return *(const double *)(object + sizeof(double) * index);
 }
 
+#include "moshier_coordinate_pair.h"
 #include "moshier_evaluators.generated.h"
 
 int swi_moshplan2 (double J, int iplm, double *pobj)

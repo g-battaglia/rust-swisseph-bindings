@@ -18,7 +18,10 @@ const PLANETS: [&str; 9] = [
 ];
 const EVALUATOR: &str = "src/native/moshier_metadata_eval.h";
 const SPECIALIZED: &str = "build_support/moshier_specialized.rs";
-const SPECIALIZED_FINGERPRINT: u64 = 0x32c4ad1aa128dd1a;
+const SPECIALIZED_FINGERPRINT: u64 = 0xe64feb79c811cf6a;
+const COORDINATES: &str = "src/native/moshier_coordinate_pair.h";
+const COORDINATES_FINGERPRINT: u64 = 0x2d42dacedbe2cfbe;
+const GENERATED_EVALUATORS_FINGERPRINT: u64 = 0x1425298f77f94529;
 // FNV-1a identifies the exact reviewed source fragment, not a security boundary.
 const PINNED_EVALUATOR_FINGERPRINT: u64 = 0x485d_2085_3d01_0d66;
 
@@ -28,6 +31,8 @@ pub struct Generated {
     pub header: PathBuf,
     pub tables: PathBuf,
     pub evaluators: PathBuf,
+    pub evaluator: PathBuf,
+    pub coordinates: PathBuf,
 }
 
 #[derive(Debug, PartialEq)]
@@ -105,7 +110,13 @@ pub fn generate(native: &Path, out: &Path) -> Generated {
         }
         header.push_str("};\n");
     }
-    let evaluators = specialized::generate(&plans).expect("complete specialized Moshier streams");
+    let evaluators = reviewed_evaluators(&plans).expect("reviewed specialized Moshier streams");
+    let coordinates = fs::read_to_string(COORDINATES).expect("read coordinate arithmetic helper");
+    assert_eq!(
+        fingerprint(coordinates.as_bytes()),
+        COORDINATES_FINGERPRINT,
+        "coordinate arithmetic requires review"
+    );
 
     let start = unique_offset(
         &source,
@@ -131,6 +142,8 @@ pub fn generate(native: &Path, out: &Path) -> Generated {
         header: out.join("moshier_terms.generated.h"),
         tables: out.join("swemptab.h"),
         evaluators: out.join("moshier_evaluators.generated.h"),
+        evaluator: out.join("moshier_metadata_eval.h"),
+        coordinates: out.join("moshier_coordinate_pair.h"),
     };
     let evaluator = fs::read_to_string(EVALUATOR).expect("read Moshier replacement evaluator");
     let detached = detach_unused_streams(&table, &source, &evaluator)
@@ -139,11 +152,28 @@ pub fn generate(native: &Path, out: &Path) -> Generated {
     fs::write(&generated.header, header).expect("write generated Moshier metadata");
     fs::write(&generated.tables, detached).expect("write generated Moshier table declarations");
     fs::write(&generated.evaluators, evaluators).expect("write specialized Moshier terms");
+    fs::write(&generated.evaluator, evaluator).expect("write reviewed Moshier dispatcher");
+    fs::write(&generated.coordinates, coordinates).expect("write coordinate arithmetic helper");
     generated
 }
 
 /// Inputs declared to Cargo and the native-input manifest.
-pub const INPUTS: [&str; 3] = ["build_support/moshier.rs", SPECIALIZED, EVALUATOR];
+pub const INPUTS: [&str; 4] = [
+    "build_support/moshier.rs",
+    SPECIALIZED,
+    EVALUATOR,
+    COORDINATES,
+];
+
+/// Bind the complete emitted source to its reviewed coefficient/control graph.
+/// This is a source guard, not a floating-point conformance check.
+fn reviewed_evaluators(plans: &[(&str, Plan)]) -> Result<String, String> {
+    let source = specialized::generate(plans)?;
+    if fingerprint(source.as_bytes()) != GENERATED_EVALUATORS_FINGERPRINT {
+        return Err("generated coordinate stages require review".into());
+    }
+    Ok(source)
+}
 
 /// Disconnect only the unused longitude/latitude pointers, letting the C
 /// compiler discard their original arrays after the lossless pair copy.
@@ -154,7 +184,7 @@ fn detach_unused_streams(table: &str, source: &str, evaluator: &str) -> Result<S
     for (label, text, expected) in [
         ("native consumer", source, 0x7d88_a869_e2c7_8a0c_u64),
         ("native tables", table, 0x3ff2_b63a_9c16_9938_u64),
-        ("replacement consumer", evaluator, 0xe163dcb6c62a60e6_u64),
+        ("replacement consumer", evaluator, 0x98edd5b60c112eb8_u64),
     ] {
         if fingerprint(text.as_bytes()) != expected {
             return Err(format!(
@@ -464,6 +494,33 @@ mod tests {
             .is_err()
         );
         assert!(decode_plan(&source.replacen("merargs,", "venargs,", 1), "mer").is_err());
+    }
+
+    #[test]
+    fn complete_coordinate_emission_is_reviewed_and_rejects_changed_sequences() {
+        let table = without_comments(include_str!("../swisseph/swemptab.h")).unwrap();
+        let mut plans: Vec<_> = PLANETS
+            .into_iter()
+            .map(|name| (name, decode_plan(&table, name).unwrap()))
+            .collect();
+        let generated = reviewed_evaluators(&plans).unwrap();
+        assert_eq!(
+            fingerprint(generated.as_bytes()),
+            GENERATED_EVALUATORS_FINGERPRINT
+        );
+        assert_eq!(
+            fingerprint(include_bytes!("../src/native/moshier_coordinate_pair.h")),
+            COORDINATES_FINGERPRINT
+        );
+        // A complete but reordered plan is not silently a new source baseline.
+        plans[0].1.terms.swap(1, 2);
+        assert!(reviewed_evaluators(&plans).is_err());
+        let mut plans: Vec<_> = PLANETS
+            .into_iter()
+            .map(|name| (name, decode_plan(&table, name).unwrap()))
+            .collect();
+        plans[0].1.coefficient_pairs.pop();
+        assert!(reviewed_evaluators(&plans).is_err());
     }
 
     #[test]

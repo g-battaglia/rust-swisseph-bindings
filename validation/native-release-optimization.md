@@ -57,3 +57,32 @@ this adds no global traps or errno contract. Numerical payloads remain in RAM.
 Cargo-native, smoke, strict and installed-artifact qualification remain separate
 release gates. Source duplication and linked control flow alone establish no
 performance ratio.
+
+
+## Explicit independent-coordinate arithmetic
+
+The private Moshier evaluator keeps longitude and latitude together through
+Horner stages and ordered periodic accumulation. Complete coefficient records,
+native units, radius arithmetic, harmonic preparation and scalar output layouts
+remain unchanged. AArch64 little-endian uses architectural double NEON; the
+fallback retains the original scalar expressions. Whole-object copies preserve
+alignment and aliasing without deriving a vector pointer from a struct member.
+There is no additional public operation, CPU flag or stored calculation result.
+
+The source generator emits the reviewed helper calls directly. Full input and
+generated-source guards bind the coefficient/control streams, while Cargo tracks
+both private headers and records their generated identities. Tests retain the
+original coefficient/radius/argument expectations through a guarded test-only
+inverse; altered, truncated or reordered sources fail closed. Helper comments
+describe native units, ownership, scalar normalization and floating-point limits.
+
+Independent ordinary C controls pass 864 full evaluator cases over all nine
+bodies and four rounding modes, 1,024 final-bit stage-group cases, and 756 public
+TT/RNE cases. They compare coordinates, radius, all harmonic cells, native state,
+diagnostics, error/exception state and output canaries; actual written positive
+and negative zero signs are exercised. All workers exit cleanly. Individual
+intermediate products and every Horner site are not separately observed, and
+non-default synchronous trap ordering is not established. The new arithmetic is
+not a new whole-engine directed-rounding promise. These controls prove neither
+runtime speed nor the identities of a subsequently built Cargo archive; producer
+tests, smoke checks and archive comparisons are separate required checks.

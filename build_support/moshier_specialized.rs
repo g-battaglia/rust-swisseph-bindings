@@ -42,7 +42,7 @@ fn planet(name: &str, plan: &Plan) -> Result<String, String> {
     let mut output = format!(
         r#"static void swe_moshier_eval_{name}(double T, struct swe_moshier_pair *out, double *out_radius)
 {{
-{preparation}  struct swe_moshier_pair sum = {{0.0, 0.0}};
+{preparation}  swe_moshier_coordinate sum = swe_moshier_coordinate_zero();
   double sr = 0.0;
 "#
     );
@@ -64,20 +64,20 @@ fn planet(name: &str, plan: &Plan) -> Result<String, String> {
         if term.polynomial {
             writeln!(
                 output,
-                r#"    struct swe_moshier_pair polynomial = {name}_coefficients[{coefficient_offset}];
+                r#"    swe_moshier_coordinate polynomial = swe_moshier_coordinate_load(&{name}_coefficients[{coefficient_offset}]);
     double radius = {name}tabr[{coefficient_offset}];"#
             ).unwrap();
             for offset in coefficient_offset + 1..end {
                 writeln!(
                     output,
-                    r#"    polynomial.longitude = polynomial.longitude * T + {name}_coefficients[{offset}].longitude;
-    polynomial.latitude = polynomial.latitude * T + {name}_coefficients[{offset}].latitude;
+                    r#"    polynomial = swe_moshier_coordinate_horner(polynomial, T, &{name}_coefficients[{offset}]);
     radius = radius * T + {name}tabr[{offset}];"#
                 ).unwrap();
             }
             output.push_str(
-                r#"    sum.longitude += mods3600 (polynomial.longitude);
-    sum.latitude += polynomial.latitude;
+                r#"    polynomial = swe_moshier_coordinate_set_longitude(
+        polynomial, mods3600 (swe_moshier_coordinate_longitude(polynomial)));
+    sum = swe_moshier_coordinate_add(sum, polynomial);
     sr += radius;
 "#,
             );
@@ -89,8 +89,8 @@ fn planet(name: &str, plan: &Plan) -> Result<String, String> {
             let sine = coefficient_offset + 1;
             writeln!(
                 output,
-                r#"    struct swe_moshier_pair cosine = {name}_coefficients[{coefficient_offset}];
-    struct swe_moshier_pair sine = {name}_coefficients[{sine}];
+                r#"    swe_moshier_coordinate cosine = swe_moshier_coordinate_load(&{name}_coefficients[{coefficient_offset}]);
+    swe_moshier_coordinate sine = swe_moshier_coordinate_load(&{name}_coefficients[{sine}]);
     double radius_cos = {name}tabr[{coefficient_offset}];
     double radius_sin = {name}tabr[{sine}];"#
             )
@@ -100,8 +100,7 @@ fn planet(name: &str, plan: &Plan) -> Result<String, String> {
                 for (channel, offset) in [("cosine", offset), ("sine", sine)] {
                     writeln!(
                         output,
-                        r#"    {channel}.longitude = {channel}.longitude * T + {name}_coefficients[{offset}].longitude;
-    {channel}.latitude = {channel}.latitude * T + {name}_coefficients[{offset}].latitude;"#
+                        r#"    {channel} = swe_moshier_coordinate_horner({channel}, T, &{name}_coefficients[{offset}]);"#
                     ).unwrap();
                 }
                 writeln!(
@@ -111,14 +110,14 @@ fn planet(name: &str, plan: &Plan) -> Result<String, String> {
                 )
                 .unwrap();
             }
-            // Shipping C rounds the sine product, fuses the cosine sum, then
-            // adds to each ordered accumulator. Separate statements retain it.
+            // Keep both coordinates in one private arithmetic value. The
+            // rounded sine product, cosine FMA and incoming-total ADD remain
+            // separate full expressions, with radius in its original place.
             output.push_str(
-                r#"    const struct swe_moshier_pair product = {sine.longitude * sv, sine.latitude * sv};
+                r#"    const swe_moshier_coordinate product = swe_moshier_coordinate_product(sine, sv);
     const double radius_product = radius_sin * sv;
-    const struct swe_moshier_pair contribution = {cosine.longitude * cv + product.longitude, cosine.latitude * cv + product.latitude};
-    sum.longitude += contribution.longitude;
-    sum.latitude += contribution.latitude;
+    const swe_moshier_coordinate contribution = swe_moshier_coordinate_contribution(cosine, cv, product);
+    sum = swe_moshier_coordinate_add(sum, contribution);
     sr += radius_cos * cv + radius_product;
 "#
             );
@@ -130,7 +129,7 @@ fn planet(name: &str, plan: &Plan) -> Result<String, String> {
     if argument_offset != plan.arguments.len() || coefficient_offset != plan.coefficients {
         return Err("specialized native streams were not completely consumed".into());
     }
-    output.push_str("  *out = sum;\n  *out_radius = sr;\n}\n");
+    output.push_str("  swe_moshier_coordinate_store(out, sum);\n  *out_radius = sr;\n}\n");
     Ok(output)
 }
 
@@ -173,6 +172,175 @@ fn angle(output: &mut String, argument: &Argument, first: bool) {
 mod tests {
     use super::super::{PLANETS, decode_plan, without_comments};
     use super::*;
+
+    /// Recover the predecessor source only from an exact reviewed generated
+    /// header/body. Whole-input and whole-output fingerprints prevent a parser
+    /// from hiding altered coefficients, radius, harmonics or arithmetic.
+    fn scalar_coordinates(source: &str) -> Result<String, String> {
+        let accepted = [
+            (0x1425298f77f94529, 0x924f3a1cb2161961),
+            (0xa5bdd5a9690e64b9, 0x221b7ecf5e3a0644),
+            (0xf70616eec855b9b2, 0x81b87ee7edc4b88e),
+            (0x0720aaf095dfbe17, 0xc82cd36da37dc6fb),
+            (0x306b3ed5a0ca8676, 0xf219b1f42cab4fde),
+            (0x6d8850e3c4092b07, 0xdc1fd81e5ffb0bbf),
+            (0xa52de68871152007, 0x47b60271f66cf1f1),
+            (0x8038d3ed4b05c7d1, 0xae9e0f510d294025),
+            (0x0255871dced94062, 0xbcb949d023d2bd3a),
+            (0xe28da02022bbef86, 0x2b1e0c824cb0dc13),
+        ];
+        let input = super::super::fingerprint(source.as_bytes());
+        let expected = accepted
+            .iter()
+            .find_map(|(pair, scalar)| (*pair == input).then_some(*scalar))
+            .ok_or("unreviewed coordinate source")?;
+        let mut output = String::new();
+        let mut lines = source.lines();
+        while let Some(line) = lines.next() {
+            match line {
+                "  swe_moshier_coordinate sum = swe_moshier_coordinate_zero();" => {
+                    output.push_str("  struct swe_moshier_pair sum = {0.0, 0.0};\n");
+                }
+                "    polynomial = swe_moshier_coordinate_set_longitude(" => {
+                    if lines.next()
+                        != Some(
+                            "        polynomial, mods3600 (swe_moshier_coordinate_longitude(polynomial)));",
+                        )
+                        || lines.next()
+                            != Some("    sum = swe_moshier_coordinate_add(sum, polynomial);")
+                    {
+                        return Err("incomplete polynomial normalization".into());
+                    }
+                    output.push_str("    sum.longitude += mods3600 (polynomial.longitude);\n    sum.latitude += polynomial.latitude;\n");
+                }
+                "    const swe_moshier_coordinate product = swe_moshier_coordinate_product(sine, sv);" =>
+                {
+                    output.push_str("    const struct swe_moshier_pair product = {sine.longitude * sv, sine.latitude * sv};\n");
+                }
+                "    const swe_moshier_coordinate contribution = swe_moshier_coordinate_contribution(cosine, cv, product);" =>
+                {
+                    output.push_str("    const struct swe_moshier_pair contribution = {cosine.longitude * cv + product.longitude, cosine.latitude * cv + product.latitude};\n");
+                }
+                "    sum = swe_moshier_coordinate_add(sum, contribution);" => {
+                    output.push_str("    sum.longitude += contribution.longitude;\n    sum.latitude += contribution.latitude;\n");
+                }
+                "  swe_moshier_coordinate_store(out, sum);" => {
+                    output.push_str("  *out = sum;\n");
+                }
+                _ => {
+                    if let Some(rest) = line.strip_prefix("    swe_moshier_coordinate ") {
+                        let (channel, coefficient) = rest
+                            .split_once(" = swe_moshier_coordinate_load(&")
+                            .ok_or("unmatched coordinate declaration")?;
+                        if !["polynomial", "cosine", "sine"].contains(&channel) {
+                            return Err("unknown coordinate declaration".into());
+                        }
+                        let coefficient = coefficient
+                            .strip_suffix(");")
+                            .ok_or("truncated coefficient record")?;
+                        writeln!(
+                            output,
+                            "    struct swe_moshier_pair {channel} = {coefficient};"
+                        )
+                        .unwrap();
+                    } else if let Some((assignment, rest)) =
+                        line.split_once(" = swe_moshier_coordinate_horner(")
+                    {
+                        let channel = assignment.trim();
+                        if !["polynomial", "cosine", "sine"].contains(&channel) {
+                            return Err("unknown Horner channel".into());
+                        }
+                        let prefix = format!("{channel}, T, &");
+                        let coefficient = rest
+                            .strip_prefix(prefix.as_str())
+                            .and_then(|tail| tail.strip_suffix(");"))
+                            .ok_or("unmatched Horner stage")?;
+                        for field in ["longitude", "latitude"] {
+                            writeln!(output, "    {channel}.{field} = {channel}.{field} * T + {coefficient}.{field};").unwrap();
+                        }
+                    } else {
+                        if line.contains("swe_moshier_coordinate") {
+                            return Err("unmatched coordinate stage".into());
+                        }
+                        writeln!(output, "{line}").unwrap();
+                    }
+                }
+            }
+        }
+        if super::super::fingerprint(output.as_bytes()) != expected {
+            return Err("coordinate inverse differs from complete predecessor".into());
+        }
+        Ok(output)
+    }
+
+    #[test]
+    fn coordinate_source_keeps_every_radius_and_angular_stage_in_order() {
+        for name in PLANETS {
+            let plan = native(name);
+            let source = planet(name, &plan).unwrap();
+            let scalar = scalar_coordinates(&source).unwrap();
+            let preserved = |text: &str| -> Vec<String> {
+                text.lines()
+                    .filter(|line| {
+                        line.contains("radius")
+                            || line.contains("sr +=")
+                            || line.contains("sscc (")
+                            || line.contains("harmonic_value")
+                            || line.contains("const double argument =")
+                            || line.contains("su = -su;")
+                            || line.contains("sv = su;")
+                            || line.contains("cv = cu;")
+                            || line.contains("sine_product")
+                            || line.contains("cosine_product")
+                            || line.contains("sv = t;")
+                    })
+                    .map(str::to_owned)
+                    .collect()
+            };
+            assert_eq!(preserved(&source), preserved(&scalar));
+            assert_eq!(
+                source
+                    .matches("swe_moshier_coordinate_set_longitude(")
+                    .count(),
+                plan.terms.iter().filter(|term| term.polynomial).count()
+            );
+            for term in source.split("/* Ordered term").skip(1) {
+                if let Some(product) = term.find("const swe_moshier_coordinate product =") {
+                    let radius = term.find("const double radius_product =").unwrap();
+                    let contribution = term
+                        .find("const swe_moshier_coordinate contribution =")
+                        .unwrap();
+                    let sum = term
+                        .find("sum = swe_moshier_coordinate_add(sum, contribution);")
+                        .unwrap();
+                    let radius_sum = term
+                        .find("sr += radius_cos * cv + radius_product;")
+                        .unwrap();
+                    assert!(
+                        product < radius
+                            && radius < contribution
+                            && contribution < sum
+                            && sum < radius_sum
+                    );
+                }
+            }
+            assert!(!source.contains(".longitude") && !source.contains(".latitude"));
+        }
+    }
+
+    #[test]
+    fn inverse_rejects_unmatched_truncated_or_reordered_stages() {
+        let source = planet("mer", &native("mer")).unwrap();
+        for altered in [
+            source.replace("_horner(polynomial, T,", "_horner(polynomial, -T,"),
+            source.replace("radius = radius * T", "radius = -radius * T"),
+            source.replace("sum, contribution", "contribution, sum"),
+            source.trim_end_matches("}\n").to_owned(),
+            format!("{source}\n"),
+        ] {
+            assert!(scalar_coordinates(&altered).is_err());
+        }
+    }
 
     fn native(name: &str) -> Plan {
         decode_plan(
@@ -259,7 +427,7 @@ mod tests {
             .into_iter()
             .map(|name| (name, native(name)))
             .collect();
-        let source = generate(&plans).unwrap();
+        let source = scalar_coordinates(&generate(&plans).unwrap()).unwrap();
         let mut original = String::new();
         let mut preparation = false;
         for line in source.lines() {
@@ -283,7 +451,7 @@ mod tests {
     fn covers_all_native_terms_addresses_degrees_and_signs_in_order() {
         for name in PLANETS {
             let plan = native(name);
-            let source = planet(name, &plan).unwrap();
+            let source = scalar_coordinates(&planet(name, &plan).unwrap()).unwrap();
             assert_eq!(source.matches("/* Ordered term").count(), plan.terms.len());
             assert!(!source.contains("for (") && !source.contains("while ("));
             // Expand a pair initialization into its two field reads. Every
@@ -371,6 +539,9 @@ mod tests {
     fn rejects_incomplete_native_streams() {
         let mut plan = native("mer");
         plan.coefficients -= 1;
+        assert!(planet("mer", &plan).is_err());
+        let mut plan = native("mer");
+        plan.coefficient_pairs.pop();
         assert!(planet("mer", &plan).is_err());
         let mut plan = native("mer");
         plan.arguments.pop();

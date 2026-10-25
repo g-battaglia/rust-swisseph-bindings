@@ -359,7 +359,7 @@ fn write_input_manifest(out: &Path, cc: &str, optimization: &str, native_lto: bo
     content.push_str("build_support/c_source.rs\nbuild_support/nutation.rs\n");
     content
         .push_str("native-overlay: fixed-star ASCII-space compaction; generated OUT_DIR/sweph.c\n");
-    content.push_str("native-overlay: immutable Moshier argument metadata and paired coefficient layout; generated OUT_DIR/swemplan.c, swemptab.h, moshier_terms.generated.h and private moshier_evaluators.generated.h\n");
+    content.push_str("native-overlay: immutable Moshier argument metadata and paired coefficient layout; generated OUT_DIR/swemplan.c, swemptab.h, moshier_terms.generated.h and private moshier_evaluators.generated.h, moshier_metadata_eval.h and moshier_coordinate_pair.h\n");
     content.push_str(
         "native-overlay: literal lunar perturbation kinds; generated OUT_DIR/swemmoon.c\n",
     );
@@ -386,6 +386,8 @@ fn write_input_manifest(out: &Path, cc: &str, optimization: &str, native_lto: bo
         "swemptab.h",
         "moshier_terms.generated.h",
         "moshier_evaluators.generated.h",
+        "moshier_metadata_eval.h",
+        "moshier_coordinate_pair.h",
         "swephlib.c",
         "swenut2000a.h",
     ] {
