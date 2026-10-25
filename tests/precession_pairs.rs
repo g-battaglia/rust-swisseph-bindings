@@ -5,3 +5,7 @@
 mod c_source;
 #[path = "../build_support/precession_pairs.rs"]
 mod precession_pairs;
+
+#[allow(dead_code)]
+#[path = "../build_support/precession_frame.rs"]
+mod precession_frame;

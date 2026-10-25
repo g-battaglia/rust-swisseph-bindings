@@ -185,16 +185,20 @@ mod tests {
 
     #[test]
     fn recovers_the_complete_preceding_source_and_reapplies_identically() {
-        // The final filename presentation overlay follows this numerical
-        // stage. Undo only its two exact edits, then require the independently
+        // Remove the local preparation first, then the filename presentation
+        // stage. Keep both exact inverses and require the independently
         // qualified complete precession output before testing our own inverse.
-        let generated = include_str!(concat!(env!("OUT_DIR"), "/swephlib.c"))
-            .replacen("#include \"file_name_suffix.h\"\n", "", 1)
-            .replacen(
-                "  swe_append_file_century(fname + strlen(fname), (unsigned int) icty);",
-                "  sprintf(fname + strlen(fname), \"%02d.%s\", icty, SE_FILE_SUFFIX);",
-                1,
-            );
+        let generated = super::super::precession_frame::restore_lib(include_str!(concat!(
+            env!("OUT_DIR"),
+            "/swephlib.c"
+        )))
+        .expect("restore final local precession preparation")
+        .replacen("#include \"file_name_suffix.h\"\n", "", 1)
+        .replacen(
+            "  swe_append_file_century(fname + strlen(fname), (unsigned int) icty);",
+            "  sprintf(fname + strlen(fname), \"%02d.%s\", icty, SE_FILE_SUFFIX);",
+            1,
+        );
         assert_eq!(fingerprint(generated.as_bytes()), 0x2e8a_8b17_e026_807e);
         let helper = include_str!("../src/native/precession_pairs.h");
         let preceding = undo(&generated, &source_edits(NATIVE).unwrap()).unwrap();

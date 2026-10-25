@@ -66,3 +66,7 @@ void oracle_swi_gen_filename(double tjd, int ipli, char *fname)
     println!("{}", String::from_utf8_lossy(&result.stdout));
     fs::remove_dir_all(directory).unwrap();
 }
+
+#[allow(dead_code)]
+#[path = "../build_support/precession_frame.rs"]
+mod precession_frame;

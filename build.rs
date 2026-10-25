@@ -37,6 +37,8 @@ mod moshier;
 mod nutation;
 #[path = "build_support/period_remainder.rs"]
 mod period_remainder;
+#[path = "build_support/precession_frame.rs"]
+mod precession_frame;
 #[path = "build_support/precession_pairs.rs"]
 mod precession_pairs;
 
@@ -149,6 +151,9 @@ fn main() {
     for input in precession_pairs::INPUTS {
         println!("cargo:rerun-if-changed={input}");
     }
+    for input in precession_frame::INPUTS {
+        println!("cargo:rerun-if-changed={input}");
+    }
     for name in SOURCES.iter().chain(HEADERS.iter()) {
         println!("cargo:rerun-if-changed=swisseph/{name}");
     }
@@ -215,6 +220,7 @@ fn main() {
     period_remainder::apply(&native, &nutation_input);
     precession_pairs::apply(&native, &nutation_input);
     file_name::apply(&native, &nutation_input);
+    precession_frame::apply(&native, &catalog_input, &nutation_input);
     let inputs = SOURCES
         .iter()
         .map(|name| {
@@ -347,6 +353,9 @@ fn write_input_manifest(out: &Path, cc: &str, optimization: &str, native_lto: bo
     for input in precession_pairs::INPUTS {
         content.push_str(&format!("{input}\n"));
     }
+    for input in precession_frame::INPUTS {
+        content.push_str(&format!("{input}\n"));
+    }
     content.push_str("build_support/c_source.rs\nbuild_support/nutation.rs\n");
     content
         .push_str("native-overlay: fixed-star ASCII-space compaction; generated OUT_DIR/sweph.c\n");
@@ -369,6 +378,7 @@ fn write_input_manifest(out: &Path, cc: &str, optimization: &str, native_lto: bo
         "native-overlay: exact native filename century suffix; generated OUT_DIR/swephlib.c\n",
     );
     content.push_str("native-overlay: independent MP/D and F/M mean-angle cubics; generated OUT_DIR/swemplan.c\n");
+    content.push_str("native-overlay: one local precession matrix for adjacent position and velocity; generated OUT_DIR/sweph.c and swephlib.c\n");
     for name in [
         "sweph.c",
         "swemmoon.c",

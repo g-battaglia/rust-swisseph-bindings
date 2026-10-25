@@ -59,9 +59,13 @@ mod tests {
         // Cargo supplies the actual generated unit. Its complete inverse must
         // match the independently pinned preceding fingerprint before any test
         // may treat it as the qualified input.
-        include_str!(concat!(env!("OUT_DIR"), "/swephlib.c"))
-            .replacen(INCLUDE, "", 1)
-            .replacen(REPLACEMENT, ORIGINAL, 1)
+        super::super::precession_frame::restore_lib(include_str!(concat!(
+            env!("OUT_DIR"),
+            "/swephlib.c"
+        )))
+        .expect("restore final local precession preparation")
+        .replacen(INCLUDE, "", 1)
+        .replacen(REPLACEMENT, ORIGINAL, 1)
     }
 
     #[test]
