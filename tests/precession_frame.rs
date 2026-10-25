@@ -58,18 +58,37 @@ fn rejects_changed_native_helper_preceding_or_final_bytes_and_wrong_order() {
 #[test]
 fn confines_frame_to_the_owning_pair_and_keeps_the_entire_speed_body() {
     let prior = precession_frame::restore_catalog(CATALOG).unwrap();
-    let signature = "static int app_pos_etc_plan(int ipli, int iplmoon, int32 iflag, char *serr)\n";
-    let caller = c_source::body_after(CATALOG, signature).unwrap();
     assert_eq!(
         CATALOG
             .matches("struct swe_precession_frame frame =")
             .count(),
-        1
+        2
     );
-    assert!(caller.contains("swe_precess_with_frame(xx, pdp->teval, iflag, J2000_TO_J, &frame);"));
-    assert!(
-        caller.contains("swe_precess_speed_with_frame(xx, pdp->teval, iflag, J2000_TO_J, &frame);")
-    );
+    for (signature, owner) in [
+        (
+            "static int app_pos_etc_plan(int ipli, int iplmoon, int32 iflag, char *serr)\n",
+            "pdp",
+        ),
+        (
+            "static int app_pos_etc_sun(int32 iflag, char *serr)\n",
+            "pedp",
+        ),
+    ] {
+        let caller = c_source::body_after(CATALOG, signature).unwrap();
+        let initialization = caller.find("struct swe_precession_frame frame =").unwrap();
+        let position = caller
+            .find(&format!(
+                "swe_precess_with_frame(xx, {owner}->teval, iflag, J2000_TO_J, &frame);"
+            ))
+            .unwrap();
+        let speed = caller
+            .find(&format!(
+                "swe_precess_speed_with_frame(xx, {owner}->teval, iflag, J2000_TO_J, &frame);"
+            ))
+            .unwrap();
+        assert!(initialization < position && position < speed);
+        assert!(caller[position..speed].contains("if (iflag & SEFLG_SPEED)"));
+    }
     let old_body = c_source::body_after(
         &prior,
         "void swi_precess_speed(double *xx, double t, int32 iflag, int direction)",

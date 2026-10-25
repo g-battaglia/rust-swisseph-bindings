@@ -14,7 +14,7 @@ const NATIVE_CATALOG: u64 = 0x811a_3282_bb39_3790;
 const NATIVE_LIBRARY: u64 = 0xe642_4aa4_7d15_66b1;
 const PRECEDING_CATALOG: u64 = 0xc9f5_d4b0_0ad9_a6e8;
 const PRECEDING_LIBRARY: u64 = 0x7b63_9529_e9dc_b654;
-const GENERATED_CATALOG: u64 = 0x2342_d9f1_dad7_344f;
+const GENERATED_CATALOG: u64 = 0x1ae5_cdcf_239f_b690;
 const GENERATED_LIBRARY: u64 = 0x947c_db84_c360_477f;
 const HELPER_FINGERPRINT: u64 = 0xa82f_97ac_6b4f_14ca;
 
@@ -23,7 +23,7 @@ pub const INPUTS: [&str; 2] = ["build_support/precession_frame.rs", HELPER];
 
 // The newline excludes the otherwise identical forward declaration. The body
 // reader must select one definition before locating the pair inside that body.
-const APP_SIGNATURE: &str = r#"static int app_pos_etc_plan(int ipli, int iplmoon, int32 iflag, char *serr)
+const PLAN_SIGNATURE: &str = r#"static int app_pos_etc_plan(int ipli, int iplmoon, int32 iflag, char *serr)
 "#;
 const ORIGINAL_PAIR: &str = r#"    swi_precess(xx, pdp->teval, iflag, J2000_TO_J);
     if (iflag & SEFLG_SPEED)
@@ -34,6 +34,18 @@ const SHARED_PAIR: &str = r#"    /* One stack-local frame prepares this operatio
     swe_precess_with_frame(xx, pdp->teval, iflag, J2000_TO_J, &frame);
     if (iflag & SEFLG_SPEED)
       swe_precess_speed_with_frame(xx, pdp->teval, iflag, J2000_TO_J, &frame);"#;
+
+const SUN_SIGNATURE: &str = r#"static int app_pos_etc_sun(int32 iflag, char *serr)
+"#;
+const SUN_ORIGINAL_PAIR: &str = r#"    swi_precess(xx, pedp->teval, iflag, J2000_TO_J);/**/
+    if (iflag & SEFLG_SPEED)
+      swi_precess_speed(xx, pedp->teval, iflag, J2000_TO_J);/**/"#;
+const SUN_SHARED_PAIR: &str = r#"    /* One stack-local frame prepares this operation's matrix for position
+     * and velocity. It is never retained or shared with another request. */
+    struct swe_precession_frame frame = {{0}, 0};
+    swe_precess_with_frame(xx, pedp->teval, iflag, J2000_TO_J, &frame);/**/
+    if (iflag & SEFLG_SPEED)
+      swe_precess_speed_with_frame(xx, pedp->teval, iflag, J2000_TO_J, &frame);/**/"#;
 
 struct Edit {
     before: &'static str,
@@ -215,8 +227,8 @@ fn edited(source: &str, edits: &[Edit], reverse: bool) -> Result<String, String>
     Ok(output)
 }
 
-fn edit_caller(source: &str, before: &str, after: &str) -> Result<String, String> {
-    let body = body_after(source, APP_SIGNATURE)?;
+fn edit_caller(source: &str, signature: &str, before: &str, after: &str) -> Result<String, String> {
+    let body = body_after(source, signature)?;
     let offset = unique_offset(source, body)? + unique_offset(body, before)?;
     let mut output = source.to_owned();
     output.replace_range(offset..offset + before.len(), after);
@@ -239,7 +251,8 @@ pub fn restore_lib(source: &str) -> Result<String, String> {
 pub(super) fn restore_catalog(source: &str) -> Result<String, String> {
     require_identity(source, GENERATED_CATALOG)?;
     let restored = edited(source, CATALOG_EDITS, true)?;
-    let restored = edit_caller(&restored, SHARED_PAIR, ORIGINAL_PAIR)?;
+    let restored = edit_caller(&restored, SUN_SIGNATURE, SUN_SHARED_PAIR, SUN_ORIGINAL_PAIR)?;
+    let restored = edit_caller(&restored, PLAN_SIGNATURE, SHARED_PAIR, ORIGINAL_PAIR)?;
     require_identity(&restored, PRECEDING_CATALOG)?;
     Ok(restored)
 }
@@ -261,7 +274,13 @@ pub(super) fn transformed(
     ] {
         require_identity(source, identity)?;
     }
-    let caller = edit_caller(preceding_catalog, ORIGINAL_PAIR, SHARED_PAIR)?;
+    let caller = edit_caller(
+        preceding_catalog,
+        PLAN_SIGNATURE,
+        ORIGINAL_PAIR,
+        SHARED_PAIR,
+    )?;
+    let caller = edit_caller(&caller, SUN_SIGNATURE, SUN_ORIGINAL_PAIR, SUN_SHARED_PAIR)?;
     let catalog = edited(&caller, CATALOG_EDITS, false)?;
     let library = edited(preceding_library, LIBRARY_EDITS, false)?;
     if restore_catalog(&catalog)? != preceding_catalog
