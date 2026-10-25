@@ -346,3 +346,103 @@ fn configured_sidereal_epochs_and_tidal_selection() {
     );
     close().expect("reset native state");
 }
+
+#[test]
+fn consuming_builder_preserves_sidereal_preflight_and_delta_t_restoration() {
+    if !isolated::without_ephe_override(
+        "consuming_builder_preserves_sidereal_preflight_and_delta_t_restoration",
+    ) {
+        return;
+    }
+
+    #[derive(Debug, Clone, Copy)]
+    enum TextSelection {
+        Inherit,
+        DefaultPath,
+        ExplicitPath,
+        CloseJpl,
+        ExplicitJpl,
+    }
+
+    close().expect("reset before builder lifecycle comparison");
+    set_delta_t_userdef(Some(0.0)).expect("safe initial Delta-T");
+    set_sid_mode(USER_UT, JD, 15.0).expect("initialize the native sidereal state");
+    let historical = julday(1850, 1, 1, 12.0, Calendar::Gregorian);
+    for (tidal, computed_epoch_valid) in [(-26.0, true), (1e100, false)] {
+        set_tid_acc(tidal).expect("inherited manual tidal selection");
+        set_delta_t_userdef(Some(1e100)).expect("inherited override to restore");
+        for selection in [
+            TextSelection::Inherit,
+            TextSelection::DefaultPath,
+            TextSelection::ExplicitPath,
+            TextSelection::CloseJpl,
+            TextSelection::ExplicitJpl,
+        ] {
+            let mut builder = SessionBuilder::new();
+            builder
+                .sid_mode(USER_UT, historical, 15.0)
+                .clear_delta_t_override();
+            match selection {
+                TextSelection::Inherit => {}
+                TextSelection::DefaultPath => {
+                    builder.default_ephe_path();
+                }
+                TextSelection::ExplicitPath => {
+                    builder.ephe_path("requested-builder-preflight-path");
+                }
+                TextSelection::CloseJpl => {
+                    builder.close_jpl_file();
+                }
+                TextSelection::ExplicitJpl => {
+                    builder.jpl_file("requested-builder-preflight.440");
+                }
+            }
+            let assert_inherited_state = || {
+                assert!(
+                    deltat(JD)
+                        .expect("Delta-T after builder preflight")
+                        .to_bits()
+                        == 1e100_f64.to_bits(),
+                    "builder must restore the inherited Delta-T override"
+                );
+                assert!(
+                    get_tid_acc()
+                        .expect("tidal state after builder preflight")
+                        .to_bits()
+                        == tidal.to_bits(),
+                    "builder must preserve the inherited manual tidal selection"
+                );
+            };
+            let borrowed = builder.build();
+            assert_inherited_state();
+            let consumed = builder.into_session();
+            assert_inherited_state();
+
+            // Only configured text defers the computed model-dependent check.
+            // The consuming path must use its prepared options after take().
+            let expected_success =
+                computed_epoch_valid || !matches!(selection, TextSelection::Inherit);
+            assert!(
+                borrowed.is_ok() == expected_success,
+                "borrowed builder preserves native preflight policy for {selection:?}"
+            );
+            assert!(
+                consumed.is_ok() == expected_success,
+                "consuming builder preserves native preflight policy for {selection:?}"
+            );
+            match (borrowed, consumed) {
+                (Ok(_), Ok(_)) => {}
+                (Err(borrowed), Err(consumed)) => {
+                    assert_eq!(borrowed.kind(), ErrorKind::InvalidInput);
+                    assert_eq!(consumed.kind(), borrowed.kind());
+                    assert!(
+                        borrowed.message() == consumed.message(),
+                        "borrowed and consuming preflight errors must have identical messages"
+                    );
+                }
+                _ => panic!("borrowed and consuming preflight outcomes must agree"),
+            }
+        }
+    }
+    close().expect("reset after builder lifecycle comparison");
+}

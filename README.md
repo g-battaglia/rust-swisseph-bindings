@@ -70,6 +70,12 @@ Free functions share process-global native configuration. Each call is
 serialized, but a free setter followed by a calculation can interleave with
 another caller. Use `SessionBuilder` and fully specify settings that must remain
 consistent for a computation. Unset session settings inherit global state.
+
+`build(&self)` keeps the builder reusable; `into_session(self)` consumes it and
+passes owned path/name buffers into C-string conversion. Both preserve the same
+validation and native preflight. Each newly built session owns fresh file
+snapshots; cloning a session shares that session's snapshot history.
+
 Configured paths check `SE_EPHE_PATH` on every computation by default. Select
 `refresh_ephe_path_environment(false)` to sample it only when installing a path,
 following the native setter lifecycle. Explicit setters always sample again;

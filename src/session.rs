@@ -81,6 +81,7 @@
 //! - No isolation is promised against raw callers outside this binding's
 //!   locking contract that touch the native library directly.
 
+use std::borrow::Cow;
 use std::ffi::CString;
 use std::sync::{Arc, Mutex};
 
@@ -107,11 +108,11 @@ use crate::{
 /// Builder for [`Session`].
 ///
 /// Each knob is optional: unset knobs inherit the process-global state at
-/// call time. [`SessionBuilder::build`] validates owned inputs and checks
-/// UT-based user sidereal epochs under native access without installing
-/// the session configuration. A temporary Delta-T preflight restores the
-/// inherited override before returning. Configuration-dependent checks
-/// run again with the complete applied configuration at computation time.
+/// call time. [`SessionBuilder::build`] and [`SessionBuilder::into_session`]
+/// validate inputs and check UT-based user sidereal epochs under native access
+/// without installing the session configuration. A temporary Delta-T preflight
+/// restores the inherited override before returning. Configuration-dependent
+/// checks run again with the complete configuration at computation time.
 #[derive(Debug, Clone, Default)]
 pub struct SessionBuilder {
     ephe_path: Option<Option<String>>,
@@ -272,50 +273,39 @@ impl SessionBuilder {
     /// and unrepresentable user reference epochs/effective shifts are
     /// rejected with `InvalidInput`.
     pub fn build(&self) -> Result<Session, Error> {
-        let ephe_path = match &self.ephe_path {
-            None => None,
-            Some(None) => Some(None),
-            Some(Some(text)) => {
-                if text.as_bytes().contains(&0) {
-                    return Err(Error::invalid_input(
-                        "SessionBuilder: ephemeris path contains an interior NUL byte",
-                    ));
-                }
-                if text.len() > MAX_EPHE_PATH_LEN {
-                    return Err(Error::invalid_input(format!(
-                        "SessionBuilder: ephemeris path is {} bytes, longer than the {MAX_EPHE_PATH_LEN}-byte native limit",
-                        text.len()
-                    )));
-                }
-                Some(Some(CString::new(text.as_str()).map_err(|_| {
-                    Error::invalid_input(
-                        "SessionBuilder: ephemeris path contains an interior NUL byte",
-                    )
-                })?))
-            }
-        };
-        let jpl_file = match &self.jpl_file {
-            None => None,
-            Some(None) => Some(None),
-            Some(Some(text)) => {
-                if text.as_bytes().contains(&0) {
-                    return Err(Error::invalid_input(
-                        "SessionBuilder: JPL file name contains an interior NUL byte",
-                    ));
-                }
-                if text.len() > MAX_JPL_FILE_LEN {
-                    return Err(Error::invalid_input(format!(
-                        "SessionBuilder: JPL file name is {} bytes, longer than the {MAX_JPL_FILE_LEN}-byte native limit",
-                        text.len()
-                    )));
-                }
-                Some(Some(CString::new(text.as_str()).map_err(|_| {
-                    Error::invalid_input(
-                        "SessionBuilder: JPL file name contains an interior NUL byte",
-                    )
-                })?))
-            }
-        };
+        self.finish(
+            self.ephe_path
+                .as_ref()
+                .map(|text| text.as_deref().map(Cow::Borrowed)),
+            self.jpl_file
+                .as_ref()
+                .map(|text| text.as_deref().map(Cow::Borrowed)),
+        )
+    }
+
+    /// Consume this builder, moving its selected text into C-string conversion.
+    ///
+    /// Validation, native preflight and fresh snapshot ownership are identical
+    /// to [`Self::build`]. Owned strings pass their buffers to the conversion;
+    /// it may still adjust capacity to append the terminating NUL byte.
+    ///
+    /// # Errors
+    ///
+    /// Return the same input or native-access errors as [`Self::build`].
+    pub fn into_session(mut self) -> Result<Session, Error> {
+        let ephe_path = self.ephe_path.take().map(|text| text.map(Cow::Owned));
+        let jpl_file = self.jpl_file.take().map(|text| text.map(Cow::Owned));
+        self.finish(ephe_path, jpl_file)
+    }
+
+    /// Prepare text before the shared numeric checks and native preflight.
+    fn finish(
+        &self,
+        ephe_path: Option<Option<Cow<'_, str>>>,
+        jpl_file: Option<Option<Cow<'_, str>>>,
+    ) -> Result<Session, Error> {
+        let ephe_path = prepare_session_text(ephe_path, "ephemeris path", MAX_EPHE_PATH_LEN)?;
+        let jpl_file = prepare_session_text(jpl_file, "JPL file name", MAX_JPL_FILE_LEN)?;
         if let Some((lon, lat, alt)) = self.topo
             && (!lon.is_finite() || !lat.is_finite() || !alt.is_finite())
         {
@@ -366,7 +356,7 @@ impl SessionBuilder {
                     mode,
                     t0,
                     self.delta_t,
-                    self.tid_acc.is_some() || self.ephe_path.is_some() || self.jpl_file.is_some(),
+                    self.tid_acc.is_some() || ephe_path.is_some() || jpl_file.is_some(),
                 )
             })?;
         }
@@ -388,15 +378,50 @@ impl SessionBuilder {
     }
 }
 
+/// Keep inherited/reset selections distinct and validate bytes before ownership
+/// conversion. An owned string contributes its existing buffer; borrowed input
+/// still receives independent C-string storage for a reusable builder.
+fn prepare_session_text(
+    selection: Option<Option<Cow<'_, str>>>,
+    label: &str,
+    limit: usize,
+) -> Result<Option<Option<CString>>, Error> {
+    let text = match selection {
+        None => return Ok(None),
+        Some(None) => return Ok(Some(None)),
+        Some(Some(text)) => text,
+    };
+    let nul_error = || {
+        Error::invalid_input(format!(
+            "SessionBuilder: {label} contains an interior NUL byte"
+        ))
+    };
+    if text.as_bytes().contains(&0) {
+        return Err(nul_error());
+    }
+    if text.len() > limit {
+        return Err(Error::invalid_input(format!(
+            "SessionBuilder: {label} is {} bytes, longer than the {limit}-byte native limit",
+            text.len()
+        )));
+    }
+    let prepared = match text {
+        Cow::Borrowed(text) => CString::new(text),
+        Cow::Owned(text) => CString::new(text.into_bytes()),
+    }
+    .map_err(|_| nul_error())?;
+    Ok(Some(Some(prepared)))
+}
+
 /// An owned, validated native configuration applied atomically with each
 /// computation.
 ///
-/// Build with [`SessionBuilder::build`]. Every computation validates its
-/// configuration-independent input checks before acquiring the lock, then
-/// applies the whole session configuration and checks dependent domains before
-/// native computation in the same acquisition. A rejection after configuration
-/// may leave applied settings installed globally; no transactional rollback is
-/// promised. See the module documentation for inheritance, reset and observer
+/// Build with [`SessionBuilder::build`] or [`SessionBuilder::into_session`].
+/// Every computation validates configuration-independent input checks before
+/// acquiring the lock, then applies the whole session configuration and checks
+/// dependent domains before native computation in the same acquisition. A
+/// rejection after configuration may leave applied settings installed globally;
+/// no transactional rollback is promised. See the module documentation for inheritance, reset and observer
 /// side-effect semantics.
 /// Selected file metadata is captured before releasing native access and can be
 /// queried later without changing native state. Clones share this history;
@@ -998,3 +1023,7 @@ impl Session {
 #[cfg(test)]
 #[path = "session_snapshot_storage_tests.rs"]
 mod snapshot_storage_tests;
+
+#[cfg(test)]
+#[path = "session_builder_tests.rs"]
+mod builder_tests;
