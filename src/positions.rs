@@ -75,7 +75,9 @@ impl Position {
 /// Caller must hold the native lock. `jd_ut` must already be validated
 /// as finite.
 pub(crate) fn calc_ut_locked(jd_ut: f64, body: i32, flags: i32) -> Result<Position, Error> {
-    crate::domain::check_ut_locked("calc_ut", jd_ut, flags)?;
+    // Keep the next native call at swe_calc_ut: its unconditional Delta-T
+    // prefix completes a successful non-sidereal preflight's restoration.
+    crate::domain::check_before_calc_ut_locked("calc_ut", jd_ut, flags)?;
     let mut xx = [0.0; POSITION_LEN];
     let mut serr = [0 as c_char; SERR_LEN];
     // SAFETY: `xx` owns POSITION_LEN writable f64 slots and `serr`

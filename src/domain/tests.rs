@@ -103,10 +103,50 @@ fn compare_guard(expected: Result<(), f64>, actual: Result<(), Error>) {
     }
 }
 
+#[derive(PartialEq, Eq)]
+struct NativeFile {
+    path: Vec<u8>,
+    start: u64,
+    end: u64,
+    denum: i32,
+}
+
+fn file_observations() -> [Option<NativeFile>; 5] {
+    std::array::from_fn(|slot| {
+        let mut start = 0.0;
+        let mut end = 0.0;
+        let mut denum = 0;
+        // SAFETY: native access is held, each output has a live scalar slot,
+        // and a returned path is copied before another native operation.
+        let path = unsafe {
+            ffi::swe_get_current_file_data(
+                i32::try_from(slot).expect("native file slot"),
+                &mut start,
+                &mut end,
+                &mut denum,
+            )
+        };
+        if path.is_null() {
+            None
+        } else {
+            // SAFETY: non-null native static path, copied under native access.
+            let path = unsafe { CStr::from_ptr(path) }.to_bytes().to_vec();
+            Some(NativeFile {
+                path,
+                start: start.to_bits(),
+                end: end.to_bits(),
+                denum,
+            })
+        }
+    })
+}
+
 struct NativePosition {
     status: i32,
     values: [f64; 6],
     diagnostic: String,
+    diagnostic_bytes: [c_char; 256],
+    files: [Option<NativeFile>; 5],
 }
 
 fn native_position(jd: f64, body: i32, flags: i32) -> NativePosition {
@@ -123,6 +163,7 @@ fn native_position(jd: f64, body: i32, flags: i32) -> NativePosition {
             diagnostic.as_mut_ptr(),
         )
     };
+    let diagnostic_bytes = diagnostic;
     // SAFETY: native writes a terminated diagnostic inside this owned buffer.
     let diagnostic = unsafe { CStr::from_ptr(diagnostic.as_ptr()) }
         .to_string_lossy()
@@ -131,10 +172,32 @@ fn native_position(jd: f64, body: i32, flags: i32) -> NativePosition {
         status,
         values,
         diagnostic,
+        diagnostic_bytes,
+        files: file_observations(),
     }
 }
 
+fn compare_native_position(expected: &NativePosition, actual: &NativePosition) {
+    assert!(
+        actual.status == expected.status,
+        "raw native status and flags"
+    );
+    assert!(
+        actual.values.map(f64::to_bits) == expected.values.map(f64::to_bits),
+        "raw six native position bits"
+    );
+    assert!(
+        actual.diagnostic_bytes == expected.diagnostic_bytes,
+        "all 256 raw diagnostic bytes"
+    );
+    assert!(actual.files == expected.files, "native file observations");
+}
+
 fn compare_position(expected: NativePosition, actual: Result<Position, Error>) {
+    assert!(
+        file_observations() == expected.files,
+        "typed native file observations"
+    );
     if expected.status >= 0 {
         let actual = match actual {
             Ok(position) => position,
@@ -283,6 +346,17 @@ fn ut_guard_matches_independent_native_sequence() {
                             );
                             let following_tidal = tidal_bits();
                             configure(path, configuration);
+                            assert!(
+                                super::check_before_calc_ut_locked("calc_ut", jd, flags).is_ok(),
+                                "scoped native preflight"
+                            );
+                            let scoped = native_position(jd, body, flags);
+                            compare_native_position(&expected, &scoped);
+                            assert!(
+                                tidal_bits() == expected_tidal,
+                                "tidal state after scoped native prefix"
+                            );
+                            configure(path, configuration);
                             // This is the exact typed operation called by both
                             // the free calc_ut and Session::calc_ut under lock.
                             let actual = crate::positions::calc_ut_locked(jd, body, flags);
@@ -353,4 +427,144 @@ fn ut_guard_matches_independent_native_sequence() {
     })
     .expect("exclusive native controls");
     std::fs::remove_dir(empty).expect("remove private missing-data path");
+}
+
+#[test]
+fn scoped_calc_ut_preflight_defers_only_the_unused_success_restore() {
+    let path = CString::new(test_data::ephemeris_dir().expect("external ephemeris data")).unwrap();
+    let configuration = Configuration {
+        tidal: crate::SE_TIDAL_AUTOMATIC,
+        delta_t: None,
+    };
+    crate::state::with_native_access(|| {
+        for flags in [
+            crate::FLG_SWIEPH | crate::FLG_SPEED,
+            crate::FLG_MOSEPH | crate::FLG_SPEED,
+            crate::FLG_JPLEPH | crate::FLG_SPEED,
+            crate::FLG_SPEED,
+            MASK | crate::FLG_SPEED,
+        ] {
+            configure(&path, configuration);
+            assert!(former_guard(BCE, flags).is_ok(), "reference input admitted");
+            let requested_tidal = tidal_bits();
+            let expected = native_position(BCE, crate::MOON, flags);
+            let expected_tidal = tidal_bits();
+            configure(&path, configuration);
+            let _fallback_shift = delta_t(BCE, (flags & !MASK) | crate::FLG_MOSEPH);
+            let fallback_tidal = tidal_bits();
+            if flags == (crate::FLG_SWIEPH | crate::FLG_SPEED) {
+                // A positive control distinguishes a deferred restore from
+                // an accidentally unchanged eager implementation.
+                assert!(
+                    requested_tidal != fallback_tidal,
+                    "distinct automatic selections"
+                );
+            }
+            configure(&path, configuration);
+            assert!(
+                super::check_before_calc_ut_locked("calc_ut", BCE, flags).is_ok(),
+                "scoped input admitted"
+            );
+            // Test-only scalar observation; it neither changes configuration
+            // nor performs a calculation before the production C prefix.
+            assert!(
+                tidal_bits() == fallback_tidal,
+                "successful restore is deferred"
+            );
+            let actual = native_position(BCE, crate::MOON, flags);
+            compare_native_position(&expected, &actual);
+            assert!(
+                tidal_bits() == expected_tidal,
+                "native prefix restores selection"
+            );
+        }
+        configure(&path, configuration);
+        Ok(())
+    })
+    .expect("exclusive deferred-restoration control");
+}
+
+#[test]
+fn scoped_calc_ut_preflight_preserves_sidereal_inherited_and_error_paths() {
+    let path = CString::new(test_data::ephemeris_dir().expect("external ephemeris data")).unwrap();
+    let configuration = Configuration {
+        tidal: crate::SE_TIDAL_AUTOMATIC,
+        delta_t: Some(1.0),
+    };
+    // Public native SE_SIDBIT_USER_UT. The tracked setter stores this same
+    // explicit input; the C reference independently checks its UT epoch.
+    const USER_UT: i32 = 1024;
+    crate::state::with_native_access(|| {
+        let end = crate::julday(i32::MAX, 12, 31, 24.0, Calendar::Gregorian).min(crate::julday(
+            i32::MAX,
+            12,
+            31,
+            24.0,
+            Calendar::Julian,
+        ));
+        let mut sidereal_rejections = 0;
+        for epoch in [MODERN, end.next_down()] {
+            for flags in [
+                crate::FLG_SWIEPH | crate::FLG_SPEED | crate::FLG_SIDEREAL,
+                -1,
+            ] {
+                configure(&path, configuration);
+                crate::config::apply_sid_mode_locked(crate::SIDM_USER | USER_UT, epoch, 0.0)
+                    .expect("install tracked UT reference");
+                let expected = former_guard(BCE, flags).and_then(|()| {
+                    if flags != -1 && flags & crate::FLG_SIDEREAL != 0 {
+                        former_guard(epoch, flags)
+                    } else {
+                        Ok(())
+                    }
+                });
+                let expected_tidal = tidal_bits();
+                let expected_files = file_observations();
+                configure(&path, configuration);
+                crate::config::apply_sid_mode_locked(crate::SIDM_USER | USER_UT, epoch, 0.0)
+                    .expect("reinstall tracked UT reference");
+                let actual = super::check_before_calc_ut_locked("calc_ut", BCE, flags);
+                if flags != -1 && flags & crate::FLG_SIDEREAL != 0 && expected.is_err() {
+                    sidereal_rejections += 1;
+                }
+                compare_guard(expected, actual);
+                assert!(
+                    tidal_bits() == expected_tidal,
+                    "retained preflight tidal state"
+                );
+                assert!(
+                    file_observations() == expected_files,
+                    "retained preflight files"
+                );
+            }
+        }
+        assert!(sidereal_rejections == 1, "UT reference rejection exercised");
+        for flags in [crate::FLG_SWIEPH | crate::FLG_SPEED, -1] {
+            for shift in [1e100, -1e100] {
+                let invalid = Configuration {
+                    delta_t: Some(shift),
+                    ..configuration
+                };
+                configure(&path, invalid);
+                let expected = former_guard(BCE, flags);
+                assert!(expected.is_err(), "reference date rejection exercised");
+                let expected_tidal = tidal_bits();
+                let expected_files = file_observations();
+                configure(&path, invalid);
+                let actual = super::check_before_calc_ut_locked("calc_ut", BCE, flags);
+                compare_guard(expected, actual);
+                assert!(tidal_bits() == expected_tidal, "error-path tidal selection");
+                assert!(file_observations() == expected_files, "error-path files");
+            }
+        }
+        configure(
+            &path,
+            Configuration {
+                delta_t: None,
+                ..configuration
+            },
+        );
+        Ok(())
+    })
+    .expect("exclusive preflight-retention controls");
 }

@@ -14,7 +14,7 @@ const NATIVE_CATALOG: u64 = 0x811a_3282_bb39_3790;
 const NATIVE_LIBRARY: u64 = 0xe642_4aa4_7d15_66b1;
 const PRECEDING_CATALOG: u64 = 0xc9f5_d4b0_0ad9_a6e8;
 const PRECEDING_LIBRARY: u64 = 0x7b63_9529_e9dc_b654;
-const GENERATED_CATALOG: u64 = 0x1ae5_cdcf_239f_b690;
+const GENERATED_CATALOG: u64 = 0x677a_1f59_5f61_49e7;
 const GENERATED_LIBRARY: u64 = 0x947c_db84_c360_477f;
 const HELPER_FINGERPRINT: u64 = 0xa82f_97ac_6b4f_14ca;
 
@@ -24,6 +24,10 @@ pub const INPUTS: [&str; 2] = ["build_support/precession_frame.rs", HELPER];
 // The newline excludes the otherwise identical forward declaration. The body
 // reader must select one definition before locating the pair inside that body.
 const PLAN_SIGNATURE: &str = r#"static int app_pos_etc_plan(int ipli, int iplmoon, int32 iflag, char *serr)
+"#;
+// Planet and Moon owners share the same vector/epoch spelling. Keep
+// their signatures explicit so no other caller can acquire a frame.
+const MOON_SIGNATURE: &str = r#"static int app_pos_etc_moon(int32 iflag, char *serr)
 "#;
 const ORIGINAL_PAIR: &str = r#"    swi_precess(xx, pdp->teval, iflag, J2000_TO_J);
     if (iflag & SEFLG_SPEED)
@@ -251,8 +255,10 @@ pub fn restore_lib(source: &str) -> Result<String, String> {
 pub(super) fn restore_catalog(source: &str) -> Result<String, String> {
     require_identity(source, GENERATED_CATALOG)?;
     let restored = edited(source, CATALOG_EDITS, true)?;
-    let restored = edit_caller(&restored, SUN_SIGNATURE, SUN_SHARED_PAIR, SUN_ORIGINAL_PAIR)?;
-    let restored = edit_caller(&restored, PLAN_SIGNATURE, SHARED_PAIR, ORIGINAL_PAIR)?;
+    let mut restored = edit_caller(&restored, SUN_SIGNATURE, SUN_SHARED_PAIR, SUN_ORIGINAL_PAIR)?;
+    for signature in [MOON_SIGNATURE, PLAN_SIGNATURE] {
+        restored = edit_caller(&restored, signature, SHARED_PAIR, ORIGINAL_PAIR)?;
+    }
     require_identity(&restored, PRECEDING_CATALOG)?;
     Ok(restored)
 }
@@ -274,12 +280,10 @@ pub(super) fn transformed(
     ] {
         require_identity(source, identity)?;
     }
-    let caller = edit_caller(
-        preceding_catalog,
-        PLAN_SIGNATURE,
-        ORIGINAL_PAIR,
-        SHARED_PAIR,
-    )?;
+    let mut caller = preceding_catalog.to_owned();
+    for signature in [PLAN_SIGNATURE, MOON_SIGNATURE] {
+        caller = edit_caller(&caller, signature, ORIGINAL_PAIR, SHARED_PAIR)?;
+    }
     let caller = edit_caller(&caller, SUN_SIGNATURE, SUN_ORIGINAL_PAIR, SUN_SHARED_PAIR)?;
     let catalog = edited(&caller, CATALOG_EDITS, false)?;
     let library = edited(preceding_library, LIBRARY_EDITS, false)?;

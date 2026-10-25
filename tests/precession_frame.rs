@@ -56,17 +56,21 @@ fn rejects_changed_native_helper_preceding_or_final_bytes_and_wrong_order() {
 }
 
 #[test]
-fn confines_frame_to_the_owning_pair_and_keeps_the_entire_speed_body() {
+fn confines_frame_to_the_three_owning_pairs_and_keeps_the_entire_speed_body() {
     let prior = precession_frame::restore_catalog(CATALOG).unwrap();
     assert_eq!(
         CATALOG
             .matches("struct swe_precession_frame frame =")
             .count(),
-        2
+        3
     );
     for (signature, owner) in [
         (
             "static int app_pos_etc_plan(int ipli, int iplmoon, int32 iflag, char *serr)\n",
+            "pdp",
+        ),
+        (
+            "static int app_pos_etc_moon(int32 iflag, char *serr)\n",
             "pdp",
         ),
         (
@@ -76,18 +80,36 @@ fn confines_frame_to_the_owning_pair_and_keeps_the_entire_speed_body() {
     ] {
         let caller = c_source::body_after(CATALOG, signature).unwrap();
         let initialization = caller.find("struct swe_precession_frame frame =").unwrap();
-        let position = caller
-            .find(&format!(
-                "swe_precess_with_frame(xx, {owner}->teval, iflag, J2000_TO_J, &frame);"
-            ))
-            .unwrap();
-        let speed = caller
-            .find(&format!(
-                "swe_precess_speed_with_frame(xx, {owner}->teval, iflag, J2000_TO_J, &frame);"
-            ))
-            .unwrap();
+        let framed_position =
+            format!("swe_precess_with_frame(xx, {owner}->teval, iflag, J2000_TO_J, &frame);");
+        let framed_speed =
+            format!("swe_precess_speed_with_frame(xx, {owner}->teval, iflag, J2000_TO_J, &frame);");
+        let position = caller.find(&framed_position).unwrap();
+        let speed = caller.find(&framed_speed).unwrap();
         assert!(initialization < position && position < speed);
         assert!(caller[position..speed].contains("if (iflag & SEFLG_SPEED)"));
+        // Removing only this local preparation recovers the complete original
+        // caller, including J2000/early-return gates and all speed corrections.
+        let frame = "    /* One stack-local frame prepares this operation's matrix for position\n     * and velocity. It is never retained or shared with another request. */\n    struct swe_precession_frame frame = {{0}, 0};\n";
+        assert_eq!(caller.matches(frame).count(), 1);
+        assert_eq!(caller.matches(&framed_position).count(), 1);
+        assert_eq!(caller.matches(&framed_speed).count(), 1);
+        let restored_caller = caller
+            .replacen(frame, "", 1)
+            .replacen(
+                &framed_position,
+                &format!("swi_precess(xx, {owner}->teval, iflag, J2000_TO_J);"),
+                1,
+            )
+            .replacen(
+                &framed_speed,
+                &format!("swi_precess_speed(xx, {owner}->teval, iflag, J2000_TO_J);"),
+                1,
+            );
+        assert_eq!(
+            restored_caller,
+            c_source::body_after(&prior, signature).unwrap()
+        );
     }
     let old_body = c_source::body_after(
         &prior,
