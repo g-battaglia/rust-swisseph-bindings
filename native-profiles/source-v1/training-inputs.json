@@ -1,0 +1,1123 @@
+{
+  "case_count": 55,
+  "case_order": [
+    "subject.modern",
+    "subject.bce",
+    "subject.polar",
+    "subject.sidereal",
+    "subject.composite",
+    "subject.relocated",
+    "chart_data.natal",
+    "svg.natal",
+    "chart_data.synastry",
+    "svg.synastry",
+    "chart_data.transit",
+    "svg.transit",
+    "chart_data.composite",
+    "svg.composite",
+    "chart_data.return",
+    "svg.return",
+    "chart_data.singlereturn",
+    "svg.singlereturn",
+    "chart_data.progression",
+    "svg.progression",
+    "svg.natal_classic",
+    "report.natal",
+    "context.natal",
+    "aspects.natal",
+    "dominants.natal",
+    "events.lunations",
+    "events.ingresses",
+    "events.stations",
+    "events.eclipses",
+    "events.occultations",
+    "events.void_of_course",
+    "events.heliacal",
+    "events.fixed_stars",
+    "events.mundane_aspects",
+    "events.planetary_hours",
+    "events.phenomena",
+    "events.nodes",
+    "events.sun_times",
+    "events.moon_phase",
+    "events.ephemeris",
+    "events.transits",
+    "events.astrocartography",
+    "techniques.returns",
+    "techniques.progressions",
+    "techniques.directions",
+    "ephe.calc_ut",
+    "ephe.houses_ex2",
+    "ephe.julday",
+    "motion.retrograde",
+    "firdaria.timeline",
+    "profections.window",
+    "relationship_score.affinity",
+    "house_comparison.bidirectional",
+    "horary.indicators",
+    "receptions.mutual"
+  ],
+  "cases": [
+    {
+      "family": "subject",
+      "id": "subject.modern",
+      "inputs": {
+        "subject": {}
+      },
+      "operation": "subject",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 3.0,
+        "python": 1.5
+      }
+    },
+    {
+      "family": "subject",
+      "id": "subject.bce",
+      "inputs": {
+        "subject": {
+          "tz_str": "Etc/UTC",
+          "year": -44
+        }
+      },
+      "operation": "subject",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 3.0,
+        "python": 1.5
+      }
+    },
+    {
+      "family": "subject",
+      "id": "subject.polar",
+      "inputs": {
+        "subject": {
+          "lat": 78.2232,
+          "lng": 15.6469,
+          "tz_str": "Arctic/Longyearbyen"
+        }
+      },
+      "operation": "subject",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 3.0,
+        "python": 1.5
+      }
+    },
+    {
+      "family": "subject",
+      "id": "subject.sidereal",
+      "inputs": {
+        "subject": {
+          "sidereal_mode": "LAHIRI",
+          "zodiac_type": "Sidereal"
+        }
+      },
+      "operation": "subject",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 3.0,
+        "python": 1.5
+      }
+    },
+    {
+      "family": "subject",
+      "id": "subject.composite",
+      "inputs": {},
+      "operation": "composite",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 3.0,
+        "python": 1.5
+      }
+    },
+    {
+      "family": "subject",
+      "id": "subject.relocated",
+      "inputs": {
+        "city": "New York",
+        "lat": 40.7128,
+        "lng": -74.006,
+        "nation": "US",
+        "tz_str": "America/New_York"
+      },
+      "operation": "relocated",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 3.0,
+        "python": 1.5
+      }
+    },
+    {
+      "family": "chart_data",
+      "id": "chart_data.natal",
+      "inputs": {
+        "chart_type": "Natal"
+      },
+      "operation": "chart_data",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 3.0,
+        "python": 1.5
+      }
+    },
+    {
+      "family": "charts",
+      "id": "svg.natal",
+      "inputs": {
+        "chart_type": "Natal",
+        "style": "modern"
+      },
+      "operation": "svg",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 3.0,
+        "python": 1.5
+      }
+    },
+    {
+      "family": "chart_data",
+      "id": "chart_data.synastry",
+      "inputs": {
+        "chart_type": "Synastry"
+      },
+      "operation": "chart_data",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 3.0,
+        "python": 1.5
+      }
+    },
+    {
+      "family": "charts",
+      "id": "svg.synastry",
+      "inputs": {
+        "chart_type": "Synastry",
+        "style": "modern"
+      },
+      "operation": "svg",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 3.0,
+        "python": 1.5
+      }
+    },
+    {
+      "family": "chart_data",
+      "id": "chart_data.transit",
+      "inputs": {
+        "chart_type": "Transit"
+      },
+      "operation": "chart_data",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 3.0,
+        "python": 1.5
+      }
+    },
+    {
+      "family": "charts",
+      "id": "svg.transit",
+      "inputs": {
+        "chart_type": "Transit",
+        "style": "modern"
+      },
+      "operation": "svg",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 3.0,
+        "python": 1.5
+      }
+    },
+    {
+      "family": "chart_data",
+      "id": "chart_data.composite",
+      "inputs": {
+        "chart_type": "Composite"
+      },
+      "operation": "chart_data",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 3.0,
+        "python": 1.5
+      }
+    },
+    {
+      "family": "charts",
+      "id": "svg.composite",
+      "inputs": {
+        "chart_type": "Composite",
+        "style": "modern"
+      },
+      "operation": "svg",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 3.0,
+        "python": 1.5
+      }
+    },
+    {
+      "family": "chart_data",
+      "id": "chart_data.return",
+      "inputs": {
+        "chart_type": "DualReturnChart"
+      },
+      "operation": "chart_data",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 3.0,
+        "python": 1.5
+      }
+    },
+    {
+      "family": "charts",
+      "id": "svg.return",
+      "inputs": {
+        "chart_type": "DualReturnChart",
+        "style": "modern"
+      },
+      "operation": "svg",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 3.0,
+        "python": 1.5
+      }
+    },
+    {
+      "family": "chart_data",
+      "id": "chart_data.singlereturn",
+      "inputs": {
+        "chart_type": "SingleReturnChart"
+      },
+      "operation": "chart_data",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 3.0,
+        "python": 1.5
+      }
+    },
+    {
+      "family": "charts",
+      "id": "svg.singlereturn",
+      "inputs": {
+        "chart_type": "SingleReturnChart",
+        "style": "modern"
+      },
+      "operation": "svg",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 3.0,
+        "python": 1.5
+      }
+    },
+    {
+      "family": "chart_data",
+      "id": "chart_data.progression",
+      "inputs": {
+        "chart_type": "Progression"
+      },
+      "operation": "chart_data",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 3.0,
+        "python": 1.5
+      }
+    },
+    {
+      "family": "charts",
+      "id": "svg.progression",
+      "inputs": {
+        "chart_type": "Progression",
+        "style": "modern"
+      },
+      "operation": "svg",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 3.0,
+        "python": 1.5
+      }
+    },
+    {
+      "family": "charts",
+      "id": "svg.natal_classic",
+      "inputs": {
+        "chart_type": "Natal",
+        "style": "classic"
+      },
+      "operation": "svg",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 3.0,
+        "python": 1.5
+      }
+    },
+    {
+      "family": "report",
+      "id": "report.natal",
+      "inputs": {},
+      "operation": "report",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 1.0,
+        "python": 1.0
+      }
+    },
+    {
+      "family": "context",
+      "id": "context.natal",
+      "inputs": {},
+      "operation": "context",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 1.0,
+        "python": 1.0
+      }
+    },
+    {
+      "family": "aspects",
+      "id": "aspects.natal",
+      "inputs": {},
+      "operation": "aspects",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 1.0,
+        "python": 1.0
+      }
+    },
+    {
+      "family": "dominants",
+      "id": "dominants.natal",
+      "inputs": {},
+      "operation": "dominants",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 1.0,
+        "python": 1.0
+      }
+    },
+    {
+      "family": "lunations",
+      "id": "events.lunations",
+      "inputs": {
+        "end": "2026-02-01T00:00:00+00:00",
+        "phases": [
+          "new"
+        ],
+        "start": "2026-01-01T00:00:00+00:00"
+      },
+      "operation": "lunations",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 1.0,
+        "python": 1.0
+      }
+    },
+    {
+      "family": "sign_ingresses",
+      "id": "events.ingresses",
+      "inputs": {
+        "end": "2026-02-01T00:00:00+00:00",
+        "planets": [
+          "Sun"
+        ],
+        "start": "2026-01-01T00:00:00+00:00"
+      },
+      "operation": "ingresses",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 1.0,
+        "python": 1.0
+      }
+    },
+    {
+      "family": "retrograde_stations",
+      "id": "events.stations",
+      "inputs": {
+        "end": "2026-04-01T00:00:00+00:00",
+        "planets": [
+          "Mercury"
+        ],
+        "start": "2026-01-01T00:00:00+00:00"
+      },
+      "operation": "stations",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 1.0,
+        "python": 1.0
+      }
+    },
+    {
+      "family": "eclipses",
+      "id": "events.eclipses",
+      "inputs": {
+        "count": 1,
+        "start_year": 2026
+      },
+      "operation": "eclipses",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 1.0,
+        "python": 1.0
+      }
+    },
+    {
+      "family": "occultations",
+      "id": "events.occultations",
+      "inputs": {
+        "count": 1,
+        "jd": 2461041.5,
+        "planet_id": 4
+      },
+      "operation": "occultations",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 1.0,
+        "python": 1.0
+      }
+    },
+    {
+      "family": "void_of_course_moon",
+      "id": "events.void_of_course",
+      "inputs": {
+        "end": "2026-01-03T00:00:00+00:00",
+        "start": "2026-01-01T00:00:00+00:00"
+      },
+      "operation": "void_of_course",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 1.0,
+        "python": 1.0
+      }
+    },
+    {
+      "family": "heliacal",
+      "id": "events.heliacal",
+      "inputs": {
+        "jd": 2461041.5,
+        "lat": 51.5074,
+        "lng": -0.1278,
+        "planet": "Venus"
+      },
+      "operation": "heliacal",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 1.0,
+        "python": 1.0
+      }
+    },
+    {
+      "family": "fixed_stars",
+      "id": "events.fixed_stars",
+      "inputs": {},
+      "operation": "fixed_stars",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 1.0,
+        "python": 1.0
+      }
+    },
+    {
+      "family": "mundane_aspects",
+      "id": "events.mundane_aspects",
+      "inputs": {
+        "aspects": [
+          "conjunction"
+        ],
+        "end": "2026-02-01T00:00:00+00:00",
+        "points": [
+          "Sun",
+          "Moon"
+        ],
+        "start": "2026-01-01T00:00:00+00:00"
+      },
+      "operation": "mundane_aspects",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 1.0,
+        "python": 1.0
+      }
+    },
+    {
+      "family": "planetary_hours",
+      "id": "events.planetary_hours",
+      "inputs": {
+        "day": 15,
+        "hour": 12,
+        "latitude": 51.5074,
+        "longitude": -0.1278,
+        "minute": 0,
+        "month": 1,
+        "tz_str": "Europe/London",
+        "year": 2026
+      },
+      "operation": "planetary_hours",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 1.0,
+        "python": 1.0
+      }
+    },
+    {
+      "family": "planetary_phenomena",
+      "id": "events.phenomena",
+      "inputs": {
+        "planets": [
+          "Mercury",
+          "Venus"
+        ]
+      },
+      "operation": "phenomena",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 1.0,
+        "python": 1.0
+      }
+    },
+    {
+      "family": "planetary_nodes",
+      "id": "events.nodes",
+      "inputs": {
+        "method": "mean",
+        "planets": [
+          "Mercury"
+        ]
+      },
+      "operation": "nodes",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 1.0,
+        "python": 1.0
+      }
+    },
+    {
+      "family": "sun_times",
+      "id": "events.sun_times",
+      "inputs": {
+        "day": 15,
+        "latitude": 51.5074,
+        "longitude": -0.1278,
+        "month": 6,
+        "tz_str": "Europe/London",
+        "year": 2026
+      },
+      "operation": "sun_times",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 1.0,
+        "python": 1.0
+      }
+    },
+    {
+      "family": "moon_phase_details",
+      "id": "events.moon_phase",
+      "inputs": {},
+      "operation": "moon_phase",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 1.0,
+        "python": 1.0
+      }
+    },
+    {
+      "family": "ephemeris_data",
+      "id": "events.ephemeris",
+      "inputs": {
+        "end": "2026-01-03T00:00:00+00:00",
+        "start": "2026-01-01T00:00:00+00:00"
+      },
+      "operation": "ephemeris",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 1.0,
+        "python": 1.0
+      }
+    },
+    {
+      "family": "transits",
+      "id": "events.transits",
+      "inputs": {
+        "end": "2026-01-03T00:00:00+00:00",
+        "start": "2026-01-01T00:00:00+00:00"
+      },
+      "operation": "transits",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 1.0,
+        "python": 1.0
+      }
+    },
+    {
+      "family": "astro_cartography",
+      "id": "events.astrocartography",
+      "inputs": {
+        "planets": [
+          "Sun"
+        ],
+        "step": 10.0
+      },
+      "operation": "astrocartography",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 1.0,
+        "python": 1.0
+      }
+    },
+    {
+      "family": "planetary_returns",
+      "id": "techniques.returns",
+      "inputs": {
+        "return_type": "Solar",
+        "year": 2026
+      },
+      "operation": "returns",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 1.0,
+        "python": 1.0
+      }
+    },
+    {
+      "family": "secondary_progressions",
+      "id": "techniques.progressions",
+      "inputs": {
+        "target_year": 2026
+      },
+      "operation": "progressions",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 1.0,
+        "python": 1.0
+      }
+    },
+    {
+      "family": "primary_directions",
+      "id": "techniques.directions",
+      "inputs": {
+        "aspects": [
+          "conjunction"
+        ],
+        "max_years": 20.0
+      },
+      "operation": "directions",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 1.0,
+        "python": 1.0
+      }
+    },
+    {
+      "family": "ephemeris_backend",
+      "id": "ephe.calc_ut",
+      "inputs": {
+        "body": 0,
+        "flags": 258,
+        "jd": 2461041.5
+      },
+      "operation": "ephe_calc_ut",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 1.0,
+        "python": 1.0
+      }
+    },
+    {
+      "family": "ephemeris_backend",
+      "id": "ephe.houses_ex2",
+      "inputs": {
+        "flags": 0,
+        "house_system": "P",
+        "jd": 2461041.5,
+        "latitude": 51.5074,
+        "longitude": -0.1278
+      },
+      "operation": "ephe_houses_ex2",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 1.0,
+        "python": 1.0
+      }
+    },
+    {
+      "family": "ephemeris_backend",
+      "id": "ephe.julday",
+      "inputs": {
+        "calendar": 1,
+        "day": 1,
+        "hour": 12.0,
+        "month": 1,
+        "year": 2026
+      },
+      "operation": "ephe_julday",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 1.0,
+        "python": 1.0
+      }
+    },
+    {
+      "family": "motion",
+      "id": "motion.retrograde",
+      "inputs": {
+        "point_name": "Mercury",
+        "speed": -0.5
+      },
+      "operation": "motion",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 1.0,
+        "python": 1.0
+      }
+    },
+    {
+      "family": "firdaria",
+      "id": "firdaria.timeline",
+      "inputs": {
+        "life_cap_years": 120,
+        "target_date": "2026-06-04"
+      },
+      "operation": "firdaria",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 1.0,
+        "python": 1.0
+      }
+    },
+    {
+      "family": "profections",
+      "id": "profections.window",
+      "inputs": {
+        "target_date": "2026-06-04",
+        "years_after": 4,
+        "years_before": 3
+      },
+      "operation": "profections",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 1.0,
+        "python": 1.0
+      }
+    },
+    {
+      "family": "relationship_score",
+      "id": "relationship_score.affinity",
+      "inputs": {},
+      "operation": "relationship_score",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 1.0,
+        "python": 1.0
+      }
+    },
+    {
+      "family": "house_comparison",
+      "id": "house_comparison.bidirectional",
+      "inputs": {},
+      "operation": "house_comparison",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 1.0,
+        "python": 1.0
+      }
+    },
+    {
+      "family": "horary",
+      "id": "horary.indicators",
+      "inputs": {},
+      "operation": "horary",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 1.0,
+        "python": 1.0
+      }
+    },
+    {
+      "family": "receptions",
+      "id": "receptions.mutual",
+      "inputs": {},
+      "operation": "receptions",
+      "source_backend": "swisseph",
+      "surfaces": [
+        "python",
+        "core"
+      ],
+      "targets": {
+        "core": 1.0,
+        "python": 1.0
+      }
+    }
+  ],
+  "default_inputs": {
+    "return_year": 2026,
+    "second_subject": {
+      "active_points": [
+        "Sun",
+        "Moon",
+        "Mercury",
+        "Venus",
+        "Mars",
+        "Jupiter",
+        "Saturn",
+        "Uranus",
+        "Neptune",
+        "Pluto"
+      ],
+      "day": 20,
+      "hour": 9,
+      "lat": 41.9028,
+      "lng": 12.4964,
+      "minute": 30,
+      "month": 3,
+      "name": "Second subject",
+      "online": false,
+      "tz_str": "Europe/Rome",
+      "year": 1985
+    },
+    "subject": {
+      "active_points": [
+        "Sun",
+        "Moon",
+        "Mercury",
+        "Venus",
+        "Mars",
+        "Jupiter",
+        "Saturn",
+        "Uranus",
+        "Neptune",
+        "Pluto"
+      ],
+      "day": 15,
+      "hour": 18,
+      "lat": 51.5074,
+      "lng": -0.1278,
+      "minute": 0,
+      "month": 7,
+      "name": "Performance subject",
+      "online": false,
+      "tz_str": "Europe/London",
+      "year": 1990
+    }
+  },
+  "excluded_cases": "only original non-Core CLI surfaces",
+  "input_values_or_expectations_changed": false,
+  "numerical_results_saved": false,
+  "original_manifest_sha256": "f14e5511ef6d308d4ea0fb34508c13f94e31789f397b0d8675c41316fcb721d8",
+  "schema_version": 1,
+  "selection": "all original cases whose surfaces include core; original manifest order",
+  "source_pin": "f7608a1dee404afc16a440e4bf565eeeec46bcbd"
+}

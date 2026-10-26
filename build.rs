@@ -33,6 +33,8 @@ mod file_name;
 mod file_open;
 #[path = "build_support/moshier.rs"]
 mod moshier;
+#[path = "build_support/native_profile.rs"]
+mod native_profile;
 #[path = "build_support/nutation.rs"]
 mod nutation;
 #[path = "build_support/period_remainder.rs"]
@@ -80,6 +82,20 @@ const HEADERS: &[&str] = &[
     "swenut2000a.h",
 ];
 
+/// Complete generated C/header inputs shared by provenance and profile guards.
+const GENERATED_INPUTS: &[&str] = &[
+    "sweph.c",
+    "swemmoon.c",
+    "swemplan.c",
+    "swemptab.h",
+    "moshier_terms.generated.h",
+    "moshier_evaluators.generated.h",
+    "moshier_metadata_eval.h",
+    "moshier_coordinate_pair.h",
+    "swephlib.c",
+    "swenut2000a.h",
+];
+
 /// Versioned upstream utility kept separately from the current engine.
 const COMPAT_SOURCE: &str = "src/native/split_deg_2_10_03.c";
 
@@ -119,10 +135,10 @@ fn main() {
     // Rebuild when any compiled input changes. The submodule directory
     // itself is tracked file by file so unrelated submodule files
     // (documents, data, tools) do not trigger rebuilds.
-    // `CC` is the only compiler environment variable consumed below, so
-    // a changed compiler must rerun this script instead of silently
-    // reusing the cached archive.
+    // Ordinary compilation consumes only CC. Optional source instrumentation
+    // declares its own policy, toolchain and resource inputs explicitly.
     println!("cargo:rerun-if-env-changed=CC");
+    native_profile::NativeProfile::register();
     println!("cargo:rerun-if-changed={COMPAT_SOURCE}");
     println!("cargo:rerun-if-changed={CATALOG_COMPACTION}");
     println!("cargo:rerun-if-changed=build_support/c_source.rs");
@@ -183,6 +199,7 @@ fn main() {
     // other linkers retain ordinary native objects.
     let native_lto = optimization == "-O3"
         && env::var("TARGET").is_ok_and(|target| target.ends_with("-apple-darwin"));
+    let mut profile = native_profile::NativeProfile::load(&manifest, &cc, optimization, native_lto);
 
     // 1. ABI probe: verify native integer widths before compiling.
     let probe_path = out.join("abi_probe.c");
@@ -236,7 +253,20 @@ fn main() {
                 native.join(name)
             }
         })
-        .chain(std::iter::once(manifest.join(COMPAT_SOURCE)));
+        .chain(std::iter::once(manifest.join(COMPAT_SOURCE)))
+        .collect::<Vec<_>>();
+    profile.bind(
+        &manifest,
+        &inputs,
+        &HEADERS
+            .iter()
+            .map(|name| native.join(name))
+            .collect::<Vec<_>>(),
+        &GENERATED_INPUTS
+            .iter()
+            .map(|name| out.join(name))
+            .collect::<Vec<_>>(),
+    );
     for input in inputs {
         let name = input
             .file_name()
@@ -248,6 +278,7 @@ fn main() {
         if native_lto {
             compiler.arg("-flto");
         }
+        profile.compile_flags(&mut compiler);
         if input == moshier_input.source {
             // The owned evaluator includes its private generated term bodies.
             compiler.arg(format!("-I{}", out.display()));
@@ -287,7 +318,9 @@ fn main() {
 
     println!("cargo:rustc-link-search=native={}", out.display());
     println!("cargo:rustc-link-lib=static=swisseph");
+    profile.link_runtime();
     write_input_manifest(&out, &cc, optimization, native_lto);
+    profile.record(&out, &manifest);
 }
 
 /// Generate exactly one lossless catalog-string substitution in OUT_DIR.
@@ -379,18 +412,7 @@ fn write_input_manifest(out: &Path, cc: &str, optimization: &str, native_lto: bo
     );
     content.push_str("native-overlay: independent MP/D and F/M mean-angle cubics; generated OUT_DIR/swemplan.c\n");
     content.push_str("native-overlay: one local precession matrix for adjacent position and velocity; generated OUT_DIR/sweph.c and swephlib.c\n");
-    for name in [
-        "sweph.c",
-        "swemmoon.c",
-        "swemplan.c",
-        "swemptab.h",
-        "moshier_terms.generated.h",
-        "moshier_evaluators.generated.h",
-        "moshier_metadata_eval.h",
-        "moshier_coordinate_pair.h",
-        "swephlib.c",
-        "swenut2000a.h",
-    ] {
+    for name in GENERATED_INPUTS {
         let bytes = fs::read(out.join(name)).expect("read generated overlay identity");
         content.push_str(&format!(
             "generated-fnv1a64: {name} {:016x}\n",

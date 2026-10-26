@@ -1,0 +1,16 @@
+audit-fnv1a64=00dec9ce47bd81f2
+cflags=-O3 -fPIC -flto
+compiler-fnv1a64=ccb4789315d6b6bc
+compiler-version-fnv1a64=4c363f13d000848b
+generated-fnv1a64=e603b1e328f2ad58
+inputs-fnv1a64=7ba19fc89469d63c
+merge-tool-fnv1a64=5c4a77cd0e272665
+profile-fnv1a64=de17cc8550fba39d
+record-admission=counts-only-external-link-and-paths-v1
+schema=swiss-native-clang-source-v1
+scheme=fprofile-instr
+sdk-settings-fnv1a64=57189f7a06e223fe
+target=aarch64-apple-darwin
+training-configuration-fnv1a64=a95618f93eae5beb
+training-inputs-fnv1a64=b46491790774eb12
+training-runtime-fnv1a64=35e35fbbdd9c0a89

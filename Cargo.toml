@@ -34,6 +34,7 @@ include = [
     "tests/**",
     "examples/**",
     "validation/**",
+    "native-profiles/source-v1/**",
     "swisseph/Makefile",
     "swisseph/LICENSE",
     "swisseph/LICENSE.TXT",

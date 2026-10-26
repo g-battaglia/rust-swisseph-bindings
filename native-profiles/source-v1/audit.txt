@@ -1,0 +1,50 @@
+Native Clang source-counter profile admission, version 1.
+
+COUNTER/LINK/NAME/TRAINING PREREQUISITES PASSED. Numerical profile-use parity,
+SDK qualification, portable package rebuilds and performance are still pending.
+This is not a speed or scientific certification claim.
+
+One original fixed set: 55 cases, one process per case, 3+30 workload calls
+each, 1815 total; normal preparation is included. No failed case, retry, selective
+merge, timing, reference result or numerical payload is included. All55 raw
+profiles are merged once. The identity-only profiles are excluded.
+
+Actual Clang source records: 429 object entries, 423 distinct name/hash/counter
+shapes; all423 retained in the actual Rust final image and written at exit. All
+three value-site kinds and bitmap sites are zero; no instrument-value calls.
+Actual complete native archive and runtime writer/constructor members selected.
+Two distinct external source/Cargo OUT paths compile all20 native units against
+the complete identity profile with zero missing/out-of-date diagnostics. No name
+normalization, source rewrite, warning suppression or numerical change.
+Diagnostic-only roots retain public native code and five weak system-header
+profile records; profile-use ships none of those diagnostic linker options.
+
+Declared input/configuration files remain verbatim, including their historical
+preparation-only labels. Actual execution is independently bound below. The build
+uses labelled FNV-1a checksums; these separate SHA-256 identities freeze evidence.
+evidence-sha256: training-result.json 9a76dbf8bb8d8c17ec15cf40bc9cdf9bdd60aadfc5c94c9ef839fffa2780efab
+evidence-sha256: primary-training-admission.json 31af00f0fe5ec1ed74fa36b5f3cf08f83f7d7afdbf7a9a9670cecb2b805ac001
+evidence-sha256: actual-binary-metadata-audit.json e0d53b033b80c3605e5dfd3e868d1e1331ab4aaf3f0bef1e874e48c84fdfa3c7
+evidence-sha256: actual-final-link-writer-result.json 4256752d7259c8735664673e18365802ac535ec61a2f1053fdee3d13a38c6beb
+evidence-sha256: cross-package-result.json c31d53b845a616f63ab51fd9cf7940c81785e956bba46512f4821959771b1d40
+evidence-sha256: complete-record-result.json a2e7d281d6ce03f7c9282c7d197d1414e0f801f381556f1d259b7167d31f71f2
+bundle-sha256: counts.profdata d12435271f6e51dfc95efa8e0e52fe5e2beb72ad35362c251523265ce165e5a8
+bundle-sha256: training-inputs.json 269ccacdd01c88ca9f51e1b0ca3593e2a6d49080cca3006035450cb3b4025f39
+bundle-sha256: training-configuration.json f580d6203bf6ba2f5e3e74a13f15310c088296a7c7f4bd32dae74a40e3e5b056
+
+Package metadata correction: the C graph fingerprint excludes effective Cargo
+manifest bytes, which Cargo normalizes in an extracted crate. The active
+manifest checksum remains separate provenance and every complete authored and
+effective package/source tree is frozen externally with SHA-256. No .orig
+manifest alias, source/record-name rewrite or warning suppression is selected.
+Only build.rs and its private metadata module change. Every generated native
+C/header byte, native source, compiler/flags, profile record and all55 training
+inputs/counts remain exact. The original package rejection remains preserved.
+The descriptor is rebound to the actual corrected metadata context, not to new
+training, a changed profile or an asserted passing numerical/package result.
+correction-evidence-sha256: package-use-original.json 24f7e566195407237cb25c3c784b5ff60feae4486b01e07f8456d1af7e3a0646
+correction-evidence-sha256: preparation.json 87a0608be2f442ccfc05923be91f905af59b66ff5cf9eba7d13919bbf3dcb954
+correction-evidence-sha256: source-review.json 5bed0e1679cf618bb61d15cd18dceb2e7df277092e05fe350fd7f4cd51e37a9e
+correction-evidence-sha256: context-build-result.json fa5bb5fb3fa03e85389fe72f6abc7549889a051a5df95e8191607a4e1704fb4c
+correction-evidence-sha256: control-results.json 080926217cff0a9210bdf339fd5a88b3ad0479a1ffa331ce24993762a9c9c403
+correction-evidence-sha256: qualification.json f377b03a7df9999f1268a27e9bfa50d7911d3c2ad1a4885ca3752ae99d09a502

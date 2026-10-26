@@ -111,6 +111,13 @@ The build compiles native sources into Cargo's output directory. It does not
 download ephemeris data. The upstream pin and runtime version are recorded in
 [source-pins.json](validation/source-pins.json).
 
+Native C source profiles are explicit opt-ins. Default `off` keeps ordinary
+native compilation and links no profile runtime. `use` consumes the bundled,
+target/toolchain-bound counter profile; `generate` needs the declared Clang
+runtime and does not train during a build. See the [source-profile policy](validation/native-source-profile.md)
+for commands, package provenance and validation limits. Public Rust/C APIs are
+unchanged; profile use carries no speed guarantee.
+
 The dependency checkout remains unmodified. A declared build overlay replaces
 the v1 fixed-star reader's repeated ASCII-space deletion with a single in-place
 pass on the already truncated name. The generated `OUT_DIR/sweph.c` includes
