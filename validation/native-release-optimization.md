@@ -86,3 +86,22 @@ non-default synchronous trap ordering is not established. The new arithmetic is
 not a new whole-engine directed-rounding promise. These controls prove neither
 runtime speed nor the identities of a subsequently built Cargo archive; producer
 tests, smoke checks and archive comparisons are separate required checks.
+
+## Binary64 admission for fixed-period remainders
+
+The private remainder helper admits only the compile-checked periods 360 degrees
+and TWOPI radians. On Apple arm64 with Clang, it compares the unsigned IEEE
+binary64 magnitude encoding with the exact `period * 2^50` bound. The bound is
+derived by adding 50 to the period exponent; it is not an estimated floating
+reciprocal or an approximation. Nonfinite and larger inputs retain libc fmod.
+The original small-input comparison, quotient multiplication, truncation,
+FMA residual, correction and sign copy retain their order and expressions.
+Other targets use the original scalar admission. The ABI requirement, ordered
+encoding argument and fallback are documented beside the helper.
+
+The permanent exact-remainder test compiles both selected and forced-scalar
+admission against the same independent libc and integer oracles. Both retain
+all four rounding modes and the original boundary/exponent/significand input
+grid. These tests do not promise synchronous floating-trap ordering or change
+the helper's existing floating-environment contract. Actual final archive and
+whole-engine controls remain separate from the standalone test.

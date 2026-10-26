@@ -5,7 +5,7 @@ use std::{fs, path::Path};
 
 const HELPER: &str = "src/native/exact_period_remainder.h";
 const SOURCE_FINGERPRINT: u64 = 0xe642_4aa4_7d15_66b1;
-const HELPER_FINGERPRINT: u64 = 0xa9b251901827df2d;
+const HELPER_FINGERPRINT: u64 = 0xb27ace9b97ff276c;
 
 /// Complete declared inputs for Cargo and the linked native-input manifest.
 pub const INPUTS: [&str; 2] = ["build_support/period_remainder.rs", HELPER];

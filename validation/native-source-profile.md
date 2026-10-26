@@ -77,9 +77,12 @@ The fixed resources under `native-profiles/source-v1` are:
 The recorded training set contains 55 declared workloads, one process per case,
 three warm calls and thirty further real calls each: 1815 workload calls. Normal
 preparation also enters the profile. All declared cases are retained; there is
-no retry, selective merge or favorable timing selection. The original counter
-profile and training input/configuration bytes remain unchanged by package
-metadata handling; only the exact context/provenance metadata is rebound.
+no retry, selective merge or favorable timing selection. The current native
+admission graph has 426 object records and 420 distinct name/hash/counter shapes.
+Its profile was freshly trained and merged once after actual final-link/writer
+and cross-path matching checks. Counts from the preceding graph are never
+rebound to the changed source. The input/configuration manifests remain exact;
+Cargo package metadata handling does not alter any profile or training input.
 
 The admitted profile records contain execution counters and structural names/
 hashes, not astronomical arguments, coordinates, calculated outputs or residuals.
@@ -147,3 +150,29 @@ No performance result or speed target follows from these build and correctness
 checks. Portable CPU options, floating-point precision, native flags, inputs and
 call order remain unchanged; no fast-math, approximation, reduced precision,
 profile-name suppression or calculated-result cache is permitted.
+
+## Current binary64-admission bundle
+
+The current profile is freshly trained on the admitted magnitude-guard graph,
+not rebound from its predecessor. Its frozen training audit records the
+record/link/path checks completed at profile generation; the subsequent
+qualification is separate. Release/profile-use now passes all 337 Rust/doctest
+checks, 1,347 unrestricted smoke cases and strict gates. The actual normalized
+Cargo package builds with equal generated C/header inputs and C context; four
+independent altered-input controls reject before a native object is emitted.
+
+Before/after whole-archive controls retain the complete prior native archive and
+select all ten actual packaged native objects. All 36,000 whole-engine, 4,160
+transition, 4,160 subsequent-call, 5,760 matrix and 80 control cases pass; the
+800 positive native-source fallbacks remain a subset. The independent helper
+controls also pass 3,019,072 comparisons for each of the standalone helper,
+forced scalar admission and actual linked public normalizers. These cover both
+fixed periods, all four rounding modes and the public Darwin default and FZ
+environments with traps disabled. Result bits, errno, sticky flags and complete
+FPCR agree with the preceding implementation for these inputs. Input vectors
+and outputs stay in memory. This before/after result does not extend the
+existing helper's libc floating-environment or synchronous-trap contract.
+
+With the policy variable absent, all six metadata tests still pass, all eleven
+generated C/header files match profile-use, and neither counters nor a profile
+runtime are linked. These checks establish no performance ratio.

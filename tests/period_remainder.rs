@@ -56,35 +56,43 @@ double oracle_fmod(double x, double period)
     }
     let control_source = directory.join("control.c");
     fs::write(&control_source, control).unwrap();
-    let executable = directory.join("control");
-    let compiled = Command::new("cc")
-        .args([
+    // Exercise the portable admission on this host as well as the selected ABI
+    // path. Both binaries retain the same libc/integer oracles and input grid.
+    for (name, scalar) in [("native", false), ("scalar", true)] {
+        let executable = directory.join(name);
+        let mut compiler = Command::new("cc");
+        compiler.args([
             "-O3",
             "-frounding-math",
             "-fno-builtin-fmod",
             "-fno-fast-math",
-        ])
-        .arg(format!("-I{}", root.join("swisseph").display()))
-        .arg(format!("-I{}", root.join("src/native").display()))
-        .arg(&control_source)
-        .arg(&oracle)
-        .arg("-lm")
-        .arg("-o")
-        .arg(&executable)
-        .output()
-        .unwrap();
-    assert!(
-        compiled.status.success(),
-        "{}",
-        String::from_utf8_lossy(&compiled.stderr)
-    );
-    let result = Command::new(&executable).output().unwrap();
-    assert!(
-        result.status.success(),
-        "{}{}",
-        String::from_utf8_lossy(&result.stdout),
-        String::from_utf8_lossy(&result.stderr)
-    );
-    println!("{}", String::from_utf8_lossy(&result.stdout));
+        ]);
+        if scalar {
+            compiler.arg("-DSWE_EXACT_PERIOD_FORCE_SCALAR_ADMISSION=1");
+        }
+        let compiled = compiler
+            .arg(format!("-I{}", root.join("swisseph").display()))
+            .arg(format!("-I{}", root.join("src/native").display()))
+            .arg(&control_source)
+            .arg(&oracle)
+            .arg("-lm")
+            .arg("-o")
+            .arg(&executable)
+            .output()
+            .unwrap();
+        assert!(
+            compiled.status.success(),
+            "{}",
+            String::from_utf8_lossy(&compiled.stderr)
+        );
+        let result = Command::new(&executable).output().unwrap();
+        assert!(
+            result.status.success(),
+            "{}{}",
+            String::from_utf8_lossy(&result.stdout),
+            String::from_utf8_lossy(&result.stderr)
+        );
+        println!("{name}: {}", String::from_utf8_lossy(&result.stdout));
+    }
     fs::remove_dir_all(directory).unwrap();
 }
