@@ -34,14 +34,13 @@ use crate::{FLG_JPLEPH, FLG_MOSEPH, FLG_SWIEPH};
 pub struct Position {
     /// The six native output components; see the type documentation.
     pub values: [f64; POSITION_LEN],
-    /// Flag set returned by the native call.
+    /// Flags reported by the backend, not independent dataset authentication.
     ///
-    /// This is the source of truth for which ephemeris actually served the
-    /// request: when data files are missing the engine falls back to the
-    /// analytical Moshier model and reports `FLG_MOSEPH` here instead of
-    /// the requested `FLG_SWIEPH`. Never assume the requested source was
-    /// used — inspect these bits, or enforce them with
-    /// [`require_source_flags`].
+    /// A missing-file fallback can report `FLG_MOSEPH` instead of the
+    /// requested `FLG_SWIEPH`. Component fallbacks may also appear in the
+    /// original diagnostic; the primary flag bits alone are not a complete
+    /// source report. The native-specific [`require_source_flags`] helper
+    /// retains its existing flag/component check.
     pub returned_flags: i32,
     /// Native diagnostic text (`serr`).
     ///
@@ -112,7 +111,7 @@ pub(crate) fn calc_ut_locked(jd_ut: f64, body: i32, flags: i32) -> Result<Positi
 
 /// Calculate a body position for a Universal Time Julian Day.
 ///
-/// `body` is a body number (for example [`crate::MOON`]); `flags`
+/// `body` is a body number (for example [`crate::constants::MOON`]); `flags`
 /// combines source bits (`FLG_SWIEPH`, `FLG_JPLEPH`, `FLG_MOSEPH`),
 /// geometry bits (`FLG_HELCTR`, `FLG_TRUEPOS`, `FLG_TOPOCTR`, ...) and
 /// output bits (`FLG_SPEED`, `FLG_EQUATORIAL`, `FLG_XYZ`, ...). The
@@ -125,18 +124,18 @@ pub(crate) fn calc_ut_locked(jd_ut: f64, body: i32, flags: i32) -> Result<Positi
 ///
 /// # Configuration dependence
 ///
-/// Topocentric output requires [`crate::set_topo`], sidereal output
-/// requires [`crate::set_sid_mode`], and file-based sources require data
-/// files visible through [`crate::set_ephe_path`]. Each free call holds
+/// Topocentric output requires [`crate::global::set_topo`], sidereal output
+/// requires [`crate::global::set_sid_mode`], and file-based sources require data
+/// files visible through [`crate::global::set_ephe_path`]. Each free call holds
 /// the process-wide native lock across its own native sequence; a
 /// `set_*` plus this computation remain two acquisitions. Callers needing
-/// atomic config-plus-computation must use [`crate::Session`], which holds
+/// atomic config-plus-computation must use [`crate::native::Session`], which holds
 /// the same lock across the whole apply-then-compute sequence.
 ///
 /// # Errors
 ///
 /// Non-finite `jd_ut`/`jd_et` is rejected with
-/// [`ErrorKind::InvalidInput`](crate::ErrorKind) before any native call.
+/// [`ErrorKind::InvalidInput`](crate::native::ErrorKind) before any native call.
 /// Returns [`Error`] when the native call fails (unknown body, missing or
 /// out-of-range data). A non-negative native status — including results
 /// computed with a fallback source or carrying a warning — is `Ok` when
@@ -148,12 +147,12 @@ pub(crate) fn calc_ut_locked(jd_ut: f64, body: i32, flags: i32) -> Result<Positi
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, FLG_SPEED, MOON, calc_ut};
+/// use swisseph_bindings::native::{FLG_MOSEPH, FLG_SPEED, MOON, global::calc_ut};
 ///
 /// // The Moshier model needs no data files, so this runs anywhere.
 /// let moon = calc_ut(2451545.0, MOON, FLG_MOSEPH | FLG_SPEED)?;
 /// assert!((0.0..360.0).contains(&moon.longitude()));
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -161,7 +160,7 @@ pub(crate) fn calc_ut_locked(jd_ut: f64, body: i32, flags: i32) -> Result<Positi
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 pub fn calc_ut(jd_ut: f64, body: i32, flags: i32) -> Result<Position, Error> {
     if !jd_ut.is_finite() {
         return Err(Error::invalid_input(format!(
@@ -219,7 +218,7 @@ pub(crate) fn calc_locked(jd_et: f64, body: i32, flags: i32) -> Result<Position,
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 pub fn calc(jd_et: f64, body: i32, flags: i32) -> Result<Position, Error> {
     if !jd_et.is_finite() {
         return Err(Error::invalid_input(format!(
@@ -232,7 +231,7 @@ pub fn calc(jd_et: f64, body: i32, flags: i32) -> Result<Position, Error> {
 /// Calculate a body position as seen from another body (planet-centric).
 ///
 /// `body` is the target body number, `center` the observing body number
-/// (for example [`crate::MARS`]); `flags` combines the same source,
+/// (for example [`crate::constants::MARS`]); `flags` combines the same source,
 /// geometry and output bits as [`calc_ut`]. The distance component is the
 /// distance from `center` to `body` in AU.
 ///
@@ -255,7 +254,7 @@ pub fn calc(jd_et: f64, body: i32, flags: i32) -> Result<Position, Error> {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_SPEED, FLG_SWIEPH, MARS, MOON, calc_pctr, set_ephe_path};
+/// use swisseph_bindings::native::{FLG_SPEED, FLG_SWIEPH, MARS, MOON, global::calc_pctr, global::set_ephe_path};
 ///
 /// // Planet-centric positions need data files: the Moshier model is not
 /// // supported natively for this entry point (an explicit external data
@@ -272,7 +271,7 @@ pub fn calc(jd_et: f64, body: i32, flags: i32) -> Result<Position, Error> {
 /// set_ephe_path(Some(&data_dir))?;
 /// let moon = calc_pctr(2451545.0, MOON, MARS, FLG_SWIEPH | FLG_SPEED)?;
 /// assert!((0.0..360.0).contains(&moon.longitude()));
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -280,7 +279,7 @@ pub fn calc(jd_et: f64, body: i32, flags: i32) -> Result<Position, Error> {
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 pub fn calc_pctr(jd_et: f64, body: i32, center: i32, flags: i32) -> Result<Position, Error> {
     if !jd_et.is_finite() {
         return Err(Error::invalid_input(format!(
@@ -290,7 +289,7 @@ pub fn calc_pctr(jd_et: f64, body: i32, center: i32, flags: i32) -> Result<Posit
     with_native_access(|| calc_pctr_locked(jd_et, body, center, flags))
 }
 
-/// Execute [`crate::calc_pctr`] with native access already held.
+/// Execute [`crate::global::calc_pctr`] with native access already held.
 /// Preserve its input domains, units, native status/flags and diagnostics;
 /// apply no configuration, fallback or alternate numerical method. Errors
 /// follow the public operation. Caller owns the lock for validation and C read.
@@ -362,7 +361,7 @@ pub(crate) fn calc_pctr_locked(
 /// (`SUN`..`INTP_PERG`, plus the `ECL_NUT` pseudo-body), fictitious bodies
 /// (`CUPIDO`..`WALDEMATH`), numbered asteroids (`AST_OFFSET + number`,
 /// which alias the dedicated ids where both exist — `AST_OFFSET + 1` is
-/// `"Ceres"`, like [`crate::CERES`]) and planetary-moon offsets
+/// `"Ceres"`, like [`crate::constants::CERES`]) and planetary-moon offsets
 /// (`PLMOON_OFFSET +...`). Out-of-range numbers are **not** rejected on
 /// the Rust side: the native library answers them with descriptive text
 /// that is preserved verbatim (for example `"name not found"`,
@@ -376,9 +375,7 @@ pub(crate) fn calc_pctr_locked(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{
-///     AST_OFFSET, CERES, CUPIDO, SUN, get_planet_name, set_ephe_path,
-/// };
+/// use swisseph_bindings::native::{AST_OFFSET, CERES, CUPIDO, SUN, global::get_planet_name, global::set_ephe_path};
 ///
 /// // Ephemeris data comes from an explicit external directory when set,
 /// // otherwise from the checkout data (doctests run with the package root
@@ -395,10 +392,17 @@ pub(crate) fn calc_pctr_locked(
 /// assert_eq!(get_planet_name(AST_OFFSET + 1)?, get_planet_name(CERES)?);
 /// // Unknown numbers keep the native verdict verbatim instead of failing:
 /// assert!(get_planet_name(999)?.contains("not found"));
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 pub fn get_planet_name(body: i32) -> Result<String, Error> {
-    with_native_access(|| {
+    with_native_access(|| get_planet_name_locked(body))
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn get_planet_name_locked(body: i32) -> Result<String, Error> {
+    {
         let mut buffer = [0 as c_char; TEXT_BUF_LEN];
         // SAFETY: `buffer` owns TEXT_BUF_LEN writable bytes; the returned
         // pointer aliases it (or is null). The name is copied into an
@@ -419,7 +423,7 @@ pub fn get_planet_name(body: i32) -> Result<String, Error> {
         } else {
             Ok(name)
         }
-    })
+    }
 }
 
 /// Build the error message for a failed position computation, keeping the
@@ -462,15 +466,13 @@ fn describe_calc_failure(
 ///
 /// This performs no native call and takes no lock; it only inspects the
 /// already-owned [`Position`]. A mismatch is an [`Error`] of kind
-/// [`crate::ErrorKind::Native`] carrying both flag sets and the preserved
+/// [`crate::native::ErrorKind::Native`] carrying both flag sets and the preserved
 /// native diagnostic, never invented position data.
 ///
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{
-///     FLG_MOSEPH, FLG_SPEED, FLG_SWIEPH, Position, require_source_flags,
-/// };
+/// use swisseph_bindings::native::{FLG_MOSEPH, FLG_SPEED, FLG_SWIEPH, Position, native::require_source_flags};
 ///
 /// // A Moshier result satisfies a Moshier request.
 /// let moshier = Position {
@@ -483,7 +485,7 @@ fn describe_calc_failure(
 /// assert!(require_source_flags(&moshier, FLG_SWIEPH | FLG_SPEED).is_err());
 /// // No source bit requested means the default chain: nothing to enforce.
 /// assert!(require_source_flags(&moshier, FLG_SPEED).is_ok());
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 pub fn require_source_flags(position: &Position, requested_flags: i32) -> Result<(), Error> {
     const SOURCE_MASK: i32 = FLG_SWIEPH | FLG_JPLEPH | FLG_MOSEPH;

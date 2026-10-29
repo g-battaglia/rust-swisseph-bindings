@@ -4,7 +4,13 @@ use std::{
     path::{Path, PathBuf},
     process::Command,
 };
-use swisseph_bindings::{ErrorKind, SessionBuilder, fixed_star_catalog, fixstar2_mag};
+use swisseph_bindings::native::{
+    ErrorKind, SessionBuilder, global::fixstar2_mag, native::fixed_star_catalog,
+};
+
+// Both scripts deliberately inspect the process-global catalogue after a
+// Session call. Serialize whole scripts, not individual binding operations.
+static CATALOGUE_SCRIPT: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 #[path = "support/isolated.rs"]
 mod isolated;
@@ -46,6 +52,7 @@ fn selected_catalog_matches_numeric_c_order_and_end() {
     if !isolated::without_ephe_override("selected_catalog_matches_numeric_c_order_and_end") {
         return;
     }
+    let _script = CATALOGUE_SCRIPT.lock().unwrap();
     let data = std::env::var("SWISSEPH_EPHE_DIR").expect("select identified catalog data");
     let path = Path::new(&data).join("sefstars.txt");
     let before = std::fs::read(&path).unwrap();
@@ -112,6 +119,7 @@ fn unavailable_or_empty_catalog_is_an_error_not_empty_success() {
     ) {
         return;
     }
+    let _script = CATALOGUE_SCRIPT.lock().unwrap();
     let dir = std::env::temp_dir().join(format!("native-catalog-missing-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let mut b = SessionBuilder::new();

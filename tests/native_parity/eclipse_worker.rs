@@ -3,7 +3,14 @@
 use super::event_pack as pack;
 use super::protocol::{Record, Request};
 use super::registry::Op;
-use swisseph_bindings::*;
+use swisseph_bindings::native::*;
+use swisseph_bindings::native::{
+    global::lun_eclipse_how, global::lun_eclipse_when, global::lun_eclipse_when_loc,
+    global::lun_occult_when_glob, global::lun_occult_when_loc, global::lun_occult_where,
+    global::sol_eclipse_how, global::sol_eclipse_when_glob, global::sol_eclipse_when_loc,
+    global::sol_eclipse_where, native::OccultSearchOptions,
+    native::lun_occult_when_glob_with_options, native::lun_occult_when_loc_with_options,
+};
 
 /// Explicit direction/one-try bits, not inferred from a returned event.
 fn search(r: &Request, backward: usize, one_try: usize) -> OccultSearchOptions {

@@ -1,5 +1,5 @@
 //! Versioned split output contracts and common native input admission.
-use swisseph_bindings::{ErrorKind, split_deg, split_deg_2_10_03};
+use swisseph_bindings::native::{ErrorKind, native::split_deg, native::split_deg_2_10_03};
 
 #[test]
 fn unrounded_contracts_agree_and_rounding_retains_legacy_lower_fields() {

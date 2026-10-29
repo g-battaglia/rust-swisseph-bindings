@@ -2,9 +2,9 @@
 //! Numerical values are compared in memory against the unmodified C operation.
 
 use std::ffi::{CStr, CString, c_char};
-use swisseph_bindings::{
+use swisseph_bindings::native::{
     FLG_EQUATORIAL, FLG_SIDEREAL, FLG_SPEED, FLG_SWIEPH, SIDM_LAHIRI, SIDM_USER, SessionBuilder,
-    close_preserving_path, set_ephe_path, set_sid_mode,
+    global::set_ephe_path, global::set_sid_mode, native::close_preserving_path,
 };
 
 #[path = "support/isolated.rs"]
@@ -34,28 +34,38 @@ fn close_drops_files_but_keeps_explicit_delta_t() {
     set_ephe_path(Some(&data)).unwrap();
     let session = SessionBuilder::new().ephe_path(&data).build().unwrap();
     session
-        .calc_ut(2451545.0, swisseph_bindings::MARS, FLG_SWIEPH)
+        .calc_ut(2451545.0, swisseph_bindings::native::MARS, FLG_SWIEPH)
         .unwrap();
     assert!(
-        swisseph_bindings::get_current_file_data(0)
+        swisseph_bindings::global::get_current_file_data(0)
             .unwrap()
             .is_some()
     );
     let delta_t = 65.0 / 86400.0;
-    swisseph_bindings::set_delta_t_userdef(Some(delta_t)).unwrap();
+    swisseph_bindings::global::set_delta_t_userdef(Some(delta_t)).unwrap();
     close_preserving_path().unwrap();
     assert!(
-        swisseph_bindings::get_current_file_data(0)
+        swisseph_bindings::global::get_current_file_data(0)
             .unwrap()
             .is_none()
     );
-    assert!(swisseph_bindings::deltat(1700000.5).unwrap().to_bits() == delta_t.to_bits());
+    assert!(
+        swisseph_bindings::global::deltat(1700000.5)
+            .unwrap()
+            .to_bits()
+            == delta_t.to_bits()
+    );
     // Session validation must retain the same explicit override as native C.
     session
         .fixstar_ut("Regulus", 1700000.5, FLG_SWIEPH)
         .unwrap();
-    assert!(swisseph_bindings::deltat(1700000.5).unwrap().to_bits() == delta_t.to_bits());
-    swisseph_bindings::set_delta_t_userdef(None).unwrap();
+    assert!(
+        swisseph_bindings::global::deltat(1700000.5)
+            .unwrap()
+            .to_bits()
+            == delta_t.to_bits()
+    );
+    swisseph_bindings::global::set_delta_t_userdef(None).unwrap();
     close_preserving_path().unwrap();
 }
 
@@ -79,16 +89,16 @@ fn close_does_not_relabel_relative_path_identity() {
     std::env::set_current_dir(&full).unwrap();
     let session = SessionBuilder::new().ephe_path(".").build().unwrap();
     let before = session
-        .calc_ut(2451545.0, swisseph_bindings::MARS, FLG_SWIEPH)
+        .calc_ut(2451545.0, swisseph_bindings::native::MARS, FLG_SWIEPH)
         .unwrap();
-    swisseph_bindings::require_source_flags(&before, FLG_SWIEPH).unwrap();
+    swisseph_bindings::native::require_source_flags(&before, FLG_SWIEPH).unwrap();
     // Native path installation happened in `full`, not the reset directory.
     std::env::set_current_dir(&empty).unwrap();
     close_preserving_path().unwrap();
     let after = session
-        .calc_ut(2451545.0, swisseph_bindings::MARS, FLG_SWIEPH)
+        .calc_ut(2451545.0, swisseph_bindings::native::MARS, FLG_SWIEPH)
         .unwrap();
-    assert!(swisseph_bindings::require_source_flags(&after, FLG_SWIEPH).is_err());
+    assert!(swisseph_bindings::native::require_source_flags(&after, FLG_SWIEPH).is_err());
     close_preserving_path().unwrap();
     std::env::set_current_dir(original).unwrap();
     std::fs::remove_dir_all(root).unwrap();

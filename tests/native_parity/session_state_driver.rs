@@ -8,7 +8,8 @@ use super::registry::Op;
 use super::session_commands::{
     self as command, ALL, DELTA, JPL, LAPSE, PATH, Recipe, SIDEREAL, TIDAL, TOPO,
 };
-use swisseph_bindings::*;
+use swisseph_bindings::native::*;
+use swisseph_bindings::native::{native::MAX_EPHE_PATH_LEN, native::MAX_JPL_FILE_LEN};
 
 /// Executed state-script evidence, distinct from declaration/full acceptance.
 #[derive(Default)]
@@ -76,6 +77,10 @@ struct Script<'a> {
     installed_path: InstalledPath,
     /// Successful execution accounting, never expected numerical output.
     summary: Summary,
+    /// C path setter state follows input requests, never observed results.
+    /// Session path reuse must not be compared against a forced C cache reset.
+    c_path: Option<Option<Vec<u8>>>,
+    c_automatic_tidal: bool,
 }
 
 /// Distinct fully explicit owned input recipe, with no computed result values.
@@ -165,6 +170,7 @@ impl Script<'_> {
             .c
             .request(&request)
             .map_err(|e| self.context(op.entry().name, e))?;
+        self.remember_c_write(&request);
         let rust = self
             .rust
             .request(&request)
@@ -174,6 +180,23 @@ impl Script<'_> {
         self.installed_path.observe(&request);
         Ok(native)
     }
+    /// Track only the setter sequence relevant to guarded path installation.
+    /// Ordinary free setters remain forced writes. No C result is predicted.
+    fn remember_c_write(&mut self, request: &Request) {
+        match Op::from_wire(request.op) {
+            Some(Op::SetEphePath) => {
+                self.c_path = Some(request.texts[0].clone());
+                self.c_automatic_tidal = true;
+            }
+            Some(Op::SetTidAcc) => self.c_automatic_tidal = false,
+            Some(Op::Close) => {
+                self.c_path = None;
+                self.c_automatic_tidal = false;
+            }
+            _ => {}
+        }
+    }
+
     /// Apply a declared configuration to both processes, or only C before a
     /// configured Session operation. Never apply hazardous builder inputs here.
     fn install(&mut self, recipe: &Recipe, both: bool) -> Result<(), String> {
@@ -191,6 +214,7 @@ impl Script<'_> {
                 }
                 let request = self.identified(request);
                 let result = self.c.request(&request)?;
+                self.remember_c_write(&request);
                 if result.code != 0
                     || !result.ints.is_empty()
                     || !result.floats.is_empty()
@@ -281,7 +305,11 @@ impl Script<'_> {
             self.summary.fields += super::compare::same(native, &record, false).map_err(|e| {
                 self.context(
                     "Session::get_current_file_data",
-                    format!("owner={slot} slot={index}: {e}"),
+                    format!(
+                        "owner={slot} slot={index}: {e}; expected status={} shape={}/{}/{}; actual status={} shape={}/{}/{}",
+                        native.code, native.ints.len(), native.floats.len(), native.texts.len(),
+                        record.code, record.ints.len(), record.floats.len(), record.texts.len(),
+                    ),
                 )
             })?;
         }
@@ -356,6 +384,8 @@ pub fn run(
         source,
         installed_path: InstalledPath::default(),
         summary: Summary::default(),
+        c_path: None,
+        c_automatic_tidal: false,
     };
     let a = explicit(0, paths[0]);
     let b = explicit(1, paths[1]);

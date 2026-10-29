@@ -31,6 +31,12 @@ int main(int argc, char **argv) {
     status = swe_heliacal_pheno_ut(jd, site, atm, observer, object,
                                   SE_HELIACAL_RISING, flags, values, diagnostic);
     count = 50;
+  } else if (!strcmp(argv[2], "heliacal-event")) {
+    double site[3] = {0, 51.5, 0}, atm[4] = {0}, observer[6] = {0};
+    char object[256] = "Venus";
+    status = swe_heliacal_ut(jd, site, atm, observer, object,
+                            SE_HELIACAL_RISING, flags, visibility, diagnostic);
+    count = 10;
   } else if (!strcmp(argv[2], "vislim")) {
     double site[3] = {0, 51.5, 0}, atm[4] = {0}, observer[6] = {0};
     char object[256] = "Venus";

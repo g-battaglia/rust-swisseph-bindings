@@ -1,0 +1,1117 @@
+{
+  "schema_version": 1,
+  "source_revision": "0cdc3f62745d851a94c5a455ea5bde62a5cc227a",
+  "purpose": "1.x function declarations; global/native relocation must preserve arguments and ordering",
+  "operations": [
+    {
+      "name": "cotrans",
+      "v1_signature": "pub fn cotrans( longitude_or_ra: f64, latitude_or_dec: f64, distance: f64, eps: f64, ) -> Result<[f64; 3], Error>",
+      "source": "src/angles.rs",
+      "legacy_destination": "native::cotrans",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "cotrans",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "cotrans_sp",
+      "v1_signature": "pub fn cotrans_sp( longitude_or_ra: f64, latitude_or_dec: f64, distance: f64, longitude_or_ra_speed: f64, latitude_or_dec_speed: f64, distance_speed: f64, eps: f64, ) -> Result<([f64; 3], [f64; 3]), Error>",
+      "source": "src/angles.rs",
+      "legacy_destination": "native::cotrans_sp",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "cotrans_sp",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "degnorm",
+      "v1_signature": "pub fn degnorm(x: f64) -> f64",
+      "source": "src/angles.rs",
+      "legacy_destination": "native::degnorm",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "degnorm",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "radnorm",
+      "v1_signature": "pub fn radnorm(x: f64) -> f64",
+      "source": "src/angles.rs",
+      "legacy_destination": "native::radnorm",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "radnorm",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "difdegn",
+      "v1_signature": "pub fn difdegn(p1: f64, p2: f64) -> f64",
+      "source": "src/angles.rs",
+      "legacy_destination": "native::difdegn",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "difdegn",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "difdeg2n",
+      "v1_signature": "pub fn difdeg2n(p1: f64, p2: f64) -> f64",
+      "source": "src/angles.rs",
+      "legacy_destination": "native::difdeg2n",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "difdeg2n",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "difrad2n",
+      "v1_signature": "pub fn difrad2n(p1: f64, p2: f64) -> f64",
+      "source": "src/angles.rs",
+      "legacy_destination": "native::difrad2n",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "difrad2n",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "deg_midp",
+      "v1_signature": "pub fn deg_midp(x1: f64, x0: f64) -> f64",
+      "source": "src/angles.rs",
+      "legacy_destination": "native::deg_midp",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "deg_midp",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "rad_midp",
+      "v1_signature": "pub fn rad_midp(x1: f64, x0: f64) -> f64",
+      "source": "src/angles.rs",
+      "legacy_destination": "native::rad_midp",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "rad_midp",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "d2l",
+      "v1_signature": "pub fn d2l(x: f64) -> Result<i32, Error>",
+      "source": "src/angles.rs",
+      "legacy_destination": "native::d2l",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "d2l",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "csnorm",
+      "v1_signature": "pub fn csnorm(p: i32) -> i32",
+      "source": "src/angles.rs",
+      "legacy_destination": "native::csnorm",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "csnorm",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "difcsn",
+      "v1_signature": "pub fn difcsn(p1: i32, p2: i32) -> Result<i32, Error>",
+      "source": "src/angles.rs",
+      "legacy_destination": "native::difcsn",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "difcsn",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "difcs2n",
+      "v1_signature": "pub fn difcs2n(p1: i32, p2: i32) -> Result<i32, Error>",
+      "source": "src/angles.rs",
+      "legacy_destination": "native::difcs2n",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "difcs2n",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "csroundsec",
+      "v1_signature": "pub fn csroundsec(x: i32) -> Result<i32, Error>",
+      "source": "src/angles.rs",
+      "legacy_destination": "native::csroundsec",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "csroundsec",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "cs2timestr",
+      "v1_signature": "pub fn cs2timestr(cs: i32, sep: u8, suppress_zero: bool) -> Result<String, Error>",
+      "source": "src/angles.rs",
+      "legacy_destination": "native::cs2timestr",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "cs2timestr",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "cs2lonlatstr",
+      "v1_signature": "pub fn cs2lonlatstr(cs: i32, plus: u8, minus: u8) -> Result<String, Error>",
+      "source": "src/angles.rs",
+      "legacy_destination": "native::cs2lonlatstr",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "cs2lonlatstr",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "cs2degstr",
+      "v1_signature": "pub fn cs2degstr(cs: i32) -> Result<String, Error>",
+      "source": "src/angles.rs",
+      "legacy_destination": "native::cs2degstr",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "cs2degstr",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "split_deg",
+      "v1_signature": "pub fn split_deg(degree: f64, roundflag: i32) -> Result<SplitDeg, Error>",
+      "source": "src/angles.rs",
+      "legacy_destination": "native::split_deg",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "split_deg",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "set_ephe_path",
+      "v1_signature": "pub fn set_ephe_path(path: Option<&str>) -> Result<(), Error>",
+      "source": "src/config.rs",
+      "legacy_destination": "global::set_ephe_path",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": null,
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "ensure_ephe_path",
+      "v1_signature": "pub fn ensure_ephe_path(path: Option<&str>) -> Result<(), Error>",
+      "source": "src/config.rs",
+      "legacy_destination": "native::ensure_ephe_path",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": null,
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "set_topo",
+      "v1_signature": "pub fn set_topo(longitude: f64, latitude: f64, altitude: f64) -> Result<(), Error>",
+      "source": "src/config.rs",
+      "legacy_destination": "global::set_topo",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": null,
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "set_sid_mode",
+      "v1_signature": "pub fn set_sid_mode(mode: i32, t0: f64, ayan_t0: f64) -> Result<(), Error>",
+      "source": "src/config.rs",
+      "legacy_destination": "global::set_sid_mode",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": null,
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "set_jpl_file",
+      "v1_signature": "pub fn set_jpl_file(fname: &str) -> Result<(), Error>",
+      "source": "src/config.rs",
+      "legacy_destination": "native::set_jpl_file",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": null,
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "set_tid_acc",
+      "v1_signature": "pub fn set_tid_acc(acc: f64) -> Result<(), Error>",
+      "source": "src/config.rs",
+      "legacy_destination": "global::set_tid_acc",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": null,
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "get_tid_acc",
+      "v1_signature": "pub fn get_tid_acc() -> Result<f64, Error>",
+      "source": "src/config.rs",
+      "legacy_destination": "global::get_tid_acc",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": null,
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "set_delta_t_userdef",
+      "v1_signature": "pub fn set_delta_t_userdef(dt: Option<f64>) -> Result<(), Error>",
+      "source": "src/config.rs",
+      "legacy_destination": "global::set_delta_t_userdef",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": null,
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "get_ayanamsa_ut",
+      "v1_signature": "pub fn get_ayanamsa_ut(jd_ut: f64) -> Result<f64, Error>",
+      "source": "src/config.rs",
+      "legacy_destination": "global::get_ayanamsa_ut",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::get_ayanamsa_ut",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "get_ayanamsa",
+      "v1_signature": "pub fn get_ayanamsa(jd_et: f64) -> Result<f64, Error>",
+      "source": "src/config.rs",
+      "legacy_destination": "global::get_ayanamsa",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::get_ayanamsa",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "get_ayanamsa_ex",
+      "v1_signature": "pub fn get_ayanamsa_ex(jd_et: f64, flags: i32) -> Result<Ayanamsha, Error>",
+      "source": "src/config.rs",
+      "legacy_destination": "global::get_ayanamsa_ex",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::get_ayanamsa_ex",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "get_ayanamsa_ex_ut",
+      "v1_signature": "pub fn get_ayanamsa_ex_ut(jd_ut: f64, flags: i32) -> Result<Ayanamsha, Error>",
+      "source": "src/config.rs",
+      "legacy_destination": "global::get_ayanamsa_ex_ut",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::get_ayanamsa_ex_ut",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "get_ayanamsa_name",
+      "v1_signature": "pub fn get_ayanamsa_name(mode: i32) -> Result<String, Error>",
+      "source": "src/config.rs",
+      "legacy_destination": "native::get_ayanamsa_name",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "get_ayanamsa_name",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "close",
+      "v1_signature": "pub fn close() -> Result<(), Error>",
+      "source": "src/config.rs",
+      "legacy_destination": "global::close",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": null,
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "get_current_file_data",
+      "v1_signature": "pub fn get_current_file_data(ifno: i32) -> Result<Option<CurrentFileData>, Error>",
+      "source": "src/config.rs",
+      "legacy_destination": "global::get_current_file_data",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": null,
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "solcross",
+      "v1_signature": "pub fn solcross(x2cross: f64, jd_et: f64, flags: i32) -> Result<LongitudeCrossing, Error>",
+      "source": "src/events.rs",
+      "legacy_destination": "global::solcross",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::solcross",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "solcross_ut",
+      "v1_signature": "pub fn solcross_ut(x2cross: f64, jd_ut: f64, flags: i32) -> Result<LongitudeCrossing, Error>",
+      "source": "src/events.rs",
+      "legacy_destination": "global::solcross_ut",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::solcross_ut",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "mooncross",
+      "v1_signature": "pub fn mooncross(x2cross: f64, jd_et: f64, flags: i32) -> Result<LongitudeCrossing, Error>",
+      "source": "src/events.rs",
+      "legacy_destination": "global::mooncross",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::mooncross",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "mooncross_ut",
+      "v1_signature": "pub fn mooncross_ut(x2cross: f64, jd_ut: f64, flags: i32) -> Result<LongitudeCrossing, Error>",
+      "source": "src/events.rs",
+      "legacy_destination": "global::mooncross_ut",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::mooncross_ut",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "mooncross_node",
+      "v1_signature": "pub fn mooncross_node(jd_et: f64, flags: i32) -> Result<NodeCrossing, Error>",
+      "source": "src/events.rs",
+      "legacy_destination": "global::mooncross_node",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::mooncross_node",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "mooncross_node_ut",
+      "v1_signature": "pub fn mooncross_node_ut(jd_ut: f64, flags: i32) -> Result<NodeCrossing, Error>",
+      "source": "src/events.rs",
+      "legacy_destination": "global::mooncross_node_ut",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::mooncross_node_ut",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "helio_cross",
+      "v1_signature": "pub fn helio_cross( body: i32, x2cross: f64, jd_et: f64, flags: i32, dir: i32, ) -> Result<LongitudeCrossing, Error>",
+      "source": "src/events.rs",
+      "legacy_destination": "global::helio_cross",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::helio_cross",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "helio_cross_ut",
+      "v1_signature": "pub fn helio_cross_ut( body: i32, x2cross: f64, jd_ut: f64, flags: i32, dir: i32, ) -> Result<LongitudeCrossing, Error>",
+      "source": "src/events.rs",
+      "legacy_destination": "global::helio_cross_ut",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::helio_cross_ut",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "sol_eclipse_when_glob",
+      "v1_signature": "pub fn sol_eclipse_when_glob( jd_start: f64, flags: i32, eclipse_type: i32, backward: bool, ) -> Result<GlobalSolarEclipse, Error>",
+      "source": "src/events.rs",
+      "legacy_destination": "global::sol_eclipse_when_glob",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::sol_eclipse_when_glob",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "lun_eclipse_when",
+      "v1_signature": "pub fn lun_eclipse_when( jd_start: f64, flags: i32, eclipse_type: i32, backward: bool, ) -> Result<GlobalLunarEclipse, Error>",
+      "source": "src/events.rs",
+      "legacy_destination": "global::lun_eclipse_when",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::lun_eclipse_when",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "sol_eclipse_where_full",
+      "v1_signature": "pub fn sol_eclipse_where_full(jd_ut: f64, flags: i32) -> Result<SolarEclipseGeometryFull, Error>",
+      "source": "src/events.rs",
+      "legacy_destination": "native::sol_eclipse_where_full",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": null,
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "sol_eclipse_where",
+      "v1_signature": "pub fn sol_eclipse_where(jd_ut: f64, flags: i32) -> Result<SolarEclipseGeometry, Error>",
+      "source": "src/events.rs",
+      "legacy_destination": "global::sol_eclipse_where",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::sol_eclipse_where",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "sol_eclipse_how",
+      "v1_signature": "pub fn sol_eclipse_how( jd_ut: f64, flags: i32, longitude: f64, latitude: f64, altitude: f64, ) -> Result<SolarEclipseCircumstances, Error>",
+      "source": "src/events.rs",
+      "legacy_destination": "global::sol_eclipse_how",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::sol_eclipse_how",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "lun_eclipse_how",
+      "v1_signature": "pub fn lun_eclipse_how( jd_ut: f64, flags: i32, observer: Option<(f64, f64, f64)>, ) -> Result<LunarEclipseCircumstances, Error>",
+      "source": "src/events.rs",
+      "legacy_destination": "global::lun_eclipse_how",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::lun_eclipse_how",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "sol_eclipse_when_loc",
+      "v1_signature": "pub fn sol_eclipse_when_loc( jd_start: f64, flags: i32, longitude: f64, latitude: f64, altitude: f64, backward: bool, ) -> Result<LocalSolarEclipse, Error>",
+      "source": "src/events.rs",
+      "legacy_destination": "global::sol_eclipse_when_loc",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::sol_eclipse_when_loc",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "lun_eclipse_when_loc",
+      "v1_signature": "pub fn lun_eclipse_when_loc( jd_start: f64, flags: i32, longitude: f64, latitude: f64, altitude: f64, backward: bool, ) -> Result<LocalLunarEclipse, Error>",
+      "source": "src/events.rs",
+      "legacy_destination": "global::lun_eclipse_when_loc",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::lun_eclipse_when_loc",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "lun_occult_when_glob",
+      "v1_signature": "pub fn lun_occult_when_glob( jd_start: f64, body: i32, star_name: Option<&str>, flags: i32, eclipse_type: i32, backward: bool, ) -> Result<GlobalOccultation, Error>",
+      "source": "src/events.rs",
+      "legacy_destination": "global::lun_occult_when_glob",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::lun_occult_when_glob",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "lun_occult_when_glob_with_options",
+      "v1_signature": "pub fn lun_occult_when_glob_with_options( jd_start: f64, body: i32, star_name: Option<&str>, flags: i32, eclipse_type: i32, search: OccultSearchOptions, ) -> Result<GlobalOccultation, Error>",
+      "source": "src/events.rs",
+      "legacy_destination": "native::lun_occult_when_glob_with_options",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": null,
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "lun_occult_when_loc",
+      "v1_signature": "pub fn lun_occult_when_loc( jd_start: f64, body: i32, star_name: Option<&str>, flags: i32, longitude: f64, latitude: f64, altitude: f64, backward: bool, ) -> Result<LocalOccultation, Error>",
+      "source": "src/events.rs",
+      "legacy_destination": "global::lun_occult_when_loc",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::lun_occult_when_loc",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "lun_occult_when_loc_with_options",
+      "v1_signature": "pub fn lun_occult_when_loc_with_options( jd_start: f64, body: i32, star_name: Option<&str>, flags: i32, longitude: f64, latitude: f64, altitude: f64, search: OccultSearchOptions, ) -> Result<LocalOccultation, Error>",
+      "source": "src/events.rs",
+      "legacy_destination": "native::lun_occult_when_loc_with_options",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": null,
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "lun_occult_where_full",
+      "v1_signature": "pub fn lun_occult_where_full( jd_ut: f64, body: i32, star_name: Option<&str>, flags: i32, ) -> Result<OccultationGeometryFull, Error>",
+      "source": "src/events.rs",
+      "legacy_destination": "native::lun_occult_where_full",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": null,
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "lun_occult_where",
+      "v1_signature": "pub fn lun_occult_where( jd_ut: f64, body: i32, star: Option<&str>, flags: i32, ) -> Result<OccultationGeometry, Error>",
+      "source": "src/events.rs",
+      "legacy_destination": "global::lun_occult_where",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::lun_occult_where",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "heliacal_ut",
+      "v1_signature": "pub fn heliacal_ut( jd_start_ut: f64, longitude: f64, latitude: f64, altitude: f64, atmosphere: [f64; HELIACAL_ATM_LEN], observer: [f64; HELIACAL_OBS_LEN], object: &str, event_type: i32, helflag: i32, ) -> Result<HeliacalEvent, Error>",
+      "source": "src/events.rs",
+      "legacy_destination": "global::heliacal_ut",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::heliacal_ut",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "heliacal_pheno_ut_full",
+      "v1_signature": "pub fn heliacal_pheno_ut_full( jd_ut: f64, longitude: f64, latitude: f64, altitude: f64, atmosphere: [f64; HELIACAL_ATM_LEN], observer: [f64; HELIACAL_OBS_LEN], object: &str, event_type: i32, helflag: i32, ) -> Result<HeliacalPhenomenaFull, Error>",
+      "source": "src/events.rs",
+      "legacy_destination": "native::heliacal_pheno_ut_full",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": null,
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "heliacal_pheno_ut",
+      "v1_signature": "pub fn heliacal_pheno_ut( jd_ut: f64, longitude: f64, latitude: f64, altitude: f64, atmosphere: [f64; HELIACAL_ATM_LEN], observer: [f64; HELIACAL_OBS_LEN], object: &str, event_type: i32, helflag: i32, ) -> Result<HeliacalPhenomena, Error>",
+      "source": "src/events.rs",
+      "legacy_destination": "global::heliacal_pheno_ut",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::heliacal_pheno_ut",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "vis_limit_mag",
+      "v1_signature": "pub fn vis_limit_mag( jd_ut: f64, longitude: f64, latitude: f64, altitude: f64, atmosphere: [f64; HELIACAL_ATM_LEN], observer: [f64; HELIACAL_OBS_LEN], object: &str, helflag: i32, ) -> Result<VisibilityOutcome, Error>",
+      "source": "src/events.rs",
+      "legacy_destination": "global::vis_limit_mag",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::vis_limit_mag",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "vis_limit_mag_full",
+      "v1_signature": "pub fn vis_limit_mag_full( jd_ut: f64, longitude: f64, latitude: f64, altitude: f64, atmosphere: [f64; HELIACAL_ATM_LEN], observer: [f64; HELIACAL_OBS_LEN], object: &str, helflag: i32, ) -> Result<VisibilityFull, Error>",
+      "source": "src/events.rs",
+      "legacy_destination": "native::vis_limit_mag_full",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": null,
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "houses",
+      "v1_signature": "pub fn houses(jd_ut: f64, latitude: f64, longitude: f64, hsys: u8) -> Result<Houses, Error>",
+      "source": "src/houses.rs",
+      "legacy_destination": "global::houses",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::houses",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "houses_ex",
+      "v1_signature": "pub fn houses_ex( jd_ut: f64, flags: i32, latitude: f64, longitude: f64, hsys: u8, ) -> Result<Houses, Error>",
+      "source": "src/houses.rs",
+      "legacy_destination": "global::houses_ex",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::houses_ex",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "houses_ex2",
+      "v1_signature": "pub fn houses_ex2( jd_ut: f64, flags: i32, latitude: f64, longitude: f64, hsys: u8, ) -> Result<HousesWithSpeeds, Error>",
+      "source": "src/houses.rs",
+      "legacy_destination": "global::houses_ex2",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::houses_ex2",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "houses_gauquelin",
+      "v1_signature": "pub fn houses_gauquelin( jd_ut: f64, flags: i32, latitude: f64, longitude: f64, ) -> Result<GauquelinSectors, Error>",
+      "source": "src/houses.rs",
+      "legacy_destination": "global::houses_gauquelin",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::houses_gauquelin",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "houses_armc",
+      "v1_signature": "pub fn houses_armc(armc: f64, latitude: f64, eps: f64, hsys: u8) -> Result<Houses, Error>",
+      "source": "src/houses.rs",
+      "legacy_destination": "global::houses_armc",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::houses_armc",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "houses_armc_ex2",
+      "v1_signature": "pub fn houses_armc_ex2( armc: f64, latitude: f64, eps: f64, hsys: u8, sun_declination: f64, ) -> Result<HousesWithSpeeds, Error>",
+      "source": "src/houses.rs",
+      "legacy_destination": "global::houses_armc_ex2",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::houses_armc_ex2",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "house_pos",
+      "v1_signature": "pub fn house_pos( armc: f64, latitude: f64, eps: f64, hsys: u8, longitude: f64, latitude_body: f64, ) -> Result<HousePosition, Error>",
+      "source": "src/houses.rs",
+      "legacy_destination": "global::house_pos",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::house_pos",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "house_name",
+      "v1_signature": "pub fn house_name(hsys: u8) -> String",
+      "source": "src/houses.rs",
+      "legacy_destination": "native::house_name",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "house_name",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "gauquelin_sector",
+      "v1_signature": "pub fn gauquelin_sector( jd_ut: f64, body: i32, star_name: Option<&str>, flags: i32, method: i32, longitude: f64, latitude: f64, altitude: f64, atpress: f64, attemp: f64, ) -> Result<GauquelinSector, Error>",
+      "source": "src/houses.rs",
+      "legacy_destination": "global::gauquelin_sector",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::gauquelin_sector",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "nod_aps",
+      "v1_signature": "pub fn nod_aps(jd_et: f64, body: i32, flags: i32, method: i32) -> Result<NodesApsides, Error>",
+      "source": "src/observer.rs",
+      "legacy_destination": "global::nod_aps",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::nod_aps",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "nod_aps_ut",
+      "v1_signature": "pub fn nod_aps_ut(jd_ut: f64, body: i32, flags: i32, method: i32) -> Result<NodesApsides, Error>",
+      "source": "src/observer.rs",
+      "legacy_destination": "global::nod_aps_ut",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::nod_aps_ut",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "rise_trans",
+      "v1_signature": "pub fn rise_trans( jd_ut: f64, body: i32, star_name: Option<&str>, epheflag: i32, rsmi: i32, longitude: f64, latitude: f64, altitude: f64, atpress: f64, attemp: f64, ) -> Result<RiseTransitOutcome, Error>",
+      "source": "src/observer.rs",
+      "legacy_destination": "global::rise_trans",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::rise_trans",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "rise_trans_true_hor",
+      "v1_signature": "pub fn rise_trans_true_hor( jd_ut: f64, body: i32, star_name: Option<&str>, epheflag: i32, rsmi: i32, longitude: f64, latitude: f64, altitude: f64, atpress: f64, attemp: f64, horhgt: f64, ) -> Result<RiseTransitOutcome, Error>",
+      "source": "src/observer.rs",
+      "legacy_destination": "global::rise_trans_true_hor",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::rise_trans_true_hor",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "azalt",
+      "v1_signature": "pub fn azalt( jd_ut: f64, calc_flag: i32, longitude: f64, latitude: f64, altitude: f64, atpress: f64, attemp: f64, lon_or_ra: f64, lat_or_dec: f64, ) -> Result<Horizontal, Error>",
+      "source": "src/observer.rs",
+      "legacy_destination": "global::azalt",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::azalt",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "azalt_rev",
+      "v1_signature": "pub fn azalt_rev( jd_ut: f64, calc_flag: i32, longitude: f64, latitude: f64, altitude: f64, azimuth: f64, true_altitude: f64, ) -> Result<Celestial, Error>",
+      "source": "src/observer.rs",
+      "legacy_destination": "global::azalt_rev",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::azalt_rev",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "refrac",
+      "v1_signature": "pub fn refrac(altitude: f64, atpress: f64, attemp: f64, calc_flag: i32) -> Result<f64, Error>",
+      "source": "src/observer.rs",
+      "legacy_destination": "global::refrac",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::refrac",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "refrac_extended",
+      "v1_signature": "pub fn refrac_extended( altitude: f64, geoalt: f64, atpress: f64, attemp: f64, lapse_rate: f64, calc_flag: i32, ) -> Result<Refraction, Error>",
+      "source": "src/observer.rs",
+      "legacy_destination": "global::refrac_extended",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::refrac_extended",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "set_lapse_rate",
+      "v1_signature": "pub fn set_lapse_rate(lapse_rate: f64) -> Result<(), Error>",
+      "source": "src/observer.rs",
+      "legacy_destination": "global::set_lapse_rate",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": null,
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "pheno",
+      "v1_signature": "pub fn pheno(jd_et: f64, body: i32, flags: i32) -> Result<Phenomena, Error>",
+      "source": "src/observer.rs",
+      "legacy_destination": "global::pheno",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::pheno",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "pheno_ut",
+      "v1_signature": "pub fn pheno_ut(jd_ut: f64, body: i32, flags: i32) -> Result<Phenomena, Error>",
+      "source": "src/observer.rs",
+      "legacy_destination": "global::pheno_ut",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::pheno_ut",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "get_orbital_elements",
+      "v1_signature": "pub fn get_orbital_elements(jd_et: f64, body: i32, flags: i32) -> Result<OrbitalElements, Error>",
+      "source": "src/observer.rs",
+      "legacy_destination": "global::get_orbital_elements",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::get_orbital_elements",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "orbit_max_min_true_distance",
+      "v1_signature": "pub fn orbit_max_min_true_distance( jd_et: f64, body: i32, flags: i32, ) -> Result<DistanceExtremes, Error>",
+      "source": "src/observer.rs",
+      "legacy_destination": "global::orbit_max_min_true_distance",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::orbit_max_min_true_distance",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "calc_ut",
+      "v1_signature": "pub fn calc_ut(jd_ut: f64, body: i32, flags: i32) -> Result<Position, Error>",
+      "source": "src/positions.rs",
+      "legacy_destination": "global::calc_ut",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::calc_ut",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "calc",
+      "v1_signature": "pub fn calc(jd_et: f64, body: i32, flags: i32) -> Result<Position, Error>",
+      "source": "src/positions.rs",
+      "legacy_destination": "global::calc",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::calc",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "calc_pctr",
+      "v1_signature": "pub fn calc_pctr(jd_et: f64, body: i32, center: i32, flags: i32) -> Result<Position, Error>",
+      "source": "src/positions.rs",
+      "legacy_destination": "global::calc_pctr",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::calc_pctr",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "get_planet_name",
+      "v1_signature": "pub fn get_planet_name(body: i32) -> Result<String, Error>",
+      "source": "src/positions.rs",
+      "legacy_destination": "global::get_planet_name",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::get_planet_name",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "require_source_flags",
+      "v1_signature": "pub fn require_source_flags(position: &Position, requested_flags: i32) -> Result<(), Error>",
+      "source": "src/positions.rs",
+      "legacy_destination": "native::require_source_flags",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": null,
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "fixstar",
+      "v1_signature": "pub fn fixstar(star: &str, jd_et: f64, flags: i32) -> Result<StarPosition, Error>",
+      "source": "src/stars.rs",
+      "legacy_destination": "global::fixstar",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::fixstar",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "fixstar_ut",
+      "v1_signature": "pub fn fixstar_ut(star: &str, jd_ut: f64, flags: i32) -> Result<StarPosition, Error>",
+      "source": "src/stars.rs",
+      "legacy_destination": "global::fixstar_ut",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::fixstar_ut",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "fixstar2",
+      "v1_signature": "pub fn fixstar2(star: &str, jd_et: f64, flags: i32) -> Result<StarPosition, Error>",
+      "source": "src/stars.rs",
+      "legacy_destination": "global::fixstar2",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::fixstar2",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "fixstar2_ut",
+      "v1_signature": "pub fn fixstar2_ut(star: &str, jd_ut: f64, flags: i32) -> Result<StarPosition, Error>",
+      "source": "src/stars.rs",
+      "legacy_destination": "global::fixstar2_ut",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::fixstar2_ut",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "fixstar_mag",
+      "v1_signature": "pub fn fixstar_mag(star: &str) -> Result<StarMagnitude, Error>",
+      "source": "src/stars.rs",
+      "legacy_destination": "global::fixstar_mag",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::fixstar_mag",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "fixstar2_mag",
+      "v1_signature": "pub fn fixstar2_mag(star: &str) -> Result<StarMagnitude, Error>",
+      "source": "src/stars.rs",
+      "legacy_destination": "global::fixstar2_mag",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::fixstar2_mag",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "fixed_star_catalog",
+      "v1_signature": "pub fn fixed_star_catalog() -> Result<Vec<StarMagnitude>, Error>",
+      "source": "src/stars.rs",
+      "legacy_destination": "native::fixed_star_catalog",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": null,
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "julday",
+      "v1_signature": "pub fn julday(year: i32, month: i32, day: i32, hour: f64, cal: Calendar) -> f64",
+      "source": "src/time.rs",
+      "legacy_destination": "native::julday",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "julday",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "revjul",
+      "v1_signature": "pub fn revjul(jd: f64, cal: Calendar) -> Result<CalendarDate, crate::Error>",
+      "source": "src/time.rs",
+      "legacy_destination": "native::revjul",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "revjul",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "utc_to_jd",
+      "v1_signature": "pub fn utc_to_jd( year: i32, month: i32, day: i32, hour: i32, minute: i32, second: f64, cal: Calendar, ) -> Result<JulDays, Error>",
+      "source": "src/time.rs",
+      "legacy_destination": "global::utc_to_jd",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::utc_to_jd",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "jdet_to_utc",
+      "v1_signature": "pub fn jdet_to_utc(jd_et: f64, cal: Calendar) -> Result<UtcDateTime, Error>",
+      "source": "src/time.rs",
+      "legacy_destination": "global::jdet_to_utc",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::jdet_to_utc",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "jdut1_to_utc",
+      "v1_signature": "pub fn jdut1_to_utc(jd_ut: f64, cal: Calendar) -> Result<UtcDateTime, Error>",
+      "source": "src/time.rs",
+      "legacy_destination": "global::jdut1_to_utc",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::jdut1_to_utc",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "utc_time_zone",
+      "v1_signature": "pub fn utc_time_zone( year: i32, month: i32, day: i32, hour: i32, minute: i32, second: f64, timezone_hours: f64, ) -> Result<UtcDateTime, Error>",
+      "source": "src/time.rs",
+      "legacy_destination": "native::utc_time_zone",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "utc_time_zone",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "date_conversion",
+      "v1_signature": "pub fn date_conversion( year: i32, month: i32, day: i32, hour: f64, cal: Calendar, ) -> Result<f64, Error>",
+      "source": "src/time.rs",
+      "legacy_destination": "native::date_conversion",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "date_conversion",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "day_of_week",
+      "v1_signature": "pub fn day_of_week(jd: f64) -> Result<i32, Error>",
+      "source": "src/time.rs",
+      "legacy_destination": "native::day_of_week",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "day_of_week",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "deltat",
+      "v1_signature": "pub fn deltat(jd_ut: f64) -> Result<f64, Error>",
+      "source": "src/time.rs",
+      "legacy_destination": "global::deltat",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::deltat",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "deltat_ex",
+      "v1_signature": "pub fn deltat_ex(jd_ut: f64, flags: i32) -> Result<DeltaT, Error>",
+      "source": "src/time.rs",
+      "legacy_destination": "global::deltat_ex",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::deltat_ex",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "time_equ",
+      "v1_signature": "pub fn time_equ(jd_ut: f64) -> Result<EquationOfTime, Error>",
+      "source": "src/time.rs",
+      "legacy_destination": "global::time_equ",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::time_equ",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "lmt_to_lat",
+      "v1_signature": "pub fn lmt_to_lat(jd_lmt: f64, longitude: f64) -> Result<LocalTime, Error>",
+      "source": "src/time.rs",
+      "legacy_destination": "global::lmt_to_lat",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::lmt_to_lat",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "lat_to_lmt",
+      "v1_signature": "pub fn lat_to_lmt(jd_lat: f64, longitude: f64) -> Result<LocalTime, Error>",
+      "source": "src/time.rs",
+      "legacy_destination": "global::lat_to_lmt",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::lat_to_lmt",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "sidtime",
+      "v1_signature": "pub fn sidtime(jd_ut: f64) -> Result<f64, Error>",
+      "source": "src/time.rs",
+      "legacy_destination": "global::sidtime",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::sidtime",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "sidtime0",
+      "v1_signature": "pub fn sidtime0(jd_ut: f64, obliquity_eps: f64, nutation_lon: f64) -> Result<f64, Error>",
+      "source": "src/time.rs",
+      "legacy_destination": "global::sidtime0",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": "Session::sidtime0",
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "version",
+      "v1_signature": "pub fn version() -> Result<String, crate::Error>",
+      "source": "src/version.rs",
+      "legacy_destination": "native::version",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": null,
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    },
+    {
+      "name": "library_path",
+      "v1_signature": "pub fn library_path() -> Result<String, crate::Error>",
+      "source": "src/version.rs",
+      "legacy_destination": "native::library_path",
+      "legacy_signature_policy": "unchanged",
+      "primary_destination": null,
+      "status": "original-extension-signature-preserved",
+      "mapping_note": "Original definition retained at its explicit SDK destination; primary operation mapping is pinned independently."
+    }
+  ]
+}

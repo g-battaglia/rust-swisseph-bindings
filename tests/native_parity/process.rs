@@ -537,7 +537,7 @@ pub fn self_test(executable: &Path, oracle: &Path, cwd: &Path) -> Result<(), Str
             Duration::from_secs(2),
             Request {
                 op: super::registry::Op::RequireSourceFlags as u32,
-                ints: vec![swisseph_bindings::FLG_MOSEPH],
+                ints: vec![swisseph_bindings::native::FLG_MOSEPH],
                 ..Request::default()
             },
             "source policy requires an earlier successful position",

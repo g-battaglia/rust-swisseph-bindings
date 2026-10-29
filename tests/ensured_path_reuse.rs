@@ -1,7 +1,12 @@
 //! Guarded free-operation setup reuses the session path rules without changing explicit setters.
 //! All reference positions remain in memory in isolated single-test children.
 #![cfg(unix)]
-use swisseph_bindings::*;
+use swisseph_bindings::native::*;
+use swisseph_bindings::native::{
+    global::calc_ut, global::close, global::get_current_file_data, global::get_tid_acc,
+    global::set_ephe_path, global::set_tid_acc, native::MAX_EPHE_PATH_LEN,
+    native::ensure_ephe_path, native::require_source_flags,
+};
 #[path = "support/isolated.rs"]
 mod isolated;
 #[path = "data_dir.rs"]
@@ -43,9 +48,9 @@ fn ensured_path_reads_match_direct_native_calls() {
     for jd in [JD, 2440000.5] {
         for body in [MARS, MOON] {
             for flags in [
-                FLG_SWIEPH | swisseph_bindings::FLG_SPEED,
-                FLG_SWIEPH | swisseph_bindings::FLG_EQUATORIAL,
-                swisseph_bindings::FLG_MOSEPH | swisseph_bindings::FLG_SPEED,
+                FLG_SWIEPH | swisseph_bindings::native::FLG_SPEED,
+                FLG_SWIEPH | swisseph_bindings::native::FLG_EQUATORIAL,
+                swisseph_bindings::native::FLG_MOSEPH | swisseph_bindings::native::FLG_SPEED,
             ] {
                 let mut values = [0.0; 6];
                 let mut diagnostic = [0 as std::ffi::c_char; 256];

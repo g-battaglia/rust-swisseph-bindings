@@ -6,14 +6,14 @@
 //! Assertions are structural (ranges, ordering, error classification,
 //! same-engine consistency), never stored reference vectors.
 
-use swisseph_bindings::{
+use swisseph_bindings::native::{
     EVENING_FIRST, EVENING_LAST, ErrorKind, FLG_MOSEPH, FLG_SWIEPH, HELFLAG_AVKIND_VR,
     HELFLAG_BELOW_HORIZON, HELFLAG_HIGH_PRECISION, HELFLAG_LONG_SEARCH, HELFLAG_MIXED,
     HELFLAG_NO_DETAILS, HELFLAG_OPTICAL_PARAMS, HELFLAG_PHOTOPIC, HELFLAG_SCOTOPIC,
     HELFLAG_SEARCH_1_PERIOD, HELFLAG_VISLIM_DARK, HELFLAG_VISLIM_NOMOON, HELFLAG_VISLIM_PHOTOPIC,
     HELFLAG_VISLIM_SCOTOPIC, HELIACAL_RISING, HELIACAL_SETTING, MIXEDOPIC_FLAG, MORNING_FIRST,
-    MORNING_LAST, PHOTOPIC_FLAG, SCOTOPIC_FLAG, TJD_INVALID, VisibilityOutcome, heliacal_pheno_ut,
-    heliacal_ut, set_ephe_path, vis_limit_mag,
+    MORNING_LAST, PHOTOPIC_FLAG, SCOTOPIC_FLAG, TJD_INVALID, VisibilityOutcome,
+    global::heliacal_pheno_ut, global::heliacal_ut, global::set_ephe_path, global::vis_limit_mag,
 };
 
 #[path = "data_dir.rs"]
@@ -560,10 +560,10 @@ fn avkind_search_rejects_native_internal_buffer_defect() {
     // binding must not clear flags or silently choose a different model.
     for flags in [
         HELFLAG_AVKIND_VR,
-        swisseph_bindings::HELFLAG_AVKIND_PTO,
-        swisseph_bindings::HELFLAG_AVKIND_MIN7,
-        swisseph_bindings::HELFLAG_AVKIND_MIN9,
-        swisseph_bindings::HELFLAG_AVKIND,
+        swisseph_bindings::native::HELFLAG_AVKIND_PTO,
+        swisseph_bindings::native::HELFLAG_AVKIND_MIN7,
+        swisseph_bindings::native::HELFLAG_AVKIND_MIN9,
+        swisseph_bindings::native::HELFLAG_AVKIND,
     ] {
         let error = heliacal_ut(
             J2000,

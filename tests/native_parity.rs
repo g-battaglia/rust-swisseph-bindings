@@ -474,9 +474,9 @@ fn driver() -> Result<(), String> {
         c.set_deadline(Duration::from_secs(session_budget));
         rust.set_deadline(Duration::from_secs(session_budget));
         let source = if matches!(options.profile, Profile::Smoke) {
-            swisseph_bindings::FLG_MOSEPH
+            swisseph_bindings::native::FLG_MOSEPH
         } else {
-            swisseph_bindings::FLG_SWIEPH
+            swisseph_bindings::native::FLG_SWIEPH
         };
         let session = session_driver::run(
             &mut c,

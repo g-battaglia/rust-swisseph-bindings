@@ -1,9 +1,16 @@
 //! Optional file snapshots must not change native computation or other owners.
+#[path = "support/isolated.rs"]
+mod isolated;
 
-use swisseph_bindings::{FLG_MOSEPH, MOON, SessionBuilder, houses_ex2};
+use swisseph_bindings::native::{FLG_MOSEPH, MOON, SessionBuilder, global::houses_ex2};
 
 #[test]
 fn disabled_file_capture_preserves_native_houses_and_independent_snapshots() {
+    if !isolated::without_ephe_override(
+        "disabled_file_capture_preserves_native_houses_and_independent_snapshots",
+    ) {
+        return;
+    }
     let mut builder = SessionBuilder::new();
     builder.default_ephe_path().sid_mode(1, 0.0, 0.0);
     if let Ok(path) = std::env::var("SWISSEPH_EPHE_DIR") {
@@ -73,16 +80,16 @@ fn disabled_file_capture_preserves_native_houses_and_independent_snapshots() {
 
     // With explicitly selected data, also require a populated owned snapshot.
     let flags = if std::env::var_os("SWISSEPH_EPHE_DIR").is_some() {
-        swisseph_bindings::FLG_SWIEPH
+        swisseph_bindings::native::FLG_SWIEPH
     } else {
         FLG_MOSEPH
     };
     let result = observed.calc_ut(2451545.0, MOON, flags).unwrap();
-    swisseph_bindings::require_source_flags(&result, flags).unwrap();
+    swisseph_bindings::native::require_source_flags(&result, flags).unwrap();
     let before: Vec<_> = (0..5)
         .map(|slot| observed.get_current_file_data(slot).unwrap())
         .collect();
-    if flags == swisseph_bindings::FLG_SWIEPH {
+    if flags == swisseph_bindings::native::FLG_SWIEPH {
         assert!(
             before.iter().any(Option::is_some),
             "explicit data must populate a snapshot"
@@ -111,16 +118,21 @@ fn disabled_file_capture_preserves_native_houses_and_independent_snapshots() {
     reenabled.calc_ut(2451545.0, MOON, flags).unwrap();
     assert!(
         (0..5).all(|slot| reenabled.get_current_file_data(slot).unwrap()
-            == swisseph_bindings::get_current_file_data(slot).unwrap()),
+            == swisseph_bindings::global::get_current_file_data(slot).unwrap()),
         "reenabling capture must restore the default snapshot contract"
     );
 }
 
 #[test]
 fn selected_file_slots_preserve_native_positions_and_owned_provenance() {
-    use swisseph_bindings::{
+    if !isolated::without_ephe_override(
+        "selected_file_slots_preserve_native_positions_and_owned_provenance",
+    ) {
+        return;
+    }
+    use swisseph_bindings::native::{
         CHIRON, EARTH, FLG_EQUATORIAL, FLG_SIDEREAL, FLG_SPEED, FLG_SWIEPH, JUPITER, MERCURY,
-        PLUTO, SUN, calc_ut, get_current_file_data, require_source_flags,
+        PLUTO, SUN, global::calc_ut, global::get_current_file_data, native::require_source_flags,
     };
 
     let path = std::env::var("SWISSEPH_EPHE_DIR").expect("explicit native data directory");

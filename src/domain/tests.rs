@@ -4,11 +4,13 @@
 
 use std::ffi::{CStr, CString, c_char};
 
-use crate::{Calendar, Error, ErrorKind, Position, ffi, test_data};
+use crate::legacy::{Calendar, Error, ErrorKind, Position};
+use crate::{ffi, test_data};
 
 const BCE: f64 = 1705183.2503587962;
 const MODERN: f64 = 2451545.0;
-const MASK: i32 = crate::FLG_SWIEPH | crate::FLG_MOSEPH | crate::FLG_JPLEPH;
+const MASK: i32 =
+    crate::constants::FLG_SWIEPH | crate::constants::FLG_MOSEPH | crate::constants::FLG_JPLEPH;
 
 #[derive(Clone, Copy)]
 struct Configuration {
@@ -22,11 +24,13 @@ fn configure(path: &CString, configuration: Configuration) {
     // agrees with the native state on every side of each comparison.
     unsafe { ffi::swe_close() };
     crate::config::apply_ephe_path_locked(Some(path)).expect("install native data path");
-    crate::config::apply_sid_mode_locked(crate::SIDM_FAGAN_BRADLEY, 0.0, 0.0)
+    crate::config::apply_sid_mode_locked(crate::constants::SIDM_FAGAN_BRADLEY, 0.0, 0.0)
         .expect("install tracked sidereal state");
     crate::config::apply_tid_acc_locked(configuration.tidal).expect("install tidal state");
     crate::config::apply_delta_t_locked(
-        configuration.delta_t.unwrap_or(crate::SE_DELTAT_AUTOMATIC),
+        configuration
+            .delta_t
+            .unwrap_or(crate::constants::SE_DELTAT_AUTOMATIC),
     )
     .expect("install Delta-T state");
 }
@@ -72,7 +76,7 @@ fn former_guard(jd: f64, flags: i32) -> Result<(), f64> {
         return Ok(());
     }
     let mut result = Ok(());
-    for source in [crate::FLG_SWIEPH, crate::FLG_MOSEPH] {
+    for source in [crate::constants::FLG_SWIEPH, crate::constants::FLG_MOSEPH] {
         if let Err(rejected) = check_calendar(jd + delta_t(jd, (flags & !MASK) | source)) {
             result = Err(rejected);
             break;
@@ -225,7 +229,7 @@ fn ut_guard_matches_independent_native_sequence() {
     ];
     let configurations = [
         Configuration {
-            tidal: crate::SE_TIDAL_AUTOMATIC,
+            tidal: crate::constants::SE_TIDAL_AUTOMATIC,
             delta_t: None,
         },
         Configuration {
@@ -233,7 +237,7 @@ fn ut_guard_matches_independent_native_sequence() {
             delta_t: None,
         },
         Configuration {
-            tidal: crate::SE_TIDAL_AUTOMATIC,
+            tidal: crate::constants::SE_TIDAL_AUTOMATIC,
             delta_t: Some(0.0),
         },
         Configuration {
@@ -242,14 +246,16 @@ fn ut_guard_matches_independent_native_sequence() {
         },
     ];
     let flags = [
-        crate::FLG_SWIEPH | crate::FLG_SPEED,
-        crate::FLG_SWIEPH | crate::FLG_SPEED | crate::FLG_EQUATORIAL,
-        crate::FLG_SWIEPH | crate::FLG_SPEED | crate::FLG_SIDEREAL,
-        crate::FLG_MOSEPH | crate::FLG_SPEED,
-        crate::FLG_JPLEPH | crate::FLG_SPEED,
-        crate::FLG_SPEED,
-        crate::FLG_SWIEPH | crate::FLG_MOSEPH | crate::FLG_SPEED,
-        crate::FLG_SWIEPH | crate::FLG_JPLEPH | crate::FLG_SPEED,
+        crate::constants::FLG_SWIEPH | crate::constants::FLG_SPEED,
+        crate::constants::FLG_SWIEPH
+            | crate::constants::FLG_SPEED
+            | crate::constants::FLG_EQUATORIAL,
+        crate::constants::FLG_SWIEPH | crate::constants::FLG_SPEED | crate::constants::FLG_SIDEREAL,
+        crate::constants::FLG_MOSEPH | crate::constants::FLG_SPEED,
+        crate::constants::FLG_JPLEPH | crate::constants::FLG_SPEED,
+        crate::constants::FLG_SPEED,
+        crate::constants::FLG_SWIEPH | crate::constants::FLG_MOSEPH | crate::constants::FLG_SPEED,
+        crate::constants::FLG_SWIEPH | crate::constants::FLG_JPLEPH | crate::constants::FLG_SPEED,
     ];
     crate::state::with_native_access(|| {
         for (path_index, path) in paths.iter().enumerate() {
@@ -257,18 +263,25 @@ fn ut_guard_matches_independent_native_sequence() {
                 for jd in [BCE, MODERN] {
                     for flags in flags {
                         guard_case(path, configuration, jd, flags);
-                        for body in [crate::SUN, crate::MOON, crate::MARS, crate::ECL_NUT, -999] {
+                        for body in [
+                            crate::constants::SUN,
+                            crate::constants::MOON,
+                            crate::constants::MARS,
+                            crate::constants::ECL_NUT,
+                            -999,
+                        ] {
                             configure(path, configuration);
                             assert!(former_guard(jd, flags).is_ok(), "admitted native input");
                             let expected = native_position(jd, body, flags);
                             if jd == MODERN
-                                && body == crate::MOON
-                                && flags == (crate::FLG_SWIEPH | crate::FLG_SPEED)
+                                && body == crate::constants::MOON
+                                && flags
+                                    == (crate::constants::FLG_SWIEPH | crate::constants::FLG_SPEED)
                             {
                                 let source = if path_index == 0 {
-                                    crate::FLG_SWIEPH
+                                    crate::constants::FLG_SWIEPH
                                 } else {
-                                    crate::FLG_MOSEPH
+                                    crate::constants::FLG_MOSEPH
                                 };
                                 assert!(
                                     expected.status & MASK == source,
@@ -278,8 +291,8 @@ fn ut_guard_matches_independent_native_sequence() {
                             let expected_tidal = tidal_bits();
                             let following = native_position(
                                 jd + 0.25,
-                                crate::MOON,
-                                crate::FLG_MOSEPH | crate::FLG_SPEED,
+                                crate::constants::MOON,
+                                crate::constants::FLG_MOSEPH | crate::constants::FLG_SPEED,
                             );
                             let following_tidal = tidal_bits();
                             configure(path, configuration);
@@ -293,8 +306,8 @@ fn ut_guard_matches_independent_native_sequence() {
                             compare_position(expected, actual);
                             let actual_following = crate::positions::calc_ut_locked(
                                 jd + 0.25,
-                                crate::MOON,
-                                crate::FLG_MOSEPH | crate::FLG_SPEED,
+                                crate::constants::MOON,
+                                crate::constants::FLG_MOSEPH | crate::constants::FLG_SPEED,
                             );
                             compare_position(following, actual_following);
                             assert!(
@@ -308,20 +321,11 @@ fn ut_guard_matches_independent_native_sequence() {
         }
         // Pin Delta-T for extreme calendar edges: do not ask astronomical
         // date models to operate beyond their own arithmetic preconditions.
-        let first = crate::julday(i32::MIN, 1, 1, 0.0, Calendar::Gregorian).max(crate::julday(
-            i32::MIN,
-            1,
-            1,
-            0.0,
-            Calendar::Julian,
-        ));
-        let end = crate::julday(i32::MAX, 12, 31, 24.0, Calendar::Gregorian).min(crate::julday(
-            i32::MAX,
-            12,
-            31,
-            24.0,
-            Calendar::Julian,
-        ));
+        let first = crate::time::julday(i32::MIN, 1, 1, 0.0, Calendar::Gregorian)
+            .max(crate::time::julday(i32::MIN, 1, 1, 0.0, Calendar::Julian));
+        let end = crate::time::julday(i32::MAX, 12, 31, 24.0, Calendar::Gregorian).min(
+            crate::time::julday(i32::MAX, 12, 31, 24.0, Calendar::Julian),
+        );
         for flags in flags.into_iter().chain([-1]) {
             for (jd, shift) in [
                 (first.next_down(), 0.0),
@@ -338,7 +342,7 @@ fn ut_guard_matches_independent_native_sequence() {
                 guard_case(
                     &paths[0],
                     Configuration {
-                        tidal: crate::SE_TIDAL_AUTOMATIC,
+                        tidal: crate::constants::SE_TIDAL_AUTOMATIC,
                         delta_t: Some(shift),
                     },
                     jd,

@@ -8,9 +8,10 @@
 //! flag provenance, error classification, same-engine consistency), never
 //! stored reference vectors.
 
-use swisseph_bindings::{
+use swisseph_bindings::native::{
     AST_OFFSET, CERES, CUPIDO, ECL_NUT, ErrorKind, FLG_JPLEPH, FLG_MOSEPH, FLG_SPEED, FLG_SWIEPH,
-    Position, SUN, calc_ut, get_planet_name, require_source_flags, set_ephe_path,
+    Position, SUN, global::calc_ut, global::get_planet_name, global::set_ephe_path,
+    native::require_source_flags,
 };
 
 #[path = "data_dir.rs"]

@@ -3,7 +3,7 @@
 //! These checks bound integer conversions and configured time shifts;
 //! astronomical results and all source selection remain native.
 
-use crate::{Calendar, Error, FLG_JPLEPH, FLG_MOSEPH, FLG_SWIEPH};
+use crate::legacy::{Calendar, Error, FLG_JPLEPH, FLG_MOSEPH, FLG_SWIEPH};
 
 /// Bound observer-dependent light-time dates before native calendar
 /// conversions. The conservative ceiling is i32::MAX AU in metres,
@@ -11,7 +11,7 @@ use crate::{Calendar, Error, FLG_JPLEPH, FLG_MOSEPH, FLG_SWIEPH};
 /// time in days and the calendar-year limits. Geographic heights and
 /// near-Earth space observers remain far inside this arithmetic ceiling.
 pub(crate) fn check_observer_height(function: &str, altitude: f64) -> Result<(), Error> {
-    let ceiling = f64::from(i32::MAX) * crate::AUNIT_TO_KM * 1000.0;
+    let ceiling = f64::from(i32::MAX) * crate::constants::AUNIT_TO_KM * 1000.0;
     if !altitude.is_finite() || altitude.abs() > ceiling {
         return Err(Error::invalid_input(format!(
             "{function}: observer height exceeds the topocentric arithmetic limit of ±{ceiling} metres"
@@ -33,7 +33,7 @@ pub(crate) fn check_et(function: &str, jd: f64) -> Result<(), Error> {
 /// Caller holds native access across this check and the computation.
 pub(crate) fn check_et_locked(function: &str, jd: f64, flags: i32) -> Result<(), Error> {
     check_et(function, jd)?;
-    if flags & crate::FLG_SIDEREAL != 0 {
+    if flags & crate::constants::FLG_SIDEREAL != 0 {
         crate::config::check_sidereal_epoch_locked(function, flags)?;
     }
     Ok(())
@@ -81,7 +81,7 @@ pub(crate) fn check_ut_date_locked(function: &str, jd: f64, flags: i32) -> Resul
 /// Caller holds native access throughout the dependent computation.
 pub(crate) fn check_ut_locked(function: &str, jd: f64, flags: i32) -> Result<(), Error> {
     check_ut_date_locked(function, jd, flags)?;
-    if flags != -1 && flags & crate::FLG_SIDEREAL != 0 {
+    if flags != -1 && flags & crate::constants::FLG_SIDEREAL != 0 {
         crate::config::check_sidereal_epoch_locked(function, flags)?;
     }
     Ok(())

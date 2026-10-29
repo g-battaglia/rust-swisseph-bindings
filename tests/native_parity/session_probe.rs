@@ -7,7 +7,8 @@
 use super::protocol::{Record, Request};
 use super::registry::Op;
 use std::sync::{Arc, Barrier};
-use swisseph_bindings::*;
+use swisseph_bindings::native::*;
+use swisseph_bindings::native::{global::close, global::set_topo};
 
 /// Private request ID for one family of session computations and its two C
 /// baselines. It is not a public binding operation or a fictitious C symbol.

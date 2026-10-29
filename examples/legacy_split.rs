@@ -4,7 +4,9 @@
 //! complete typed results. Fractional seconds are emitted as f64 bits so callers
 //! can compare exact values in memory without rounding a decimal conversion.
 use std::io::{self, BufRead};
-use swisseph_bindings::{SplitDeg, set_sid_mode, split_deg, split_deg_2_10_03};
+use swisseph_bindings::native::{
+    SplitDeg, global::set_sid_mode, native::split_deg, native::split_deg_2_10_03,
+};
 
 fn words(value: SplitDeg) -> String {
     format!(

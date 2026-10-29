@@ -3,7 +3,11 @@
 //! results, diagnostics and reference arrays remain in memory only.
 
 use std::ffi::{CStr, CString, c_char};
-use swisseph_bindings::*;
+use swisseph_bindings::native::*;
+use swisseph_bindings::native::{
+    global::close, global::set_ephe_path, global::set_sid_mode, native::close_preserving_path,
+    native::set_jpl_file,
+};
 
 #[path = "support/isolated.rs"]
 mod isolated;

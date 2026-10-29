@@ -9,12 +9,13 @@
 //! structural (ranges, flag provenance, error classification, same-engine
 //! consistency), never stored reference vectors.
 
-use swisseph_bindings::{
+use swisseph_bindings::native::{
     Calendar, ErrorKind, FLG_ASTROMETRIC, FLG_BARYCTR, FLG_EQUATORIAL, FLG_HELCTR, FLG_J2000,
     FLG_JPLEPH, FLG_MOSEPH, FLG_NOABERR, FLG_NOGDEFL, FLG_NONUT, FLG_RADIANS, FLG_SPEED,
     FLG_SPEED3, FLG_SWIEPH, FLG_TRUEPOS, FLG_XYZ, MARS, MOON, SE_TIDAL_AUTOMATIC, SE_TIDAL_DE421,
-    SE_TIDAL_DE431, SE_TIDAL_DEFAULT, SUN, calc, calc_pctr, deltat, deltat_ex, get_tid_acc, julday,
-    set_delta_t_userdef, set_ephe_path, set_jpl_file, set_tid_acc,
+    SE_TIDAL_DE431, SE_TIDAL_DEFAULT, SUN, global::calc, global::calc_pctr, global::deltat,
+    global::deltat_ex, global::get_tid_acc, global::set_delta_t_userdef, global::set_ephe_path,
+    global::set_tid_acc, native::julday, native::set_jpl_file,
 };
 
 #[path = "data_dir.rs"]

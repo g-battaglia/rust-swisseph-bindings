@@ -5,7 +5,13 @@ use std::process::Command;
 use std::sync::Mutex;
 
 static CONFIGURATION: Mutex<()> = Mutex::new(());
-use swisseph_bindings::*;
+use swisseph_bindings::native::*;
+use swisseph_bindings::native::{
+    global::calc_ut, global::heliacal_ut, global::set_delta_t_userdef, global::set_ephe_path,
+    global::vis_limit_mag, native::heliacal_pheno_ut_full, native::lun_occult_where_full,
+    native::require_source_flags, native::set_jpl_file, native::sol_eclipse_where_full,
+    native::version, native::vis_limit_mag_full,
+};
 
 /// Build the independent caller against the archive used by this Cargo target.
 fn oracle() -> PathBuf {
@@ -382,4 +388,124 @@ fn complete_visibility_buffer_matches_native_c() {
         !data.is_empty(),
         fingerprint(&archive)
     );
+}
+
+/// The closed primary route retains full native channels, not legacy subsets.
+#[test]
+fn primary_geography_heliacal_and_visibility_preserve_full_c_transports() {
+    let _configuration = CONFIGURATION.lock().unwrap();
+    let data = std::env::var("SWISSEPH_EPHE_DIR").expect("select identified primary output data");
+    for name in ["sepl_18.se1", "semo_18.se1", "seas_18.se1", "sefstars.txt"] {
+        assert_eq!(fingerprint(&Path::new(&data).join(name)).len(), 64);
+    }
+    let session = primary_session(SessionBuilder::new().ephe_path(&data)).unwrap();
+    let bin = oracle();
+    fn original(error: swisseph_bindings::Error) -> Error {
+        use std::error::Error as _;
+        assert_eq!(error.kind(), swisseph_bindings::ErrorKind::Calculation);
+        assert!(error.native_status().is_some());
+        error
+            .source()
+            .unwrap()
+            .downcast_ref::<Error>()
+            .expect("genuine native cause")
+            .clone()
+    }
+    for flags in [FLG_MOSEPH, FLG_SWIEPH] {
+        for jd in [2451545.0, 2457987.28, 2460409.28] {
+            compare(
+                &bin,
+                &data,
+                "solar",
+                jd,
+                flags,
+                session
+                    .sol_eclipse_where(jd, flags)
+                    .map(|v| {
+                        (
+                            v.status,
+                            v.geography.into_iter().chain(v.attributes).collect(),
+                            v.diagnostic.unwrap(),
+                        )
+                    })
+                    .map_err(original),
+            );
+            compare(
+                &bin,
+                &data,
+                "occult",
+                jd,
+                flags,
+                session
+                    .lun_occult_where(jd, &swisseph_bindings::Target::Body(SUN), flags)
+                    .map(|v| {
+                        (
+                            v.status,
+                            v.geography.into_iter().chain(v.attributes).collect(),
+                            v.diagnostic.unwrap(),
+                        )
+                    })
+                    .map_err(original),
+            );
+            compare(
+                &bin,
+                &data,
+                "heliacal-event",
+                jd,
+                flags,
+                session
+                    .heliacal_ut(
+                        jd,
+                        [0.0, 51.5, 0.0],
+                        [0.0; 4],
+                        [0.0; 6],
+                        "Venus",
+                        HELIACAL_RISING,
+                        flags,
+                    )
+                    .map(|v| (v.status.unwrap(), v.values, v.diagnostic.unwrap()))
+                    .map_err(original),
+            );
+            let (status, expected, text) = visibility_oracle(&bin, &data, flags, jd, "Venus");
+            let v = session
+                .vis_limit_mag(jd, [0.0, 51.5, 0.0], [0.0; 4], [0.0; 6], "Venus", flags)
+                .unwrap();
+            assert_eq!(v.status, Some(status));
+            assert_eq!(v.scalar, None);
+            assert_eq!(v.diagnostic.as_deref(), Some(text.as_str()));
+            assert!(
+                v.values
+                    .iter()
+                    .zip(expected)
+                    .all(|(a, b)| a.to_bits() == b.to_bits())
+            );
+        }
+    }
+    for jd in [2451545.0, 2457987.28, 2460409.28] {
+        compare(
+            &bin,
+            &data,
+            "heliacal",
+            jd,
+            0,
+            session
+                .heliacal_pheno_ut(
+                    jd,
+                    [0.0, 45.0, 0.0],
+                    [1013.25, 15.0, 40.0, 0.0],
+                    [36.0, 1.0, 0.0, 0.0, 0.0, 0.0],
+                    "Venus",
+                    HELIACAL_RISING,
+                    0,
+                )
+                .map(|v| {
+                    (
+                        v.status.unwrap(),
+                        v.values.into_iter().collect(),
+                        v.diagnostic.unwrap(),
+                    )
+                })
+                .map_err(original),
+        );
+    }
 }

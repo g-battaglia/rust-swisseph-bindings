@@ -4,7 +4,7 @@
 //! expected vectors, residuals or upstream fixtures are generated here.
 use super::cases::{Case, step};
 use super::registry::Op;
-use swisseph_bindings::*;
+use swisseph_bindings::native::*;
 
 /// Replay seed for the owned xorshift64* input generator (not native results).
 pub const SEED: u64 = 0x7377_6973_735f_7631;

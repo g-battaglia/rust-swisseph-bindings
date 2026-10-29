@@ -5,7 +5,7 @@ use super::process::Worker;
 use super::protocol::{Record, Request};
 use super::registry::Op;
 use super::session_probe::{PROBE, PROVENANCE, configuration};
-use swisseph_bindings::*;
+use swisseph_bindings::native::*;
 
 /// Exact executed Session totals, kept separate from free-function inventory.
 #[derive(Default)]

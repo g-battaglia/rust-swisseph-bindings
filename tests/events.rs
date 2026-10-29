@@ -8,15 +8,17 @@
 //! classification, same-engine consistency), never stored reference
 //! vectors.
 
-use swisseph_bindings::{
+use swisseph_bindings::native::{
     ECL_1ST_VISIBLE, ECL_2ND_VISIBLE, ECL_3RD_VISIBLE, ECL_4TH_VISIBLE, ECL_ALLTYPES_LUNAR,
     ECL_ALLTYPES_SOLAR, ECL_ANNULAR, ECL_ANNULAR_TOTAL, ECL_CENTRAL, ECL_HYBRID, ECL_MAX_VISIBLE,
     ECL_NONCENTRAL, ECL_OCC_BEG_DAYLIGHT, ECL_OCC_END_DAYLIGHT, ECL_ONE_TRY, ECL_PARTBEG_VISIBLE,
     ECL_PARTEND_VISIBLE, ECL_PARTIAL, ECL_PENUMBBEG_VISIBLE, ECL_PENUMBEND_VISIBLE, ECL_PENUMBRAL,
     ECL_TOTAL, ECL_TOTBEG_VISIBLE, ECL_TOTEND_VISIBLE, ECL_VISIBLE, ErrorKind, FLG_HELCTR,
-    FLG_MOSEPH, FLG_SWIEPH, MARS, MOON, SUN, calc, helio_cross, helio_cross_ut, lun_eclipse_how,
-    lun_eclipse_when, mooncross, mooncross_node, mooncross_node_ut, mooncross_ut, set_ephe_path,
-    sol_eclipse_how, sol_eclipse_when_glob, sol_eclipse_where, solcross, solcross_ut,
+    FLG_MOSEPH, FLG_SWIEPH, MARS, MOON, SUN, global::calc, global::helio_cross,
+    global::helio_cross_ut, global::lun_eclipse_how, global::lun_eclipse_when, global::mooncross,
+    global::mooncross_node, global::mooncross_node_ut, global::mooncross_ut, global::set_ephe_path,
+    global::sol_eclipse_how, global::sol_eclipse_when_glob, global::sol_eclipse_where,
+    global::solcross, global::solcross_ut,
 };
 
 #[path = "data_dir.rs"]

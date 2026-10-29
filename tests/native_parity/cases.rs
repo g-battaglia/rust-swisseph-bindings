@@ -4,7 +4,7 @@
 //! conversion/search inputs are explicitly Rust-only steps, never C requests.
 use super::protocol::Request;
 use super::registry::Op;
-use swisseph_bindings::*;
+use swisseph_bindings::native::*;
 
 /// J2000 is an input epoch, not a captured reference result.
 const J2000: f64 = 2451545.0;

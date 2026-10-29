@@ -30,10 +30,12 @@ fn warm_file_snapshots_reuse_owned_path_storage() {
     }
     let data = test_data::ephemeris_dir().expect("complete external ephemeris data");
     let session = SessionBuilder::new().ephe_path(&data).build().unwrap();
-    let flags = crate::FLG_SWIEPH | crate::FLG_SPEED;
-    let first = session.calc_ut(2451545.0, crate::MARS, flags).unwrap();
+    let flags = crate::constants::FLG_SWIEPH | crate::constants::FLG_SPEED;
+    let first = session
+        .calc_ut(2451545.0, crate::constants::MARS, flags)
+        .unwrap();
     assert_ne!(
-        first.returned_flags & crate::FLG_SWIEPH,
+        first.returned_flags & crate::constants::FLG_SWIEPH,
         0,
         "file source required"
     );
@@ -45,9 +47,11 @@ fn warm_file_snapshots_reuse_owned_path_storage() {
     let before = snapshot_storage(&session);
     assert!(before[0].is_some());
     let cloned = session.clone();
-    let next = cloned.calc_ut(2451546.0, crate::MARS, flags).unwrap();
+    let next = cloned
+        .calc_ut(2451546.0, crate::constants::MARS, flags)
+        .unwrap();
     assert_ne!(
-        next.returned_flags & crate::FLG_SWIEPH,
+        next.returned_flags & crate::constants::FLG_SWIEPH,
         0,
         "file source required"
     );
@@ -72,10 +76,12 @@ fn copied_file_paths_reuse_capacity_and_remain_owned_snapshot_bytes() {
     }
     let data = test_data::ephemeris_dir().expect("complete external ephemeris data");
     let session = SessionBuilder::new().ephe_path(&data).build().unwrap();
-    let flags = crate::FLG_SWIEPH | crate::FLG_SPEED;
-    let first = session.calc_ut(2451545.0, crate::MARS, flags).unwrap();
+    let flags = crate::constants::FLG_SWIEPH | crate::constants::FLG_SPEED;
+    let first = session
+        .calc_ut(2451545.0, crate::constants::MARS, flags)
+        .unwrap();
     assert_ne!(
-        first.returned_flags & crate::FLG_SWIEPH,
+        first.returned_flags & crate::constants::FLG_SWIEPH,
         0,
         "file source required"
     );
@@ -97,9 +103,11 @@ fn copied_file_paths_reuse_capacity_and_remain_owned_snapshot_bytes() {
         Some(report.clone())
     );
     let clone = session.clone();
-    let second = clone.calc_ut(2451546.0, crate::MARS, flags).unwrap();
+    let second = clone
+        .calc_ut(2451546.0, crate::constants::MARS, flags)
+        .unwrap();
     assert_ne!(
-        second.returned_flags & crate::FLG_SWIEPH,
+        second.returned_flags & crate::constants::FLG_SWIEPH,
         0,
         "file source required"
     );
@@ -108,9 +116,11 @@ fn copied_file_paths_reuse_capacity_and_remain_owned_snapshot_bytes() {
     assert_eq!((output.as_ptr(), output.capacity()), storage);
     assert_eq!(output, &report.path);
 
-    let moon = clone.calc_ut(2451546.0, crate::MOON, flags).unwrap();
+    let moon = clone
+        .calc_ut(2451546.0, crate::constants::MOON, flags)
+        .unwrap();
     assert_ne!(
-        moon.returned_flags & crate::FLG_SWIEPH,
+        moon.returned_flags & crate::constants::FLG_SWIEPH,
         0,
         "file source required"
     );
@@ -123,7 +133,7 @@ fn copied_file_paths_reuse_capacity_and_remain_owned_snapshot_bytes() {
     let output = path.as_ref().unwrap();
     assert_eq!((output.as_ptr(), output.capacity()), storage);
     assert_eq!(output, &moon_file.path);
-    crate::close().unwrap();
+    crate::global::close().unwrap();
     session.get_current_file_path_into(1, &mut path).unwrap();
     assert_eq!(path.as_deref(), Some(moon_file.path.as_str()));
 }
@@ -145,7 +155,7 @@ fn copied_file_paths_clear_empty_slots_and_preserve_target_on_invalid_slots() {
         let error = session
             .get_current_file_path_into(slot, &mut path)
             .unwrap_err();
-        assert_eq!(error.kind(), crate::ErrorKind::InvalidInput);
+        assert_eq!(error.kind(), crate::legacy::ErrorKind::InvalidInput);
         let path = path.as_ref().unwrap();
         assert_eq!(path, "retained path");
         assert_eq!((path.as_ptr(), path.capacity()), storage);
@@ -175,7 +185,7 @@ fn copied_file_paths_preserve_target_on_reentry_and_poisoned_locks() {
         let error = session
             .get_current_file_path_into(0, &mut path)
             .unwrap_err();
-        assert_eq!(error.kind(), crate::ErrorKind::InvalidInput);
+        assert_eq!(error.kind(), crate::legacy::ErrorKind::InvalidInput);
         Ok(())
     })
     .unwrap();
@@ -197,7 +207,7 @@ fn copied_file_paths_preserve_target_on_reentry_and_poisoned_locks() {
         let error = session
             .get_current_file_path_into(slot, &mut path)
             .unwrap_err();
-        assert_eq!(error.kind(), crate::ErrorKind::LockPoisoned);
+        assert_eq!(error.kind(), crate::legacy::ErrorKind::LockPoisoned);
         assert_eq!(path.as_deref(), Some("retained path"));
         assert_eq!(
             (
@@ -216,7 +226,7 @@ fn copied_file_paths_preserve_target_on_reentry_and_poisoned_locks() {
     assert!(caught.is_err());
     let clean = SessionBuilder::new().build().unwrap();
     let error = clean.get_current_file_path_into(0, &mut path).unwrap_err();
-    assert_eq!(error.kind(), crate::ErrorKind::LockPoisoned);
+    assert_eq!(error.kind(), crate::legacy::ErrorKind::LockPoisoned);
     assert_eq!(path.as_deref(), Some("retained path"));
     assert_eq!(
         (
@@ -235,7 +245,7 @@ fn owned_snapshot_projection_does_not_reenter_native_access() {
         return;
     }
     let session = SessionBuilder::new().build().unwrap();
-    session.file_data.lock().unwrap()[0] = Some(crate::CurrentFileData {
+    session.file_data.lock().unwrap()[0] = Some(crate::legacy::CurrentFileData {
         path: String::from("owned-snapshot.se1"),
         tfstart: 0.0,
         tfend: 1.0,
@@ -253,7 +263,7 @@ fn owned_snapshot_projection_does_not_reenter_native_access() {
                 .copy_captured_file_path_into(5, &mut target)
                 .unwrap_err()
                 .kind(),
-            crate::ErrorKind::InvalidInput,
+            crate::legacy::ErrorKind::InvalidInput,
         );
         assert_eq!(target.as_deref(), Some("unchanged-on-error"));
         Ok(())

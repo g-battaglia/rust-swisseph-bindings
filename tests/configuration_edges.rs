@@ -4,7 +4,14 @@
 
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
-use swisseph_bindings::*;
+use swisseph_bindings::native::*;
+use swisseph_bindings::native::{
+    global::calc, global::calc_ut, global::close, global::deltat, global::get_ayanamsa,
+    global::get_ayanamsa_ex, global::get_ayanamsa_ut, global::get_tid_acc, global::houses,
+    global::set_delta_t_userdef, global::set_ephe_path, global::set_sid_mode, global::set_tid_acc,
+    global::sidtime, global::solcross, global::solcross_ut, native::julday, native::library_path,
+    native::require_source_flags, native::version,
+};
 
 #[path = "support/isolated.rs"]
 mod isolated;

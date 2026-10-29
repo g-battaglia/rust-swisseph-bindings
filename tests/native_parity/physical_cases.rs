@@ -2,7 +2,7 @@
 //! legacy preflight; no hazardous extended lookup is sent directly to C.
 use super::cases::{Case, one, rejected, step};
 use super::registry::Op;
-use swisseph_bindings::*;
+use swisseph_bindings::native::*;
 
 /// File-free observer results, native absence/errors and safe boundary checks.
 /// Positions following observer-taking calls also check their native side effect.

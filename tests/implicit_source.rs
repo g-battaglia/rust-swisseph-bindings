@@ -1,7 +1,8 @@
 //! Implicit UT source selection must match an independent native C call.
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use swisseph_bindings::*;
+use swisseph_bindings::native::*;
+use swisseph_bindings::native::{global::calc_ut, global::set_ephe_path};
 
 /// Compile against the same identified archive and public C header.
 fn oracle() -> PathBuf {

@@ -2,7 +2,7 @@
 //! cap; quiet instants and one-try misses are data, not omitted test branches.
 use super::cases::{Case, one, rejected, step};
 use super::registry::Op;
-use swisseph_bindings::*;
+use swisseph_bindings::native::*;
 
 /// Input-only global/local events and their unsafe Rust-only boundaries.
 pub fn smoke() -> Vec<Case> {
@@ -127,7 +127,7 @@ pub fn smoke() -> Vec<Case> {
         step(LunOccultWhere, &[VENUS, FLG_MOSEPH], &[2451545.0], &[None]),
     ));
     cases.push(one(
-        "OCCULT_SELF_GEOMETRY_REJECTED".into(),
+        "OCCULT_SELF_GEOMETRY_SAFE_REJECTION".into(),
         "occultations",
         rejected(LunOccultWhere, &[MOON, FLG_MOSEPH], &[2451545.0], &[None]),
     ));

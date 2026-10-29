@@ -34,10 +34,10 @@ use crate::state::with_native_access;
 /// crosses the ecliptic plus its closest/farthest points from the Sun.
 ///
 /// Each vector holds six native components in the same layout as
-/// [`crate::Position`]: ecliptic longitude/latitude in degrees, distance
+/// [`crate::native::Position`]: ecliptic longitude/latitude in degrees, distance
 /// in AU, then the three matching daily rates when speeds were requested
 /// (`FLG_SPEED`, otherwise the rate slots are zero). With
-/// [`crate::NODBIT_FOPOINT`] the second focal point of the orbital
+/// [`crate::constants::NODBIT_FOPOINT`] the second focal point of the orbital
 /// ellipse is returned in `aphelion` instead of the aphelion.
 #[derive(Debug, Clone, PartialEq)]
 pub struct NodesApsides {
@@ -51,7 +51,7 @@ pub struct NodesApsides {
     pub aphelion: [f64; POSITION_LEN],
     /// Native return status echoed as an integer.
     ///
-    /// Unlike [`crate::Position::returned_flags`] this carries no
+    /// Unlike [`crate::native::Position::returned_flags`] this carries no
     /// ephemeris-source bits: the engine reports plain `OK` (0) here on
     /// success. It is preserved so callers can distinguish the native
     /// status from the input flags without re-issuing the call.
@@ -85,14 +85,14 @@ pub enum RiseTransitOutcome {
 
 /// Calculate nodes and apsides for an Ephemeris Time Julian Day.
 ///
-/// `body` is a body number (for example [`crate::MARS`]); `flags`
-/// combines the same source/geometry/output bits as [`crate::calc`]
+/// `body` is a body number (for example [`crate::constants::MARS`]); `flags`
+/// combines the same source/geometry/output bits as [`crate::global::calc`]
 /// (ephemeris flag, heliocentric, speed, ...). `method` selects the
-/// model: [`crate::NODBIT_MEAN`] (mean elements where defined, the
-/// default — also used when `method` is 0), [`crate::NODBIT_OSCU`]
+/// model: [`crate::constants::NODBIT_MEAN`] (mean elements where defined, the
+/// default — also used when `method` is 0), [`crate::constants::NODBIT_OSCU`]
 /// (osculating elements for every body),
-/// [`crate::NODBIT_OSCU_BAR`] (barycentric ellipse beyond Jupiter) and
-/// [`crate::NODBIT_FOPOINT`] (focal point in the aphelion slot,
+/// [`crate::constants::NODBIT_OSCU_BAR`] (barycentric ellipse beyond Jupiter) and
+/// [`crate::constants::NODBIT_FOPOINT`] (focal point in the aphelion slot,
 /// combinable with any other bit). Any integer passes through to the
 /// engine; there is no Rust-side method validation.
 ///
@@ -103,7 +103,7 @@ pub enum RiseTransitOutcome {
 /// # Configuration dependence
 ///
 /// File-based sources require data files visible through
-/// [`crate::set_ephe_path`]; the active configuration is captured under
+/// [`crate::global::set_ephe_path`]; the active configuration is captured under
 /// the process-wide native lock together with the computation.
 ///
 /// # Errors
@@ -116,12 +116,12 @@ pub enum RiseTransitOutcome {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, FLG_SPEED, MARS, NODBIT_MEAN, nod_aps};
+/// use swisseph_bindings::native::{FLG_MOSEPH, FLG_SPEED, MARS, NODBIT_MEAN, global::nod_aps};
 ///
 /// // The Moshier model needs no data files, so this runs anywhere.
 /// let nodes = nod_aps(2451545.0, MARS, FLG_MOSEPH | FLG_SPEED, NODBIT_MEAN)?;
 /// assert!((0.0..360.0).contains(&nodes.ascending[0]));
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -129,58 +129,70 @@ pub enum RiseTransitOutcome {
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 pub fn nod_aps(jd_et: f64, body: i32, flags: i32, method: i32) -> Result<NodesApsides, Error> {
     if !jd_et.is_finite() {
         return Err(Error::invalid_input("nod_aps: Julian Day must be finite"));
     }
-    with_native_access(|| {
-        crate::domain::check_et_locked("nod_aps", jd_et, flags)?;
-        let mut xnasc = [0.0; POSITION_LEN];
-        let mut xndsc = [0.0; POSITION_LEN];
-        let mut xperi = [0.0; POSITION_LEN];
-        let mut xaphe = [0.0; POSITION_LEN];
-        let mut serr = [0 as c_char; SERR_LEN];
-        // SAFETY: each vector owns POSITION_LEN writable f64 slots and
-        // `serr` owns SERR_LEN writable bytes; all outlive this call and
-        // no other thread can access native state while the lock is held.
-        // Results are only exposed after the native status is checked.
-        let ret = unsafe {
-            ffi::swe_nod_aps(
-                jd_et,
-                body,
-                flags,
-                method,
-                xnasc.as_mut_ptr(),
-                xndsc.as_mut_ptr(),
-                xperi.as_mut_ptr(),
-                xaphe.as_mut_ptr(),
-                serr.as_mut_ptr(),
-            )
-        };
-        // SAFETY: `serr` is our own fully initialized buffer; the read is
-        // bounded by SERR_LEN (see `read_native_text`).
-        let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
-        if ret < 0 {
-            Err(Error::native(describe_nodes_failure(
-                "nod_aps",
-                jd_et,
-                body,
-                flags,
-                method,
-                &diagnostic,
-            )))
-        } else {
-            Ok(NodesApsides {
-                ascending: xnasc,
-                descending: xndsc,
-                perihelion: xperi,
-                aphelion: xaphe,
-                returned_flags: ret,
-                diagnostic,
-            })
-        }
-    })
+    with_native_access(|| nod_aps_locked(jd_et, body, flags, method))
+}
+
+/// Compute TT nodes/apsides under caller-owned native access.
+/// The caller applies configuration and preserves the original ET admission,
+/// all four six-word arrays, integer status and bounded diagnostic. No public
+/// setter chain, second evaluation or change of clock is introduced.
+pub(crate) fn nod_aps_locked(
+    jd_et: f64,
+    body: i32,
+    flags: i32,
+    method: i32,
+) -> Result<NodesApsides, Error> {
+    crate::domain::check_et_locked("nod_aps", jd_et, flags)?;
+    let mut xnasc = [0.0; POSITION_LEN];
+    let mut xndsc = [0.0; POSITION_LEN];
+    let mut xperi = [0.0; POSITION_LEN];
+    let mut xaphe = [0.0; POSITION_LEN];
+    let mut serr = [0 as c_char; SERR_LEN];
+    // SAFETY: each vector owns POSITION_LEN writable f64 slots and
+    // `serr` owns SERR_LEN writable bytes; all outlive this call and
+    // no other thread can access native state while the lock is held.
+    // Results are only exposed after the native status is checked.
+    let ret = unsafe {
+        ffi::swe_nod_aps(
+            jd_et,
+            body,
+            flags,
+            method,
+            xnasc.as_mut_ptr(),
+            xndsc.as_mut_ptr(),
+            xperi.as_mut_ptr(),
+            xaphe.as_mut_ptr(),
+            serr.as_mut_ptr(),
+        )
+    };
+    // SAFETY: `serr` is our own fully initialized buffer; the read is
+    // bounded by SERR_LEN (see `read_native_text`).
+    let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
+    if ret < 0 {
+        Err(Error::native(describe_nodes_failure(
+            "nod_aps",
+            jd_et,
+            body,
+            flags,
+            method,
+            &diagnostic,
+        ))
+        .with_native_channels("nod_aps", Some(ret), None, Some(&diagnostic)))
+    } else {
+        Ok(NodesApsides {
+            ascending: xnasc,
+            descending: xndsc,
+            perihelion: xperi,
+            aphelion: xaphe,
+            returned_flags: ret,
+            diagnostic,
+        })
+    }
 }
 
 /// Calculate nodes and apsides for a Universal Time Julian Day.
@@ -192,11 +204,11 @@ pub fn nod_aps(jd_et: f64, body: i32, flags: i32, method: i32) -> Result<NodesAp
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, FLG_SPEED, MARS, NODBIT_MEAN, nod_aps_ut};
+/// use swisseph_bindings::native::{FLG_MOSEPH, FLG_SPEED, MARS, NODBIT_MEAN, global::nod_aps_ut};
 ///
 /// let nodes = nod_aps_ut(2451545.0, MARS, FLG_MOSEPH | FLG_SPEED, NODBIT_MEAN)?;
 /// assert!((0.0..360.0).contains(&nodes.perihelion[0]));
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -204,7 +216,7 @@ pub fn nod_aps(jd_et: f64, body: i32, flags: i32, method: i32) -> Result<NodesAp
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 pub fn nod_aps_ut(jd_ut: f64, body: i32, flags: i32, method: i32) -> Result<NodesApsides, Error> {
     if !jd_ut.is_finite() {
         return Err(Error::invalid_input(
@@ -255,7 +267,8 @@ pub(crate) fn nod_aps_ut_locked(
             flags,
             method,
             &diagnostic,
-        )))
+        ))
+        .with_native_channels("nod_aps_ut", Some(ret), None, Some(&diagnostic)))
     } else {
         Ok(NodesApsides {
             ascending: xnasc,
@@ -304,6 +317,38 @@ pub(crate) fn rise_trans_locked(
     atpress: f64,
     attemp: f64,
 ) -> Result<RiseTransitOutcome, Error> {
+    rise_trans_complete_locked(
+        jd_ut, body, star_name, epheflag, rsmi, longitude, latitude, altitude, atpress, attemp,
+    )
+    .map(|(outcome, _)| outcome)
+}
+
+/// Capture the real native status before projecting the legacy outcome.
+/// The caller holds native access for input checks, calculation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn rise_trans_complete_locked(
+    jd_ut: f64,
+    body: i32,
+    star_name: Option<&str>,
+    epheflag: i32,
+    rsmi: i32,
+    longitude: f64,
+    latitude: f64,
+    altitude: f64,
+    atpress: f64,
+    attemp: f64,
+) -> Result<(RiseTransitOutcome, i32), Error> {
+    check_rise_inputs(
+        "rise_trans",
+        jd_ut,
+        star_name,
+        longitude,
+        latitude,
+        altitude,
+        atpress,
+        attemp,
+        None,
+    )?;
     crate::domain::check_ut_locked("rise_trans", jd_ut, epheflag)?;
     // Caller-owned star buffer: the native call reads the name while
     // resolving a fixed star, and every access stays inside this buffer.
@@ -345,12 +390,15 @@ pub(crate) fn rise_trans_locked(
     // bounded by its capacity. Copied before the lock is released.
     let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
     if ret == 0 {
-        Ok(RiseTransitOutcome::Event {
-            time_ut: tret,
-            diagnostic,
-        })
+        Ok((
+            RiseTransitOutcome::Event {
+                time_ut: tret,
+                diagnostic,
+            },
+            ret,
+        ))
     } else if ret == -2 {
-        Ok(RiseTransitOutcome::Circumpolar { diagnostic })
+        Ok((RiseTransitOutcome::Circumpolar { diagnostic }, ret))
     } else {
         Err(Error::native(describe_rise_failure(
             "rise_trans",
@@ -358,7 +406,8 @@ pub(crate) fn rise_trans_locked(
             body,
             rsmi,
             &diagnostic,
-        )))
+        ))
+        .with_native_channels("rise_trans", Some(ret), None, Some(&diagnostic)))
     }
 }
 
@@ -401,25 +450,25 @@ pub(crate) fn check_rise_inputs(
 /// Search the next rising, setting or meridian transit after a
 /// Universal Time instant.
 ///
-/// `body` is a body number (for example [`crate::SUN`]); pass a star via
+/// `body` is a body number (for example [`crate::constants::SUN`]); pass a star via
 /// `star_name` (`Some` selects the fixed-star path, `None` the body
 /// path — an empty name behaves as `None` natively). `epheflag` carries
 /// the ephemeris source bits
 /// (`FLG_SWIEPH`/`FLG_JPLEPH`/`FLG_MOSEPH`). `rsmi` selects the event
-/// and its modifiers: [`crate::CALC_RISE`], [`crate::CALC_SET`],
-/// [`crate::CALC_MTRANSIT`], [`crate::CALC_ITRANSIT`], optionally
+/// and its modifiers: [`crate::constants::CALC_RISE`], [`crate::constants::CALC_SET`],
+/// [`crate::constants::CALC_MTRANSIT`], [`crate::constants::CALC_ITRANSIT`], optionally
 /// combined with disc/refraction/twilight bits
-/// ([`crate::BIT_DISC_CENTER`], [`crate::BIT_NO_REFRACTION`],
-/// [`crate::BIT_CIVIL_TWILIGHT`], ...; [`crate::BIT_HINDU_RISING`]
+/// ([`crate::constants::BIT_DISC_CENTER`], [`crate::constants::BIT_NO_REFRACTION`],
+/// [`crate::constants::BIT_CIVIL_TWILIGHT`], ...; [`crate::constants::BIT_HINDU_RISING`]
 /// selects the Hindu convention). `longitude`/`latitude`/`altitude`
 /// locate the observer (east-positive degrees, degrees north, meters);
 /// `atpress` (mbar, 0 = estimated from the altitude) and `attemp` (°C)
 /// feed refraction.
 ///
 /// Observer side effect: the native search installs this observer as the
-/// process-global observer (as if by [`crate::set_topo`]), so later
-/// topocentric [`crate::calc_ut`]/[`crate::calc`] calls observe it until
-/// [`crate::set_topo`] runs again. Established by probing the pinned
+/// process-global observer (as if by [`crate::global::set_topo`]), so later
+/// topocentric [`crate::global::calc_ut`]/[`crate::global::calc`] calls observe it until
+/// [`crate::global::set_topo`] runs again. Established by probing the pinned
 /// build.
 ///
 /// A found event reports its Universal Time Julian Day; a circumpolar
@@ -430,7 +479,7 @@ pub(crate) fn check_rise_inputs(
 /// # Configuration dependence
 ///
 /// File-based sources and the fixed-star path require data/catalog files
-/// visible through [`crate::set_ephe_path`]; the active configuration is
+/// visible through [`crate::global::set_ephe_path`]; the active configuration is
 /// captured under the process-wide native lock together with the search.
 ///
 /// # Errors
@@ -441,11 +490,11 @@ pub(crate) fn check_rise_inputs(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{CALC_RISE, FLG_SWIEPH, SUN, rise_trans};
+/// use swisseph_bindings::native::{CALC_RISE, FLG_SWIEPH, SUN, global::rise_trans};
 ///
 /// // Sunrise over Greenwich on 2000-01-01 (explicit external data, else
 /// // the checkout data, keeps this runnable).
-/// use swisseph_bindings::set_ephe_path;
+/// use swisseph_bindings::global::set_ephe_path;
 /// // Ephemeris data comes from an explicit external directory when set,
 /// // otherwise from the checkout data (doctests run with the package root
 /// // as the working directory); without either, there is nothing
@@ -457,8 +506,8 @@ pub(crate) fn check_rise_inputs(
 /// }
 /// set_ephe_path(Some(&data_dir))?;
 /// let outcome = rise_trans(2451544.5, SUN, None, FLG_SWIEPH, CALC_RISE, 0.0, 51.5, 0.0, 1013.25, 15.0)?;
-/// assert!(matches!(outcome, swisseph_bindings::RiseTransitOutcome::Event {.. }));
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// assert!(matches!(outcome, swisseph_bindings::native::RiseTransitOutcome::Event {.. }));
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -466,10 +515,10 @@ pub(crate) fn check_rise_inputs(
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 ///
 /// Observer height must satisfy the arithmetic ceiling documented by
-/// [`crate::set_topo`]; excessive height returns `InvalidInput` before
+/// [`crate::global::set_topo`]; excessive height returns `InvalidInput` before
 /// observer configuration or computation. Native geographic limits and
 /// data errors are still reported by the engine.
 #[allow(clippy::too_many_arguments)]
@@ -513,7 +562,7 @@ pub fn rise_trans(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{CALC_SET, FLG_SWIEPH, SUN, rise_trans_true_hor, set_ephe_path};
+/// use swisseph_bindings::native::{CALC_SET, FLG_SWIEPH, SUN, global::rise_trans_true_hor, global::set_ephe_path};
 ///
 /// // Ephemeris data comes from an explicit external directory when set,
 /// // otherwise from the checkout data (doctests run with the package root
@@ -526,8 +575,8 @@ pub fn rise_trans(
 /// }
 /// set_ephe_path(Some(&data_dir))?;
 /// let outcome = rise_trans_true_hor(2451544.5, SUN, None, FLG_SWIEPH, CALC_SET, 0.0, 51.5, 0.0, 1013.25, 15.0, 0.0)?;
-/// assert!(matches!(outcome, swisseph_bindings::RiseTransitOutcome::Event {.. }));
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// assert!(matches!(outcome, swisseph_bindings::native::RiseTransitOutcome::Event {.. }));
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -535,10 +584,10 @@ pub fn rise_trans(
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 ///
 /// Observer height must satisfy the arithmetic ceiling documented by
-/// [`crate::set_topo`]; excessive height returns `InvalidInput` before
+/// [`crate::global::set_topo`]; excessive height returns `InvalidInput` before
 /// observer configuration or computation. Native geographic limits and
 /// data errors are still reported by the engine.
 #[allow(clippy::too_many_arguments)]
@@ -573,6 +622,70 @@ pub fn rise_trans_true_hor(
         }
     }
     with_native_access(|| {
+        rise_trans_true_hor_locked(
+            jd_ut, body, star_name, epheflag, rsmi, longitude, latitude, altitude, atpress, attemp,
+            horhgt,
+        )
+    })
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn rise_trans_true_hor_locked(
+    jd_ut: f64,
+    body: i32,
+    star_name: Option<&str>,
+    epheflag: i32,
+    rsmi: i32,
+    longitude: f64,
+    latitude: f64,
+    altitude: f64,
+    atpress: f64,
+    attemp: f64,
+    horhgt: f64,
+) -> Result<RiseTransitOutcome, Error> {
+    rise_trans_true_hor_complete_locked(
+        jd_ut, body, star_name, epheflag, rsmi, longitude, latitude, altitude, atpress, attemp,
+        horhgt,
+    )
+    .map(|(outcome, _)| outcome)
+}
+
+/// Capture the real native status before projecting the legacy outcome.
+/// The caller holds native access for input checks, calculation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn rise_trans_true_hor_complete_locked(
+    jd_ut: f64,
+    body: i32,
+    star_name: Option<&str>,
+    epheflag: i32,
+    rsmi: i32,
+    longitude: f64,
+    latitude: f64,
+    altitude: f64,
+    atpress: f64,
+    attemp: f64,
+    horhgt: f64,
+) -> Result<(RiseTransitOutcome, i32), Error> {
+    check_rise_inputs(
+        "rise_trans_true_hor",
+        jd_ut,
+        star_name,
+        longitude,
+        latitude,
+        altitude,
+        atpress,
+        attemp,
+        Some(horhgt),
+    )?;
+    let mut star_buffer = [0 as c_char; TEXT_BUF_LEN];
+    if let Some(name) = star_name {
+        for (slot, byte) in star_buffer.iter_mut().zip(name.bytes()) {
+            *slot = byte as c_char;
+        }
+    }
+    {
         crate::domain::check_ut_locked("rise_trans_true_hor", jd_ut, epheflag)?;
         let geopos = [longitude, latitude, altitude];
         let mut tret = 0.0;
@@ -600,12 +713,15 @@ pub fn rise_trans_true_hor(
         // SAFETY: same contract as in [`rise_trans`].
         let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
         if ret == 0 {
-            Ok(RiseTransitOutcome::Event {
-                time_ut: tret,
-                diagnostic,
-            })
+            Ok((
+                RiseTransitOutcome::Event {
+                    time_ut: tret,
+                    diagnostic,
+                },
+                ret,
+            ))
         } else if ret == -2 {
-            Ok(RiseTransitOutcome::Circumpolar { diagnostic })
+            Ok((RiseTransitOutcome::Circumpolar { diagnostic }, ret))
         } else {
             Err(Error::native(describe_rise_failure(
                 "rise_trans_true_hor",
@@ -613,9 +729,15 @@ pub fn rise_trans_true_hor(
                 body,
                 rsmi,
                 &diagnostic,
-            )))
+            ))
+            .with_native_channels(
+                "rise_trans_true_hor",
+                Some(ret),
+                None,
+                Some(&diagnostic),
+            ))
         }
-    })
+    }
 }
 
 /// Build the error message for a failed rise/set/transit search, keeping
@@ -654,11 +776,11 @@ pub struct Horizontal {
 /// Celestial position as computed by [`azalt_rev`].
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Celestial {
-    /// Right ascension ([`crate::HOR2EQU`]) or ecliptic longitude
-    /// ([`crate::HOR2ECL`]) in degrees.
+    /// Right ascension ([`crate::constants::HOR2EQU`]) or ecliptic longitude
+    /// ([`crate::constants::HOR2ECL`]) in degrees.
     pub longitude_or_ra: f64,
-    /// Declination ([`crate::HOR2EQU`]) or ecliptic latitude
-    /// ([`crate::HOR2ECL`]) in degrees.
+    /// Declination ([`crate::constants::HOR2EQU`]) or ecliptic latitude
+    /// ([`crate::constants::HOR2ECL`]) in degrees.
     pub latitude_or_dec: f64,
 }
 
@@ -669,7 +791,7 @@ pub struct Celestial {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Refraction {
     /// Converted altitude in degrees: apparent altitude for
-    /// [`crate::TRUE_TO_APP`], true altitude for [`crate::APP_TO_TRUE`].
+    /// [`crate::constants::TRUE_TO_APP`], true altitude for [`crate::constants::APP_TO_TRUE`].
     pub converted: f64,
     /// True (geometric) altitude in degrees (input or computed).
     pub true_altitude: f64,
@@ -715,8 +837,8 @@ fn check_horizontal_inputs(
 /// Convert celestial coordinates to horizontal (azimuth/altitude) for a
 /// Universal Time instant and an explicit observer position.
 ///
-/// `calc_flag` selects the input frame: [`crate::ECL2HOR`] (ecliptic
-/// longitude/latitude) or [`crate::EQU2HOR`] (right ascension/
+/// `calc_flag` selects the input frame: [`crate::constants::ECL2HOR`] (ecliptic
+/// longitude/latitude) or [`crate::constants::EQU2HOR`] (right ascension/
 /// declination). Only those two values are defined; any other integer
 /// passes through to the engine with engine-defined behavior (probing the
 /// pinned build shows a nonzero flag taking the equatorial branch — rely
@@ -748,12 +870,12 @@ fn check_horizontal_inputs(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{EQU2HOR, azalt};
+/// use swisseph_bindings::native::{EQU2HOR, global::azalt};
 ///
 /// let h = azalt(2451545.0, EQU2HOR, 12.5, 41.9, 0.0, 1013.25, 15.0, 200.0, 60.0)?;
 /// assert!((0.0..360.0).contains(&h.azimuth));
 /// assert!(h.apparent_altitude >= h.true_altitude);
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -762,7 +884,7 @@ fn check_horizontal_inputs(
 /// shifts under the computation lock; violations return `InvalidInput`.
 ///
 /// Observer height must satisfy the arithmetic ceiling documented by
-/// [`crate::set_topo`]; excessive height returns `InvalidInput` before
+/// [`crate::global::set_topo`]; excessive height returns `InvalidInput` before
 /// observer configuration or computation. Native geographic limits and
 /// data errors are still reported by the engine.
 #[allow(clippy::too_many_arguments)]
@@ -781,6 +903,30 @@ pub fn azalt(
         "azalt", jd_ut, longitude, latitude, altitude, atpress, attemp, lon_or_ra, lat_or_dec,
     )?;
     with_native_access(|| {
+        azalt_locked(
+            jd_ut, calc_flag, longitude, latitude, altitude, atpress, attemp, lon_or_ra, lat_or_dec,
+        )
+    })
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn azalt_locked(
+    jd_ut: f64,
+    calc_flag: i32,
+    longitude: f64,
+    latitude: f64,
+    altitude: f64,
+    atpress: f64,
+    attemp: f64,
+    lon_or_ra: f64,
+    lat_or_dec: f64,
+) -> Result<Horizontal, Error> {
+    check_horizontal_inputs(
+        "azalt", jd_ut, longitude, latitude, altitude, atpress, attemp, lon_or_ra, lat_or_dec,
+    )?;
+    {
         crate::domain::check_ut_locked("azalt", jd_ut, -1)?;
         let geopos = [longitude, latitude, altitude];
         // The third input slot is engine-ignored (see `HORIZONTAL_LEN`);
@@ -806,15 +952,15 @@ pub fn azalt(
             true_altitude: xaz[1],
             apparent_altitude: xaz[2],
         })
-    })
+    }
 }
 
 /// Convert horizontal (azimuth/altitude) coordinates back to celestial
 /// coordinates for a Universal Time instant and an explicit observer
 /// position.
 ///
-/// `calc_flag` selects the output frame: [`crate::HOR2ECL`] (ecliptic
-/// longitude/latitude) or [`crate::HOR2EQU`] (right ascension/
+/// `calc_flag` selects the output frame: [`crate::constants::HOR2ECL`] (ecliptic
+/// longitude/latitude) or [`crate::constants::HOR2EQU`] (right ascension/
 /// declination); flag pass-through follows [`azalt`]. The observer
 /// arguments match [`azalt`]; `azimuth` uses the same from-South-westward
 /// convention as [`Horizontal::azimuth`], and `true_altitude` is the
@@ -831,13 +977,13 @@ pub fn azalt(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{EQU2HOR, HOR2EQU, azalt, azalt_rev};
+/// use swisseph_bindings::native::{EQU2HOR, HOR2EQU, global::azalt, global::azalt_rev};
 ///
 /// let h = azalt(2451545.0, EQU2HOR, 12.5, 41.9, 0.0, 0.0, 15.0, 200.0, 60.0)?;
 /// let c = azalt_rev(2451545.0, HOR2EQU, 12.5, 41.9, 0.0, h.azimuth, h.true_altitude)?;
 /// assert!((c.longitude_or_ra - 200.0).abs() < 1e-6);
 /// assert!((c.latitude_or_dec - 60.0).abs() < 1e-6);
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -846,7 +992,7 @@ pub fn azalt(
 /// shifts under the computation lock; violations return `InvalidInput`.
 ///
 /// Observer height must satisfy the arithmetic ceiling documented by
-/// [`crate::set_topo`]; excessive height returns `InvalidInput` before
+/// [`crate::global::set_topo`]; excessive height returns `InvalidInput` before
 /// observer configuration or computation. Native geographic limits and
 /// data errors are still reported by the engine.
 #[allow(clippy::too_many_arguments)]
@@ -871,6 +1017,42 @@ pub fn azalt_rev(
         true_altitude,
     )?;
     with_native_access(|| {
+        azalt_rev_locked(
+            jd_ut,
+            calc_flag,
+            longitude,
+            latitude,
+            altitude,
+            azimuth,
+            true_altitude,
+        )
+    })
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn azalt_rev_locked(
+    jd_ut: f64,
+    calc_flag: i32,
+    longitude: f64,
+    latitude: f64,
+    altitude: f64,
+    azimuth: f64,
+    true_altitude: f64,
+) -> Result<Celestial, Error> {
+    check_horizontal_inputs(
+        "azalt_rev",
+        jd_ut,
+        longitude,
+        latitude,
+        altitude,
+        0.0,
+        0.0,
+        azimuth,
+        true_altitude,
+    )?;
+    {
         crate::domain::check_ut_locked("azalt_rev", jd_ut, -1)?;
         let geopos = [longitude, latitude, altitude];
         let xin = [azimuth, true_altitude, 0.0];
@@ -890,13 +1072,13 @@ pub fn azalt_rev(
             longitude_or_ra: xout[0],
             latitude_or_dec: xout[1],
         })
-    })
+    }
 }
 
 /// Convert between true (geometric) and apparent altitude.
 ///
-/// `calc_flag` selects the direction: [`crate::TRUE_TO_APP`] adds
-/// refraction, [`crate::APP_TO_TRUE`] removes it. Only those two values
+/// `calc_flag` selects the direction: [`crate::constants::TRUE_TO_APP`] adds
+/// refraction, [`crate::constants::APP_TO_TRUE`] removes it. Only those two values
 /// are defined; any other integer passes through with engine-defined
 /// behavior. Zero pressure disables the correction (the input altitude is
 /// returned unchanged); every input must still be finite.
@@ -906,21 +1088,21 @@ pub fn azalt_rev(
 ///
 /// # Errors
 ///
-/// Non-finite inputs return [`crate::ErrorKind::InvalidInput`] before any
+/// Non-finite inputs return [`crate::native::ErrorKind::InvalidInput`] before any
 /// native call. Finite inputs are passed through without clamping; if the
-/// native result is non-finite, the binding returns [`crate::ErrorKind::Native`]
+/// native result is non-finite, the binding returns [`crate::native::ErrorKind::Native`]
 /// with a binding-generated diagnostic (this native API has no error buffer).
 /// Lock poisoning is reported separately.
 ///
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{TRUE_TO_APP, refrac};
+/// use swisseph_bindings::native::{TRUE_TO_APP, global::refrac};
 ///
 /// // Refraction lifts the apparent position at 10° by about 0.09°.
 /// let apparent = refrac(10.0, 1013.25, 15.0, TRUE_TO_APP)?;
 /// assert!((apparent - 10.0888).abs() < 1e-3);
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 pub fn refrac(altitude: f64, atpress: f64, attemp: f64, calc_flag: i32) -> Result<f64, Error> {
     if !altitude.is_finite() || !atpress.is_finite() || !attemp.is_finite() {
@@ -928,7 +1110,24 @@ pub fn refrac(altitude: f64, atpress: f64, attemp: f64, calc_flag: i32) -> Resul
             "refrac: altitude, pressure and temperature must be finite",
         ));
     }
-    with_native_access(|| {
+    with_native_access(|| refrac_locked(altitude, atpress, attemp, calc_flag))
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn refrac_locked(
+    altitude: f64,
+    atpress: f64,
+    attemp: f64,
+    calc_flag: i32,
+) -> Result<f64, Error> {
+    if !altitude.is_finite() || !atpress.is_finite() || !attemp.is_finite() {
+        return Err(Error::invalid_input(
+            "refrac: altitude, pressure and temperature must be finite",
+        ));
+    }
+    {
         // SAFETY: pure function of its arguments; no pointers involved.
         // It runs under the lock with the other atmospheric calls so a
         // concurrent `set_lapse_rate` cannot interleave mid-sequence.
@@ -936,10 +1135,11 @@ pub fn refrac(altitude: f64, atpress: f64, attemp: f64, calc_flag: i32) -> Resul
         if !converted.is_finite() {
             return Err(Error::native(
                 "refrac: native calculation produced a non-finite converted altitude",
-            ));
+            )
+            .with_native_channels("refrac", None, Some(converted), None));
         }
         Ok(converted)
-    })
+    }
 }
 
 /// Convert between true and apparent altitude with observer elevation
@@ -960,16 +1160,16 @@ pub fn refrac(altitude: f64, atpress: f64, attemp: f64, calc_flag: i32) -> Resul
 ///
 /// # Errors
 ///
-/// Non-finite inputs return [`crate::ErrorKind::InvalidInput`] before any
+/// Non-finite inputs return [`crate::native::ErrorKind::InvalidInput`] before any
 /// native call. Finite inputs are passed through without clamping; if the
-/// native result is non-finite, the binding returns [`crate::ErrorKind::Native`]
+/// native result is non-finite, the binding returns [`crate::native::ErrorKind::Native`]
 /// with a binding-generated diagnostic (this native API has no error buffer).
 /// Lock poisoning is reported separately.
 ///
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{TRUE_TO_APP, refrac_extended};
+/// use swisseph_bindings::native::{TRUE_TO_APP, global::refrac_extended};
 ///
 /// // Sea level: no horizon dip; refraction of about 0.087° at 10°.
 /// let r = refrac_extended(10.0, 0.0, 1013.25, 15.0, 0.0065, TRUE_TO_APP)?;
@@ -978,7 +1178,7 @@ pub fn refrac(altitude: f64, atpress: f64, attemp: f64, calc_flag: i32) -> Resul
 /// // At 1000 m the horizon dips by about 0.88°.
 /// let hi = refrac_extended(10.0, 1000.0, 1013.25, 15.0, 0.0065, TRUE_TO_APP)?;
 /// assert!(hi.dip < -0.8 && hi.dip > -1.0);
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 pub fn refrac_extended(
     altitude: f64,
@@ -999,6 +1199,32 @@ pub fn refrac_extended(
         ));
     }
     with_native_access(|| {
+        refrac_extended_locked(altitude, geoalt, atpress, attemp, lapse_rate, calc_flag)
+    })
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn refrac_extended_locked(
+    altitude: f64,
+    geoalt: f64,
+    atpress: f64,
+    attemp: f64,
+    lapse_rate: f64,
+    calc_flag: i32,
+) -> Result<Refraction, Error> {
+    if !altitude.is_finite()
+        || !geoalt.is_finite()
+        || !atpress.is_finite()
+        || !attemp.is_finite()
+        || !lapse_rate.is_finite()
+    {
+        return Err(Error::invalid_input(
+            "refrac_extended: altitude, observer altitude, pressure, temperature and lapse rate must be finite",
+        ));
+    }
+    {
         let mut dret = [0.0; REFRACTION_DETAILS_LEN];
         // SAFETY: `dret` owns four writable slots the engine fills
         // completely (established by probing); it outlives this call
@@ -1017,7 +1243,7 @@ pub fn refrac_extended(
         if !converted.is_finite() || dret.iter().any(|value| !value.is_finite()) {
             return Err(Error::native(
                 "refrac_extended: native calculation produced a non-finite converted altitude or detail",
-            ));
+            ).with_native_channels("refrac_extended", None, Some(converted), None));
         }
         Ok(Refraction {
             converted,
@@ -1026,7 +1252,7 @@ pub fn refrac_extended(
             refraction: dret[2],
             dip: dret[3],
         })
-    })
+    }
 }
 
 /// Apply a lapse rate while native access is already held.
@@ -1055,10 +1281,10 @@ pub(crate) fn apply_lapse_rate_locked(lapse_rate: f64) {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::set_lapse_rate;
+/// use swisseph_bindings::global::set_lapse_rate;
 ///
 /// set_lapse_rate(0.0065)?;
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 pub fn set_lapse_rate(lapse_rate: f64) -> Result<(), Error> {
     if !lapse_rate.is_finite() {
@@ -1090,7 +1316,7 @@ pub struct Phenomena {
     /// The twenty native output components; see the type documentation.
     pub values: [f64; PHENO_LEN],
     /// Flag set returned by the native call (source bits, as in
-    /// [`crate::Position::returned_flags`]).
+    /// [`crate::native::Position::returned_flags`]).
     pub returned_flags: i32,
     /// Native diagnostic text (`serr`); empty on a clean computation.
     pub diagnostic: String,
@@ -1125,15 +1351,15 @@ impl Phenomena {
 
 /// Compute planetary phenomena for an Ephemeris Time Julian Day.
 ///
-/// `body` is a body number (for example [`crate::MARS`]); `flags`
-/// combines the same source/geometry bits as [`crate::calc`]. There is
+/// `body` is a body number (for example [`crate::constants::MARS`]); `flags`
+/// combines the same source/geometry bits as [`crate::global::calc`]. There is
 /// no body-or-star union here: fixed-star phenomena are not a native
 /// operation.
 ///
 /// # Configuration dependence
 ///
 /// File-based sources require data files visible through
-/// [`crate::set_ephe_path`]; the active configuration is captured under
+/// [`crate::global::set_ephe_path`]; the active configuration is captured under
 /// the process-wide native lock together with the computation.
 ///
 /// # Errors
@@ -1146,12 +1372,12 @@ impl Phenomena {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, MARS, pheno};
+/// use swisseph_bindings::native::{FLG_MOSEPH, MARS, global::pheno};
 ///
 /// // The Moshier model needs no data files, so this runs anywhere.
 /// let ph = pheno(2451545.0, MARS, FLG_MOSEPH)?;
 /// assert!((0.0..1.0).contains(&ph.illuminated_fraction()));
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -1159,12 +1385,22 @@ impl Phenomena {
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 pub fn pheno(jd_et: f64, body: i32, flags: i32) -> Result<Phenomena, Error> {
     if !jd_et.is_finite() {
         return Err(Error::invalid_input("pheno: Julian Day must be finite"));
     }
-    with_native_access(|| {
+    with_native_access(|| pheno_locked(jd_et, body, flags))
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn pheno_locked(jd_et: f64, body: i32, flags: i32) -> Result<Phenomena, Error> {
+    if !jd_et.is_finite() {
+        return Err(Error::invalid_input("pheno: Julian Day must be finite"));
+    }
+    {
         crate::domain::check_et_locked("pheno", jd_et, flags)?;
         let mut attr = [0.0; PHENO_LEN];
         let mut serr = [0 as c_char; SERR_LEN];
@@ -1184,7 +1420,8 @@ pub fn pheno(jd_et: f64, body: i32, flags: i32) -> Result<Phenomena, Error> {
                 body,
                 flags,
                 &diagnostic,
-            )))
+            ))
+            .with_native_channels("pheno", Some(ret), None, Some(&diagnostic)))
         } else {
             Ok(Phenomena {
                 values: attr,
@@ -1192,7 +1429,7 @@ pub fn pheno(jd_et: f64, body: i32, flags: i32) -> Result<Phenomena, Error> {
                 diagnostic,
             })
         }
-    })
+    }
 }
 
 /// Compute planetary phenomena for a Universal Time Julian Day.
@@ -1203,11 +1440,11 @@ pub fn pheno(jd_et: f64, body: i32, flags: i32) -> Result<Phenomena, Error> {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, MARS, pheno_ut};
+/// use swisseph_bindings::native::{FLG_MOSEPH, MARS, global::pheno_ut};
 ///
 /// let ph = pheno_ut(2451545.0, MARS, FLG_MOSEPH)?;
 /// assert!((0.0..180.0).contains(&ph.elongation()));
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -1215,7 +1452,7 @@ pub fn pheno(jd_et: f64, body: i32, flags: i32) -> Result<Phenomena, Error> {
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 pub fn pheno_ut(jd_ut: f64, body: i32, flags: i32) -> Result<Phenomena, Error> {
     if !jd_ut.is_finite() {
         return Err(Error::invalid_input("pheno_ut: Julian Day must be finite"));
@@ -1245,7 +1482,8 @@ pub(crate) fn pheno_ut_locked(jd_ut: f64, body: i32, flags: i32) -> Result<Pheno
             body,
             flags,
             &diagnostic,
-        )))
+        ))
+        .with_native_channels("pheno_ut", Some(ret), None, Some(&diagnostic)))
     } else {
         Ok(Phenomena {
             values: attr,
@@ -1378,8 +1616,8 @@ impl OrbitalElements {
 /// Compute osculating Keplerian elements for an Ephemeris Time Julian
 /// Day.
 ///
-/// `body` is a body number (for example [`crate::MARS`]); `flags`
-/// combines the same source/geometry bits as [`crate::calc`]. The
+/// `body` is a body number (for example [`crate::constants::MARS`]); `flags`
+/// combines the same source/geometry bits as [`crate::global::calc`]. The
 /// elements describe the ellipse the body would follow if all
 /// perturbations ceased at that instant. There is no Universal Time
 /// variant natively — convert the epoch with the time functions first
@@ -1393,7 +1631,7 @@ impl OrbitalElements {
 ///
 /// # Configuration dependence
 ///
-/// Same contract as [`pheno`]: data files via [`crate::set_ephe_path`],
+/// Same contract as [`pheno`]: data files via [`crate::global::set_ephe_path`],
 /// configuration captured under the process-wide native lock.
 ///
 /// # Errors
@@ -1406,13 +1644,13 @@ impl OrbitalElements {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, MARS, get_orbital_elements};
+/// use swisseph_bindings::native::{FLG_MOSEPH, MARS, global::get_orbital_elements};
 ///
 /// // The Moshier model needs no data files, so this runs anywhere.
 /// let el = get_orbital_elements(2451545.0, MARS, FLG_MOSEPH)?;
 /// assert!((el.semi_major_axis_au() - 1.524).abs() < 0.01);
 /// assert!((el.eccentricity() - 0.093).abs() < 0.01);
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -1420,14 +1658,41 @@ impl OrbitalElements {
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 pub fn get_orbital_elements(jd_et: f64, body: i32, flags: i32) -> Result<OrbitalElements, Error> {
     if !jd_et.is_finite() {
         return Err(Error::invalid_input(
             "get_orbital_elements: Julian Day must be finite",
         ));
     }
-    with_native_access(|| {
+    with_native_access(|| get_orbital_elements_locked(jd_et, body, flags))
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn get_orbital_elements_locked(
+    jd_et: f64,
+    body: i32,
+    flags: i32,
+) -> Result<OrbitalElements, Error> {
+    get_orbital_elements_complete_locked(jd_et, body, flags).map(|(value, _, _)| value)
+}
+
+/// Preserve the actual native integer and diagnostic channels in one call.
+/// Caller holds native access; the legacy SDK projects only its original record.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn get_orbital_elements_complete_locked(
+    jd_et: f64,
+    body: i32,
+    flags: i32,
+) -> Result<(OrbitalElements, i32, Option<String>), Error> {
+    if !jd_et.is_finite() {
+        return Err(Error::invalid_input(
+            "get_orbital_elements: Julian Day must be finite",
+        ));
+    }
+    {
         crate::domain::check_et_locked("get_orbital_elements", jd_et, flags)?;
         let mut dret = [0.0; ORBEL_LEN];
         let mut serr = [0 as c_char; SERR_LEN];
@@ -1449,14 +1714,24 @@ pub fn get_orbital_elements(jd_et: f64, body: i32, flags: i32) -> Result<Orbital
                 body,
                 flags,
                 &diagnostic,
-            )))
+            ))
+            .with_native_channels(
+                "get_orbital_elements",
+                Some(ret),
+                None,
+                Some(&diagnostic),
+            ))
         } else {
-            Ok(OrbitalElements {
-                values: dret,
-                diagnostic,
-            })
+            Ok((
+                OrbitalElements {
+                    values: dret,
+                    diagnostic,
+                },
+                ret,
+                None,
+            ))
         }
-    })
+    }
 }
 
 /// Extreme and current geocentric distances as computed by
@@ -1497,12 +1772,12 @@ pub struct DistanceExtremes {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, MARS, orbit_max_min_true_distance};
+/// use swisseph_bindings::native::{FLG_MOSEPH, MARS, global::orbit_max_min_true_distance};
 ///
 /// // The Moshier model needs no data files, so this runs anywhere.
 /// let d = orbit_max_min_true_distance(2451545.0, MARS, FLG_MOSEPH)?;
 /// assert!(d.min_distance < d.true_distance && d.true_distance < d.max_distance);
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -1510,7 +1785,7 @@ pub struct DistanceExtremes {
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 pub fn orbit_max_min_true_distance(
     jd_et: f64,
     body: i32,
@@ -1521,7 +1796,34 @@ pub fn orbit_max_min_true_distance(
             "orbit_max_min_true_distance: Julian Day must be finite",
         ));
     }
-    with_native_access(|| {
+    with_native_access(|| orbit_max_min_true_distance_locked(jd_et, body, flags))
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn orbit_max_min_true_distance_locked(
+    jd_et: f64,
+    body: i32,
+    flags: i32,
+) -> Result<DistanceExtremes, Error> {
+    orbit_max_min_true_distance_complete_locked(jd_et, body, flags).map(|(value, _, _)| value)
+}
+
+/// Preserve the actual native integer and diagnostic channels in one call.
+/// Caller holds native access; the legacy SDK projects only its original record.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn orbit_max_min_true_distance_complete_locked(
+    jd_et: f64,
+    body: i32,
+    flags: i32,
+) -> Result<(DistanceExtremes, i32, Option<String>), Error> {
+    if !jd_et.is_finite() {
+        return Err(Error::invalid_input(
+            "orbit_max_min_true_distance: Julian Day must be finite",
+        ));
+    }
+    {
         crate::domain::check_et_locked("orbit_max_min_true_distance", jd_et, flags)?;
         let mut dmax = 0.0;
         let mut dmin = 0.0;
@@ -1552,16 +1854,26 @@ pub fn orbit_max_min_true_distance(
                 body,
                 flags,
                 &diagnostic,
-            )))
+            ))
+            .with_native_channels(
+                "orbit_max_min_true_distance",
+                Some(ret),
+                None,
+                Some(&diagnostic),
+            ))
         } else {
-            Ok(DistanceExtremes {
-                max_distance: dmax,
-                min_distance: dmin,
-                true_distance: dtrue,
-                diagnostic,
-            })
+            Ok((
+                DistanceExtremes {
+                    max_distance: dmax,
+                    min_distance: dmin,
+                    true_distance: dtrue,
+                    diagnostic,
+                },
+                ret,
+                None,
+            ))
         }
-    })
+    }
 }
 
 /// Build the error message for a failed phenomena/orbital computation,

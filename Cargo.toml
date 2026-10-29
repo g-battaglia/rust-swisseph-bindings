@@ -1,13 +1,14 @@
 [package]
 name = "rust-swisseph-bindings"
-version = "1.0.0"
+version = "2.0.0"
 edition = "2024"
 rust-version = "1.98.1"
 license = "AGPL-3.0-only"
-description = "Minimal Rust bindings to the original Swiss Ephemeris C library"
+description = "Rust bindings to the original Swiss Ephemeris C engine with owned sessions"
 readme = "README.md"
 repository = "https://github.com/g-battaglia/rust-swisseph-bindings"
 homepage = "https://github.com/g-battaglia/rust-swisseph-bindings"
+documentation = "https://docs.rs/rust-swisseph-bindings/2.0.0/swisseph_bindings/"
 publish = ["crates-io"]
 links = "swisseph"
 
@@ -27,6 +28,7 @@ include = [
     "Cargo.lock",
     "LICENSE",
     "README.md",
+    "CHANGELOG.md",
     "build.rs",
     "build_support/**",
     "rust-toolchain.toml",

@@ -3,9 +3,10 @@
 
 #![cfg(unix)]
 
-use swisseph_bindings::{
-    CHIRON, FLG_SWIEPH, MARS, MOON, SessionBuilder, calc_ut, close, get_current_file_data,
-    get_tid_acc, require_source_flags, set_ephe_path, set_tid_acc,
+use swisseph_bindings::native::{
+    CHIRON, FLG_SWIEPH, MARS, MOON, SessionBuilder, global::calc_ut, global::close,
+    global::get_current_file_data, global::get_tid_acc, global::set_ephe_path, global::set_tid_acc,
+    native::require_source_flags,
 };
 
 #[path = "support/isolated.rs"]
@@ -82,9 +83,11 @@ fn default_path_snapshot_matches_native_reuse_and_explicit_reload() {
     // does not imply a fresh explicit path write before every computation.
     close().unwrap();
     set_ephe_path(None).unwrap();
-    let seeded = calc_ut(JD, CHIRON, FLG_SWIEPH).unwrap();
-    require_source_flags(&seeded, FLG_SWIEPH).unwrap();
     let session = SessionBuilder::new().default_ephe_path().build().unwrap();
+    // An owned session resets foreign model caches on first acquisition. Seed
+    // the file history through the same owner before testing steady reuse.
+    let seeded = session.calc_ut(JD, CHIRON, FLG_SWIEPH).unwrap();
+    require_source_flags(&seeded, FLG_SWIEPH).unwrap();
     assert_eq!(session.deltat(JD).unwrap().to_bits(), expected.to_bits());
     for (slot, expected) in retained.iter().enumerate() {
         assert_eq!(
@@ -94,8 +97,11 @@ fn default_path_snapshot_matches_native_reuse_and_explicit_reload() {
     }
     set_ephe_path(None).unwrap();
     assert_eq!(history(), reloaded);
+    // Explicit global path writes invalidate ownership; the next calculation
+    // must reinstall complete settings before it can reuse its files.
+    session.calc_ut(JD, CHIRON, FLG_SWIEPH).unwrap();
     session.deltat(JD).unwrap();
-    for (slot, expected) in reloaded.iter().enumerate() {
+    for (slot, expected) in retained.iter().enumerate() {
         assert_eq!(
             session.get_current_file_data(slot as i32).unwrap(),
             *expected
@@ -115,7 +121,7 @@ fn one_session_reinstalls_its_data_path_across_distinct_threads() {
     }
     let data = test_data::ephemeris_dir().expect("complete external ephemeris data");
     let session = SessionBuilder::new().ephe_path(&data).build().unwrap();
-    let flags = FLG_SWIEPH | swisseph_bindings::FLG_SPEED;
+    let flags = FLG_SWIEPH | swisseph_bindings::native::FLG_SPEED;
     let expected = session.calc_ut(JD, MARS, flags).unwrap();
     require_source_flags(&expected, FLG_SWIEPH).unwrap();
     let parent = std::thread::current().id();
@@ -161,9 +167,9 @@ fn reused_session_positions_match_direct_native_calls() {
     for jd in [JD, 2440000.5] {
         for body in [MARS, MOON] {
             for flags in [
-                FLG_SWIEPH | swisseph_bindings::FLG_SPEED,
-                FLG_SWIEPH | swisseph_bindings::FLG_EQUATORIAL,
-                swisseph_bindings::FLG_MOSEPH | swisseph_bindings::FLG_SPEED,
+                FLG_SWIEPH | swisseph_bindings::native::FLG_SPEED,
+                FLG_SWIEPH | swisseph_bindings::native::FLG_EQUATORIAL,
+                swisseph_bindings::native::FLG_MOSEPH | swisseph_bindings::native::FLG_SPEED,
             ] {
                 let mut values = [0.0; 6];
                 let mut diagnostic = [0 as std::ffi::c_char; 256];
@@ -288,7 +294,7 @@ fn unchanged_session_path_keeps_files_and_respects_explicit_configuration() {
     // An equal numerical value can still select manual mode. It must also
     // invalidate reuse, since later automatic model selection differs.
     set_tid_acc(automatic).unwrap();
-    let flags = swisseph_bindings::FLG_MOSEPH;
+    let flags = swisseph_bindings::native::FLG_MOSEPH;
     set_ephe_path(Some(&data)).unwrap();
     let automatic_model = calc_ut(JD, MOON, flags).unwrap();
     set_tid_acc(automatic).unwrap();
@@ -302,8 +308,10 @@ fn unchanged_session_path_keeps_files_and_respects_explicit_configuration() {
 }
 
 #[test]
-fn relative_session_path_tracks_working_directory() {
-    if !isolated::without_ephe_override("relative_session_path_tracks_working_directory") {
+fn relative_session_path_requires_rebuild_after_working_directory_change() {
+    if !isolated::without_ephe_override(
+        "relative_session_path_requires_rebuild_after_working_directory_change",
+    ) {
         return;
     }
     let data = test_data::ephemeris_dir().expect("complete external ephemeris data");
@@ -329,15 +337,30 @@ fn relative_session_path_tracks_working_directory() {
             Some(path) => builder.ephe_path(path),
             None => builder.default_ephe_path(),
         };
-        let session = builder.build().unwrap();
+        let session = swisseph_bindings::native::primary_session(builder).unwrap();
         let position = session.calc_ut(JD, MARS, FLG_SWIEPH).unwrap();
-        require_source_flags(&position, FLG_SWIEPH).expect("relative data lookup");
-        std::env::set_current_dir(&empty).unwrap();
-        let position = session.calc_ut(JD, MARS, FLG_SWIEPH).unwrap();
-        assert!(
-            require_source_flags(&position, FLG_SWIEPH).is_err(),
-            "relative and default search entries must observe the changed working directory"
+        assert_ne!(
+            position.returned_flags & FLG_SWIEPH,
+            0,
+            "relative data lookup"
         );
+        let remembered = get_current_file_data(0).unwrap();
+        std::env::set_current_dir(&empty).unwrap();
+        let error = match session.calc_ut(JD, MARS, FLG_SWIEPH) {
+            Err(error) => error,
+            Ok(_) => panic!("primary session adopted changed lookup context"),
+        };
+        assert_eq!(error.kind(), swisseph_bindings::ErrorKind::InvalidInput);
+        assert_eq!(get_current_file_data(0).unwrap(), remembered);
+        assert_eq!(get_current_file_data(0).unwrap(), remembered);
+        let rebuilt = swisseph_bindings::native::primary_session(builder).unwrap();
+        let changed = rebuilt.calc_ut(JD, MARS, FLG_SWIEPH).unwrap();
+        assert!(
+            changed.returned_flags & FLG_SWIEPH == 0,
+            "only an explicit rebuild adopts the new relative lookup context"
+        );
+        std::env::set_current_dir(&full).unwrap();
+        assert_eq!(session.calc_ut(JD, MARS, FLG_SWIEPH).unwrap(), position);
         close().unwrap();
     }
     std::env::set_current_dir(original).unwrap();

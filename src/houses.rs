@@ -76,6 +76,20 @@ pub(crate) fn houses_locked(
     longitude: f64,
     hsys: u8,
 ) -> Result<Houses, Error> {
+    houses_complete_locked(jd_ut, latitude, longitude, hsys).map(|(value, _, _)| value)
+}
+
+/// Preserve the actual native integer and diagnostic channels in one call.
+/// Caller holds native access; the legacy SDK projects only its original record.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn houses_complete_locked(
+    jd_ut: f64,
+    latitude: f64,
+    longitude: f64,
+    hsys: u8,
+) -> Result<(Houses, i32, Option<String>), Error> {
+    check_system(hsys)?;
+    check_houses_inputs("houses", jd_ut, latitude, longitude)?;
     crate::domain::check_ut_locked("houses", jd_ut, -1)?;
     let mut cusps = [0.0; CUSPS_NATIVE_LEN];
     let mut ascmc = [0.0; ASCMC_NATIVE_LEN];
@@ -97,9 +111,9 @@ pub(crate) fn houses_locked(
         return Err(Error::native(format!(
             "houses: native computation failed (jd_ut={jd_ut}, lat={latitude}, lon={longitude}, hsys={})",
             hsys as char,
-        )));
+        )).with_native_channels("houses", Some(ret), None, None));
     }
-    Ok(pack_houses(&cusps, &ascmc))
+    Ok((pack_houses(&cusps, &ascmc), ret, None))
 }
 
 /// Compute houses with flags while native access is already held.
@@ -112,8 +126,23 @@ pub(crate) fn houses_ex_locked(
     longitude: f64,
     hsys: u8,
 ) -> Result<Houses, Error> {
+    houses_ex_complete_locked(jd_ut, flags, latitude, longitude, hsys).map(|(value, _, _)| value)
+}
+
+/// Preserve the actual native integer and diagnostic channels in one call.
+/// Caller holds native access; the legacy SDK projects only its original record.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn houses_ex_complete_locked(
+    jd_ut: f64,
+    flags: i32,
+    latitude: f64,
+    longitude: f64,
+    hsys: u8,
+) -> Result<(Houses, i32, Option<String>), Error> {
+    check_system(hsys)?;
+    check_houses_inputs("houses_ex", jd_ut, latitude, longitude)?;
     crate::domain::check_ut_locked("houses_ex", jd_ut, -1)?;
-    if flags & crate::FLG_SIDEREAL != 0 {
+    if flags & crate::constants::FLG_SIDEREAL != 0 {
         crate::config::check_sidereal_epoch_locked("houses_ex: reference epoch", -1)?;
     }
     let mut cusps = [0.0; CUSPS_NATIVE_LEN];
@@ -134,9 +163,9 @@ pub(crate) fn houses_ex_locked(
         return Err(Error::native(format!(
             "houses_ex: native computation failed (jd_ut={jd_ut}, flags={flags}, lat={latitude}, lon={longitude}, hsys={})",
             hsys as char,
-        )));
+        )).with_native_channels("houses_ex", Some(ret), None, None));
     }
-    Ok(pack_houses(&cusps, &ascmc))
+    Ok((pack_houses(&cusps, &ascmc), ret, None))
 }
 
 /// Check the requested house system before any native call.
@@ -192,12 +221,12 @@ pub(crate) fn check_houses_inputs(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::houses;
+/// use swisseph_bindings::global::houses;
 ///
 /// // London, Placidus, J2000.0.
 /// let london = houses(2451545.0, 51.5, -0.12, b'P')?;
 /// assert!((0.0..360.0).contains(&london.ascendant()));
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -350,13 +379,13 @@ pub struct GauquelinSector {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::houses_ex2;
+/// use swisseph_bindings::global::houses_ex2;
 ///
 /// // London, Placidus, J2000.0.
 /// let london = houses_ex2(2451545.0, 0, 51.5, -0.12, b'P')?;
 /// assert!((0.0..360.0).contains(&london.ascendant()));
 /// assert!(london.cusp_speeds.iter().all(|s| s.is_finite()));
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -376,7 +405,7 @@ pub fn houses_ex2(
     with_native_access(|| houses_ex2_locked(jd_ut, flags, latitude, longitude, hsys))
 }
 
-/// Execute [`crate::houses_ex2`] with native access already held.
+/// Execute [`crate::global::houses_ex2`] with native access already held.
 /// Preserve its input domains, units, native status/flags and diagnostics;
 /// apply no configuration, fallback or alternate numerical method. Errors
 /// follow the public operation. Caller owns the lock for validation and C read.
@@ -388,10 +417,23 @@ pub(crate) fn houses_ex2_locked(
     longitude: f64,
     hsys: u8,
 ) -> Result<HousesWithSpeeds, Error> {
+    houses_ex2_complete_locked(jd_ut, flags, latitude, longitude, hsys).map(|(value, _, _)| value)
+}
+
+/// Preserve the actual native integer and diagnostic channels in one call.
+/// Caller holds native access; the legacy SDK projects only its original record.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn houses_ex2_complete_locked(
+    jd_ut: f64,
+    flags: i32,
+    latitude: f64,
+    longitude: f64,
+    hsys: u8,
+) -> Result<(HousesWithSpeeds, i32, Option<String>), Error> {
     check_system(hsys)?;
     check_houses_inputs("houses_ex2", jd_ut, latitude, longitude)?;
     crate::domain::check_ut_locked("houses_ex2", jd_ut, -1)?;
-    if flags & crate::FLG_SIDEREAL != 0 {
+    if flags & crate::constants::FLG_SIDEREAL != 0 {
         crate::config::check_sidereal_epoch_locked("houses_ex2: reference epoch", -1)?;
     }
     let mut cusps = [0.0; CUSPS_NATIVE_LEN];
@@ -424,13 +466,14 @@ pub(crate) fn houses_ex2_locked(
         return Err(Error::native(format!(
             "houses_ex2: native computation failed (jd_ut={jd_ut}, flags={flags}, hsys={}): {diagnostic}",
             hsys as char,
-        )));
+        )).with_native_channels("houses_ex2", Some(ret), None, Some(&diagnostic)));
     }
-    Ok(pack_houses_with_speeds(
-        &cusps,
-        &ascmc,
-        &cusp_speed,
-        &ascmc_speed,
+    // SAFETY: the initialized owned diagnostic is bounded by SERR_LEN.
+    let diagnostic = Some(unsafe { read_native_text(serr.as_ptr(), SERR_LEN) });
+    Ok((
+        pack_houses_with_speeds(&cusps, &ascmc, &cusp_speed, &ascmc_speed),
+        ret,
+        diagnostic,
     ))
 }
 
@@ -445,13 +488,13 @@ pub(crate) fn houses_ex2_locked(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::houses_gauquelin;
+/// use swisseph_bindings::global::houses_gauquelin;
 ///
 /// // Paris, J2000.0: 36 finite sector cusps.
 /// let paris = houses_gauquelin(2451545.0, 0, 48.85, 2.35)?;
 /// assert_eq!(paris.sectors.len(), 36);
 /// assert!(paris.sectors.iter().all(|s| (0.0..360.0).contains(s)));
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -469,7 +512,7 @@ pub fn houses_gauquelin(
     with_native_access(|| houses_gauquelin_locked(jd_ut, flags, latitude, longitude))
 }
 
-/// Execute [`crate::houses_gauquelin`] with native access already held.
+/// Execute [`crate::global::houses_gauquelin`] with native access already held.
 /// Preserve its input domains, units, native status/flags and diagnostics;
 /// apply no configuration, fallback or alternate numerical method. Errors
 /// follow the public operation. Caller owns the lock for validation and C read.
@@ -479,9 +522,21 @@ pub(crate) fn houses_gauquelin_locked(
     latitude: f64,
     longitude: f64,
 ) -> Result<GauquelinSectors, Error> {
+    houses_gauquelin_complete_locked(jd_ut, flags, latitude, longitude).map(|(value, _, _)| value)
+}
+
+/// Preserve the actual native integer and diagnostic channels in one call.
+/// Caller holds native access; the legacy SDK projects only its original record.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn houses_gauquelin_complete_locked(
+    jd_ut: f64,
+    flags: i32,
+    latitude: f64,
+    longitude: f64,
+) -> Result<(GauquelinSectors, i32, Option<String>), Error> {
     check_houses_inputs("houses_gauquelin", jd_ut, latitude, longitude)?;
     crate::domain::check_ut_locked("houses_gauquelin", jd_ut, -1)?;
-    if flags & crate::FLG_SIDEREAL != 0 {
+    if flags & crate::constants::FLG_SIDEREAL != 0 {
         crate::config::check_sidereal_epoch_locked("houses_gauquelin: reference epoch", -1)?;
     }
     let mut cusps = [0.0; CUSPS_GAUQUELIN_LEN];
@@ -511,7 +566,7 @@ pub(crate) fn houses_gauquelin_locked(
         let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
         return Err(Error::native(format!(
             "houses_gauquelin: native computation failed (jd_ut={jd_ut}, flags={flags}): {diagnostic}"
-        )));
+        )).with_native_channels("houses_gauquelin", Some(ret), None, Some(&diagnostic)));
     }
     let mut sectors = [0.0; 36];
     sectors.copy_from_slice(&cusps[1..37]);
@@ -521,12 +576,18 @@ pub(crate) fn houses_gauquelin_locked(
     angles.copy_from_slice(&ascmc[0..8]);
     let mut angle_speeds = [0.0; 8];
     angle_speeds.copy_from_slice(&ascmc_speed[0..8]);
-    Ok(GauquelinSectors {
-        sectors,
-        angles,
-        sector_speeds,
-        angle_speeds,
-    })
+    // SAFETY: the initialized owned diagnostic is bounded by SERR_LEN.
+    let diagnostic = Some(unsafe { read_native_text(serr.as_ptr(), SERR_LEN) });
+    Ok((
+        GauquelinSectors {
+            sectors,
+            angles,
+            sector_speeds,
+            angle_speeds,
+        },
+        ret,
+        diagnostic,
+    ))
 }
 
 /// Map twelve-house native buffers (positions plus speeds) onto
@@ -585,38 +646,42 @@ fn check_armc_inputs(armc: f64, latitude: f64, eps: f64, hsys: u8) -> Result<(),
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::houses_armc;
+/// use swisseph_bindings::global::houses_armc;
 ///
 /// // ARMC is echoed back in angles[2], normalized to 0-360.
 /// let houses = houses_armc(280.0, 51.5, 23.44, b'P')?;
 /// assert!((houses.angles[2] - 280.0).abs() < 1e-9);
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 pub fn houses_armc(armc: f64, latitude: f64, eps: f64, hsys: u8) -> Result<Houses, Error> {
     check_armc_inputs(armc, latitude, eps, hsys)?;
-    with_native_access(|| {
-        let mut cusps = [0.0; CUSPS_NATIVE_LEN];
-        let mut ascmc = [0.0; ASCMC_NATIVE_LEN];
-        // SAFETY: same buffer contract as in [`houses`]; the zeroed
-        // `ascmc[9]` slot is the documented 0° Sunshine declination.
-        let ret = unsafe {
-            ffi::swe_houses_armc(
-                armc,
-                latitude,
-                eps,
-                c_int::from(hsys),
-                cusps.as_mut_ptr(),
-                ascmc.as_mut_ptr(),
-            )
-        };
-        if ret < 0 {
-            return Err(Error::native(format!(
-                "houses_armc: native computation failed (armc={armc}, lat={latitude}, eps={eps}, hsys={})",
-                hsys as char,
-            )));
-        }
-        Ok(pack_houses(&cusps, &ascmc))
-    })
+    with_native_access(|| houses_armc_locked(armc, latitude, eps, hsys))
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn houses_armc_locked(
+    armc: f64,
+    latitude: f64,
+    eps: f64,
+    hsys: u8,
+) -> Result<Houses, Error> {
+    houses_armc_complete_locked(armc, latitude, eps, hsys).map(|(value, _, _)| value)
+}
+
+/// Preserve the actual native integer and diagnostic channels in one call.
+/// Caller holds native access; the legacy SDK projects only its original record.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn houses_armc_complete_locked(
+    armc: f64,
+    latitude: f64,
+    eps: f64,
+    hsys: u8,
+) -> Result<(Houses, i32, Option<String>), Error> {
+    check_armc_inputs(armc, latitude, eps, hsys)?;
+    let (cusps, angles, status) = crate::armc::values::<13>(armc, latitude, eps, hsys)?;
+    Ok((pack_houses(&cusps, &angles), status, None))
 }
 
 /// Calculate house cusps, angles and daily speeds from an explicit ARMC.
@@ -636,11 +701,11 @@ pub fn houses_armc(armc: f64, latitude: f64, eps: f64, hsys: u8) -> Result<House
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::houses_armc_ex2;
+/// use swisseph_bindings::global::houses_armc_ex2;
 ///
 /// let houses = houses_armc_ex2(280.0, 51.5, 23.44, b'P', 0.0)?;
 /// assert!(houses.cusp_speeds.iter().all(|s| s.is_finite()));
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 pub fn houses_armc_ex2(
     armc: f64,
@@ -655,44 +720,45 @@ pub fn houses_armc_ex2(
             "houses_armc_ex2: sun_declination must be finite",
         ));
     }
-    with_native_access(|| {
-        let mut cusps = [0.0; CUSPS_NATIVE_LEN];
-        let mut ascmc = [0.0; ASCMC_NATIVE_LEN];
-        ascmc[9] = sun_declination;
-        let mut cusp_speed = [0.0; CUSPS_NATIVE_LEN];
-        let mut ascmc_speed = [0.0; ASCMC_NATIVE_LEN];
-        let mut serr = [0 as c_char; SERR_LEN];
-        // SAFETY: same buffer contract as in [`houses_ex2`]; writing
-        // `ascmc[9]` before the call is the native Sunshine input
-        // channel, and the engine rewrites the slot on exit.
-        let ret = unsafe {
-            ffi::swe_houses_armc_ex2(
-                armc,
-                latitude,
-                eps,
-                c_int::from(hsys),
-                cusps.as_mut_ptr(),
-                ascmc.as_mut_ptr(),
-                cusp_speed.as_mut_ptr(),
-                ascmc_speed.as_mut_ptr(),
-                serr.as_mut_ptr(),
-            )
-        };
-        if ret < 0 {
-            // SAFETY: same bounded read as in [`houses_ex2`].
-            let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
-            return Err(Error::native(format!(
-                "houses_armc_ex2: native computation failed (armc={armc}, hsys={}): {diagnostic}",
-                hsys as char,
-            )));
-        }
-        Ok(pack_houses_with_speeds(
-            &cusps,
-            &ascmc,
-            &cusp_speed,
-            &ascmc_speed,
-        ))
-    })
+    with_native_access(|| houses_armc_ex2_locked(armc, latitude, eps, hsys, sun_declination))
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn houses_armc_ex2_locked(
+    armc: f64,
+    latitude: f64,
+    eps: f64,
+    hsys: u8,
+    sun_declination: f64,
+) -> Result<HousesWithSpeeds, Error> {
+    houses_armc_ex2_complete_locked(armc, latitude, eps, hsys, sun_declination)
+        .map(|(value, _, _)| value)
+}
+
+/// Preserve the actual native integer and diagnostic channels in one call.
+/// Caller holds native access; the legacy SDK projects only its original record.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn houses_armc_ex2_complete_locked(
+    armc: f64,
+    latitude: f64,
+    eps: f64,
+    hsys: u8,
+    sun_declination: f64,
+) -> Result<(HousesWithSpeeds, i32, Option<String>), Error> {
+    check_armc_inputs(armc, latitude, eps, hsys)?;
+    let output = crate::armc::rates::<13>(armc, latitude, eps, hsys, sun_declination)?;
+    Ok((
+        pack_houses_with_speeds(
+            &output.cusps,
+            &output.angles,
+            &output.cusp_speeds,
+            &output.angle_speeds,
+        ),
+        output.status,
+        Some(output.diagnostic),
+    ))
 }
 
 /// Locate an ecliptic point inside the houses (or Gauquelin sectors).
@@ -724,12 +790,12 @@ pub fn houses_armc_ex2(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::house_pos;
+/// use swisseph_bindings::global::house_pos;
 ///
 /// // The Ascendant sits exactly on the first-house cusp: house 1.
 /// let asc = house_pos(280.0, 51.5, 23.44, b'P', 100.0, 0.0)?;
 /// assert!((1.0..13.0).contains(&asc.value));
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 pub fn house_pos(
     armc: f64,
@@ -749,7 +815,31 @@ pub fn house_pos(
             "house_pos: all coordinates must be finite",
         ));
     }
-    with_native_access(|| {
+    with_native_access(|| house_pos_locked(armc, latitude, eps, hsys, longitude, latitude_body))
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn house_pos_locked(
+    armc: f64,
+    latitude: f64,
+    eps: f64,
+    hsys: u8,
+    longitude: f64,
+    latitude_body: f64,
+) -> Result<HousePosition, Error> {
+    if !armc.is_finite()
+        || !latitude.is_finite()
+        || !eps.is_finite()
+        || !longitude.is_finite()
+        || !latitude_body.is_finite()
+    {
+        return Err(Error::invalid_input(
+            "house_pos: all coordinates must be finite",
+        ));
+    }
+    {
         let xpin = [longitude, latitude_body];
         let mut serr = [0 as c_char; SERR_LEN];
         // SAFETY: `xpin` owns two readable doubles, `serr` owns SERR_LEN
@@ -770,7 +860,7 @@ pub fn house_pos(
         // bounded by its capacity. Copied before the lock is released.
         let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
         Ok(HousePosition { value, diagnostic })
-    })
+    }
 }
 
 /// Short native name of a house system.
@@ -788,7 +878,7 @@ pub fn house_pos(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::house_name;
+/// use swisseph_bindings::native::house_name;
 ///
 /// assert_eq!(house_name(b'P'), "Placidus");
 /// assert_eq!(house_name(b'G'), "Gauquelin sectors");
@@ -840,7 +930,7 @@ fn check_gauquelin_inputs(
 
 /// Gauquelin sector position of a body at one time and place.
 ///
-/// `body` is a body number (for example [`crate::MARS`]); pass a star
+/// `body` is a body number (for example [`crate::constants::MARS`]); pass a star
 /// via `star_name` (`Some` selects the fixed-star path, `None` the body
 /// path — an empty name behaves as `None` natively). `flags` combines
 /// the ephemeris source bits; `method` selects the computation: 0 with
@@ -864,12 +954,12 @@ fn check_gauquelin_inputs(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{MARS, gauquelin_sector};
+/// use swisseph_bindings::native::{MARS, global::gauquelin_sector};
 ///
 /// // Paris, J2000.0, geometric method.
 /// let sector = gauquelin_sector(2451545.0, MARS, None, 0, 0, 2.35, 48.85, 0.0, 0.0, 0.0)?;
 /// assert!((1.0..37.0).contains(&sector.value));
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -879,7 +969,7 @@ fn check_gauquelin_inputs(
 /// active UT-based user reference epoch; violations return `InvalidInput`.
 ///
 /// Observer height must satisfy the arithmetic ceiling documented by
-/// [`crate::set_topo`]; excessive height returns `InvalidInput` before
+/// [`crate::global::set_topo`]; excessive height returns `InvalidInput` before
 /// observer configuration or computation. Native geographic limits and
 /// data errors are still reported by the engine.
 #[allow(clippy::too_many_arguments)]
@@ -907,6 +997,60 @@ pub fn gauquelin_sector(
         }
     }
     with_native_access(|| {
+        gauquelin_sector_locked(
+            jd_ut, body, star_name, flags, method, longitude, latitude, altitude, atpress, attemp,
+        )
+    })
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn gauquelin_sector_locked(
+    jd_ut: f64,
+    body: i32,
+    star_name: Option<&str>,
+    flags: i32,
+    method: i32,
+    longitude: f64,
+    latitude: f64,
+    altitude: f64,
+    atpress: f64,
+    attemp: f64,
+) -> Result<GauquelinSector, Error> {
+    gauquelin_sector_complete_locked(
+        jd_ut, body, star_name, flags, method, longitude, latitude, altitude, atpress, attemp,
+    )
+    .map(|(value, _, _)| value)
+}
+
+/// Preserve the actual native integer and diagnostic channels in one call.
+/// Caller holds native access; the legacy SDK projects only its original record.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn gauquelin_sector_complete_locked(
+    jd_ut: f64,
+    body: i32,
+    star_name: Option<&str>,
+    flags: i32,
+    method: i32,
+    longitude: f64,
+    latitude: f64,
+    altitude: f64,
+    atpress: f64,
+    attemp: f64,
+) -> Result<(GauquelinSector, i32, Option<String>), Error> {
+    check_gauquelin_inputs(
+        jd_ut, star_name, longitude, latitude, altitude, atpress, attemp,
+    )?;
+    // Caller-owned star buffer: the native call may read the name while
+    // resolving a fixed star, and every access stays inside this buffer.
+    let mut star_buffer = [0 as c_char; TEXT_BUF_LEN];
+    if let Some(name) = star_name {
+        for (slot, byte) in star_buffer.iter_mut().zip(name.bytes()) {
+            *slot = byte as c_char;
+        }
+    }
+    {
         crate::domain::check_ut_locked("gauquelin_sector", jd_ut, flags)?;
         let geopos = [longitude, latitude, altitude];
         let mut sector = 0.0;
@@ -937,11 +1081,15 @@ pub fn gauquelin_sector(
         if ret < 0 {
             return Err(Error::native(format!(
                 "gauquelin_sector: native computation failed (jd_ut={jd_ut}, body={body}, method={method}): {diagnostic}"
-            )));
+            )).with_native_channels("gauquelin_sector", Some(ret), None, Some(&diagnostic)));
         }
-        Ok(GauquelinSector {
-            value: sector,
-            diagnostic,
-        })
-    })
+        Ok((
+            GauquelinSector {
+                value: sector,
+                diagnostic,
+            },
+            ret,
+            None,
+        ))
+    }
 }
