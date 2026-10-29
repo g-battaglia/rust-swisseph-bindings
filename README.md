@@ -1,7 +1,7 @@
 # rust-swisseph-bindings
 
 [![crates.io](https://img.shields.io/crates/v/rust-swisseph-bindings.svg)](https://crates.io/crates/rust-swisseph-bindings)
-[![Documentation](https://img.shields.io/docsrs/rust-swisseph-bindings.svg)](https://docs.rs/rust-swisseph-bindings/1.0.0/swisseph_bindings/)
+[![Documentation](https://img.shields.io/docsrs/rust-swisseph-bindings.svg)](https://docs.rs/rust-swisseph-bindings/2.0.0/swisseph_bindings/)
 [![Rust 1.98.1](https://img.shields.io/badge/rust-1.98.1-orange.svg)](rust-toolchain.toml)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 
@@ -12,7 +12,7 @@ owned Rust results and validated inputs. The crate compiles the pinned native
 engine, **Swiss Ephemeris 2.10.03**, and serializes access to its shared state.
 
 [Crate](https://crates.io/crates/rust-swisseph-bindings) ·
-[API documentation](https://docs.rs/rust-swisseph-bindings/1.0.0/swisseph_bindings/) ·
+[API documentation](https://docs.rs/rust-swisseph-bindings/2.0.0/swisseph_bindings/) ·
 [Example](examples/basic.rs) ·
 [Releases](https://github.com/g-battaglia/rust-swisseph-bindings/releases)
 
@@ -28,12 +28,12 @@ engine, **Swiss Ephemeris 2.10.03**, and serializes access to its shared state.
 
 ## Install
 
-Available on [crates.io](https://crates.io/crates/rust-swisseph-bindings/1.0.0).
-Add this to your `Cargo.toml`:
+Version **2.0.0** is prepared for owner publication. After publication, add this
+to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-swisseph_bindings = { package = "rust-swisseph-bindings", version = "1.0" }
+swisseph_bindings = { package = "rust-swisseph-bindings", version = "2.0" }
 ```
 
 Requires Rust **1.98.1** (edition 2024), a C compiler and `ar`. The published
@@ -42,9 +42,11 @@ Set `CC` to select the C compiler executable.
 
 ## Quick start
 
-This checkout implements the unpublished 2.0 primary API. The published 1.x
-crate retains its original interface. The example below uses the new typed
-results; see [the migration and qualification notes](validation/primary-api.md).
+Version 2.0 introduces the typed primary API. Existing 1.x calls move to the
+explicit `global` or `native` namespaces; see the
+[migration and qualification notes](validation/primary-api.md) and
+[changelog](CHANGELOG.md). The versioned documentation link becomes available
+after the owner publishes the crate.
 
 Compute the Sun's position and speed using Moshier, without external data files:
 
@@ -65,7 +67,7 @@ fn main() -> Result<(), swisseph_bindings::Error> {
 
 See the [full example](examples/basic.rs) for houses with speeds, errors,
 explicit data selection, fallback and event searches. Browse the
-[API documentation](https://docs.rs/rust-swisseph-bindings/1.0.0/swisseph_bindings/)
+[API documentation](https://docs.rs/rust-swisseph-bindings/2.0.0/swisseph_bindings/)
 for individual functions and types.
 
 ## Configuration and ephemeris data
@@ -239,7 +241,23 @@ Swiss/JPL prerequisites, full matrices, sanitizers and package checks.
 
 [AGPL-3.0-only](LICENSE). Native notices remain with the upstream submodule.
 
-Negative `calc`/`calc_ut` results retain `native_status()`,
+## Owner publication
+
+The crate version remains **2.0.0**. From the updated `main` checkout, prepare
+the pinned native dependency and verify the actual Cargo package:
+
+```sh
+git submodule update --init --checkout -- swisseph
+cargo package --locked
+cargo publish --locked --dry-run
+```
+
+The package includes the required native sources, headers, build helpers and
+license notices. Ephemeris files remain external. The dry run verifies packaging
+without uploading the crate. When ready, the owner publishes it with
+`cargo publish --locked`. No remote build or release pipeline is required.
+
+Original SDK negative `calc`/`calc_ut` results retain `native_status()`,
 `native_operation()` and the original `native_diagnostic()` separately from the
 existing contextual error message. Rust admission errors and other operations
 without this transport return `None`; an absent status is never success. These
@@ -262,12 +280,12 @@ Extended magnitude failures after admission retain their own actual C metadata.
 
 `split_deg` returns the pinned native engine's current output. Applications
 that require the original Swiss Ephemeris 2.10.03 field layout can explicitly
-use `split_deg_2_10_03`: rounding retains the lower minute/second fields and
+use `native::split_deg_2_10_03`: rounding retains the lower minute/second fields and
 returns rounded whole seconds in `secfr`. Its separately attributed upstream
 C utility is included under `src/native/`; the engine submodule is unchanged.
 Both entries use the same finite input capacity, native lock and sidereal
 state. No ephemeris data or positional approximation is involved.
 
-`Session::copy_captured_file_path_into` projects an already-owned file-path
+`native::Session::copy_captured_file_path_into` projects an already-owned file-path
 snapshot without acquiring native C access. It preserves owned bytes and
 reuses caller storage; calculations still refresh every native file slot.
