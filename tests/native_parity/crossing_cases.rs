@@ -2,7 +2,7 @@
 //! are stored. Solar heliocentric searches are known hazards and Rust-only.
 use super::cases::{Case, one, rejected, step};
 use super::registry::Op;
-use swisseph_bindings::*;
+use swisseph_bindings::native::*;
 
 /// Exercise each ET/UT symbol, seams, both heliocentric directions, node
 /// coordinates, supported source fallbacks and native failure/safety outcomes.

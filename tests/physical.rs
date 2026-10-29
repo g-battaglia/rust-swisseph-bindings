@@ -8,7 +8,7 @@
 //! error classification, same-engine consistency), never stored reference
 //! vectors.
 
-use swisseph_bindings::{
+use swisseph_bindings::native::{
     APP_TO_TRUE, ECL2HOR, EQU2HOR, ErrorKind, FLG_MOSEPH, HOR2ECL, HOR2EQU, MARS, MOON, SUN,
     TRUE_TO_APP, global::azalt, global::azalt_rev, global::get_orbital_elements,
     global::orbit_max_min_true_distance, global::pheno, global::pheno_ut, global::refrac,

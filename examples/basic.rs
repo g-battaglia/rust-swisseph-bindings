@@ -5,7 +5,7 @@
 //!
 //! Run with `cargo run --example basic`. Data-independent steps (version,
 //! calendar, the analytical Sun, input-error handling,
-//! houses with speeds, the atomic [`Session`](swisseph_bindings::Session)
+//! houses with speeds, the atomic [`Session`](swisseph_bindings::native::Session)
 //! route, the analytical occultations) always run. File-based steps (the
 //! Mars position, the Dallas eclipse) need ephemeris data: set
 //! `SWISSEPH_EPHE_DIR` to a directory holding the `.se1` files, or run
@@ -24,7 +24,7 @@
 //! heliocentric Sun crossings and arcus-visionis heliacal search flags are
 //! rejected before native access because the pinned searches cannot run safely.
 
-use swisseph_bindings::{
+use swisseph_bindings::native::{
     Calendar, ErrorKind, FLG_MOSEPH, FLG_SPEED, FLG_SWIEPH, FLG_TOPOCTR, MARS, MOON, SUN,
     SessionBuilder, VENUS, global::calc_ut, global::get_planet_name, global::houses_ex2,
     global::lun_occult_when_glob, global::set_ephe_path, global::sol_eclipse_when_loc,
@@ -54,7 +54,7 @@ fn ephemeris_dir() -> Option<String> {
     }
 }
 
-fn main() -> Result<(), swisseph_bindings::Error> {
+fn main() -> Result<(), swisseph_bindings::native::Error> {
     // 1. Native identity: the linked C library, not a Rust port.
     println!("native version: {}", version()?);
 

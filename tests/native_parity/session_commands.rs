@@ -5,7 +5,7 @@
 use super::protocol::{Record, Request};
 use super::registry::Op;
 use super::session_probe::State;
-use swisseph_bindings::*;
+use swisseph_bindings::native::*;
 
 /// Private builder command; exact shape is five integers/eight doubles/two texts.
 pub const BUILD: u32 = 2010;

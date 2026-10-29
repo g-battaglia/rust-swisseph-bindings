@@ -4,7 +4,7 @@
 #![cfg(unix)]
 
 use std::ffi::{CStr, c_char};
-use swisseph_bindings::{
+use swisseph_bindings::native::{
     FLG_SWIEPH, MARS, SessionBuilder, global::calc_ut, global::close,
     global::get_current_file_data, global::set_ephe_path, native::require_source_flags,
 };
@@ -37,7 +37,7 @@ unsafe extern "C" {
 }
 
 /// Sample the public C ABI without installing a path or persisting its values.
-fn assert_direct_native(session: &swisseph_bindings::Session, jd: f64) {
+fn assert_direct_native(session: &swisseph_bindings::native::Session, jd: f64) {
     let mut values = [0.0; 6];
     let mut diagnostic = [0 as c_char; 256];
     // SAFETY: isolated single-thread child, public ABI and complete live buffers.
@@ -124,7 +124,7 @@ fn environment(path: &std::path::Path) {
 }
 
 /// Compare Sunshine's full C buffers before any configured wrapper acquisition.
-fn sunshine_matches_native(session: &swisseph_bindings::Session) -> bool {
+fn sunshine_matches_native(session: &swisseph_bindings::native::Session) -> bool {
     let (mut cusps, mut angles, mut speeds, mut angle_speeds) =
         ([0.0; 13], [0.0; 10], [0.0; 13], [0.0; 10]);
     let mut diagnostic = [0 as c_char; 256];

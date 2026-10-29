@@ -4,8 +4,8 @@
 
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
-use swisseph_bindings::*;
-use swisseph_bindings::{
+use swisseph_bindings::native::*;
+use swisseph_bindings::native::{
     global::calc, global::calc_ut, global::close, global::deltat, global::get_ayanamsa,
     global::get_ayanamsa_ex, global::get_ayanamsa_ut, global::get_tid_acc, global::houses,
     global::set_delta_t_userdef, global::set_ephe_path, global::set_sid_mode, global::set_tid_acc,
@@ -150,8 +150,6 @@ fn strict_source_checks_reported_component_fallbacks() {
         values: [0.0; 6],
         returned_flags: FLG_SWIEPH,
         diagnostic: "using Moshier eph. for moon;".into(),
-        warnings: Vec::new(),
-        messages: Vec::new(),
     };
     assert_eq!(
         require_source_flags(&position, FLG_SWIEPH)

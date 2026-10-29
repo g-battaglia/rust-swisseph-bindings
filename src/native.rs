@@ -36,3 +36,24 @@ pub use crate::positions::require_source_flags;
 pub use crate::stars::fixed_star_catalog;
 pub use crate::time::{date_conversion, day_of_week, julday, revjul, utc_time_zone};
 pub use crate::version::{library_path, version};
+
+// Original SDK records and configured session, independent of primary shapes.
+pub use crate::global::*;
+pub use crate::legacy::*;
+pub use crate::{global, native};
+
+/// Create a closed primary session from explicit native SDK settings.
+///
+/// File paths and JPL selection remain engine-specific. All numerical settings
+/// use owned defaults unless overridden; construction does not install C state.
+///
+/// # Errors
+/// Invalid configuration and unavailable external lookup context propagate.
+pub fn primary_session(
+    builder: &crate::session::SessionBuilder,
+) -> Result<crate::Session, crate::Error> {
+    crate::primary::from_native_builder(builder)
+}
+
+/// Node/apse transport of the retained configured SDK session.
+pub use crate::node_result::NodesApsides as SessionNodesApsides;

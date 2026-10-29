@@ -308,6 +308,12 @@ unsafe extern "C" {
     /// `void swe_set_sid_mode(int32 sid_mode, double t0, double ayan_t0)`.
     pub(crate) fn swe_set_sid_mode(sid_mode: i32, t0: c_double, ayan_t0: c_double);
 
+    /// `void swe_set_astro_models(char *samod, int32 iflag)`.
+    /// An initialized empty selector requests the pinned current-version model
+    /// defaults. Private configuration only: no model algorithm is implemented
+    /// here and no arbitrary model/version selector is exposed at the root.
+    pub(crate) fn swe_set_astro_models(selector: *mut c_char, flags: i32);
+
     /// `double swe_get_ayanamsa_ut(double tjd_ut)` — ayanamsha in degrees
     /// for the active sidereal mode; no failure mode.
     pub(crate) fn swe_get_ayanamsa_ut(tjd_ut: c_double) -> c_double;

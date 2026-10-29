@@ -1,8 +1,8 @@
 //! Regression inputs: arithmetic ranges, configured dates and missing catalogs.
 //! Only inputs and structural assertions are retained.
 
-use swisseph_bindings::*;
-use swisseph_bindings::{
+use swisseph_bindings::native::*;
+use swisseph_bindings::native::{
     global::calc, global::calc_ut, global::fixstar2, global::fixstar2_mag, global::fixstar2_ut,
     global::gauquelin_sector, global::get_ayanamsa, global::get_ayanamsa_ex,
     global::get_ayanamsa_ex_ut, global::get_ayanamsa_ut, global::get_orbital_elements,

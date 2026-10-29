@@ -32,7 +32,7 @@
 
 use std::ffi::c_char;
 
-use crate::ECL_ONE_TRY;
+use crate::constants::ECL_ONE_TRY;
 use crate::error::Error;
 use crate::ffi::{
     self, ECLIPSE_ATTR_LEN, ECLIPSE_GEOPOS_LEN, ECLIPSE_TRET_LEN, HELIACAL_ATM_LEN,
@@ -130,7 +130,7 @@ fn describe_crossing_failure(
 /// The heliocentric Sun has no changing longitude/speed. The pinned
 /// solar crossing solver does not terminate for this configuration.
 fn check_solar_crossing_flags(function: &str, flags: i32) -> Result<(), Error> {
-    if flags & crate::FLG_HELCTR != 0 {
+    if flags & crate::constants::FLG_HELCTR != 0 {
         return Err(Error::invalid_input(format!(
             "{function}: heliocentric Sun crossings are undefined (FLG_HELCTR)"
         )));
@@ -167,12 +167,12 @@ fn check_solar_crossing_flags(function: &str, flags: i32) -> Result<(), Error> {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, global::solcross};
+/// use swisseph_bindings::native::{FLG_MOSEPH, global::solcross};
 ///
 /// // Next 0° Aries ingress of the Moshier Sun after J2000.
 /// let cross = solcross(0.0, 2451545.0, FLG_MOSEPH)?;
 /// assert!(cross.time > 2451545.0 && cross.time < 2451545.0 + 400.0);
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -184,7 +184,20 @@ fn check_solar_crossing_flags(function: &str, flags: i32) -> Result<(), Error> {
 pub fn solcross(x2cross: f64, jd_et: f64, flags: i32) -> Result<LongitudeCrossing, Error> {
     check_solar_crossing_flags("solcross", flags)?;
     check_crossing_inputs("solcross", x2cross, jd_et)?;
-    with_native_access(|| {
+    with_native_access(|| solcross_locked(x2cross, jd_et, flags))
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn solcross_locked(
+    x2cross: f64,
+    jd_et: f64,
+    flags: i32,
+) -> Result<LongitudeCrossing, Error> {
+    check_solar_crossing_flags("solcross", flags)?;
+    check_crossing_inputs("solcross", x2cross, jd_et)?;
+    {
         crate::domain::check_et_locked("solcross", jd_et, flags)?;
         let mut serr = [0 as c_char; SERR_LEN];
         // SAFETY: `serr` owns SERR_LEN writable bytes and outlives this
@@ -195,7 +208,7 @@ pub fn solcross(x2cross: f64, jd_et: f64, flags: i32) -> Result<LongitudeCrossin
         // bounded by SERR_LEN (see `read_native_text`).
         let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
         classify_crossing("solcross", jd_et, x2cross, flags, ret, diagnostic)
-    })
+    }
 }
 
 /// Find the next crossing of the Sun over an ecliptic longitude for a
@@ -208,11 +221,11 @@ pub fn solcross(x2cross: f64, jd_et: f64, flags: i32) -> Result<LongitudeCrossin
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, global::solcross_ut};
+/// use swisseph_bindings::native::{FLG_MOSEPH, global::solcross_ut};
 ///
 /// let cross = solcross_ut(0.0, 2451545.0, FLG_MOSEPH)?;
 /// assert!(cross.time > 2451545.0 && cross.time < 2451545.0 + 400.0);
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -224,7 +237,20 @@ pub fn solcross(x2cross: f64, jd_et: f64, flags: i32) -> Result<LongitudeCrossin
 pub fn solcross_ut(x2cross: f64, jd_ut: f64, flags: i32) -> Result<LongitudeCrossing, Error> {
     check_solar_crossing_flags("solcross_ut", flags)?;
     check_crossing_inputs("solcross_ut", x2cross, jd_ut)?;
-    with_native_access(|| {
+    with_native_access(|| solcross_ut_locked(x2cross, jd_ut, flags))
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn solcross_ut_locked(
+    x2cross: f64,
+    jd_ut: f64,
+    flags: i32,
+) -> Result<LongitudeCrossing, Error> {
+    check_solar_crossing_flags("solcross_ut", flags)?;
+    check_crossing_inputs("solcross_ut", x2cross, jd_ut)?;
+    {
         crate::domain::check_ut_locked("solcross_ut", jd_ut, flags)?;
         let mut serr = [0 as c_char; SERR_LEN];
         // SAFETY: same contract as in [`solcross`].
@@ -232,7 +258,7 @@ pub fn solcross_ut(x2cross: f64, jd_ut: f64, flags: i32) -> Result<LongitudeCros
         // SAFETY: same contract as in [`solcross`].
         let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
         classify_crossing("solcross_ut", jd_ut, x2cross, flags, ret, diagnostic)
-    })
+    }
 }
 
 /// Find the next crossing of the Moon over an ecliptic longitude.
@@ -243,11 +269,11 @@ pub fn solcross_ut(x2cross: f64, jd_ut: f64, flags: i32) -> Result<LongitudeCros
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, global::mooncross};
+/// use swisseph_bindings::native::{FLG_MOSEPH, global::mooncross};
 ///
 /// let cross = mooncross(0.0, 2451545.0, FLG_MOSEPH)?;
 /// assert!(cross.time > 2451545.0 && cross.time < 2451545.0 + 30.0);
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -258,7 +284,19 @@ pub fn solcross_ut(x2cross: f64, jd_ut: f64, flags: i32) -> Result<LongitudeCros
 /// described by [`crate::global::set_sid_mode`].
 pub fn mooncross(x2cross: f64, jd_et: f64, flags: i32) -> Result<LongitudeCrossing, Error> {
     check_crossing_inputs("mooncross", x2cross, jd_et)?;
-    with_native_access(|| {
+    with_native_access(|| mooncross_locked(x2cross, jd_et, flags))
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn mooncross_locked(
+    x2cross: f64,
+    jd_et: f64,
+    flags: i32,
+) -> Result<LongitudeCrossing, Error> {
+    check_crossing_inputs("mooncross", x2cross, jd_et)?;
+    {
         crate::domain::check_et_locked("mooncross", jd_et, flags)?;
         let mut serr = [0 as c_char; SERR_LEN];
         // SAFETY: same contract as in [`solcross`].
@@ -266,7 +304,7 @@ pub fn mooncross(x2cross: f64, jd_et: f64, flags: i32) -> Result<LongitudeCrossi
         // SAFETY: same contract as in [`solcross`].
         let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
         classify_crossing("mooncross", jd_et, x2cross, flags, ret, diagnostic)
-    })
+    }
 }
 
 /// Find the next crossing of the Moon over an ecliptic longitude for a
@@ -278,11 +316,11 @@ pub fn mooncross(x2cross: f64, jd_et: f64, flags: i32) -> Result<LongitudeCrossi
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, global::mooncross_ut};
+/// use swisseph_bindings::native::{FLG_MOSEPH, global::mooncross_ut};
 ///
 /// let cross = mooncross_ut(0.0, 2451545.0, FLG_MOSEPH)?;
 /// assert!(cross.time > 2451545.0 && cross.time < 2451545.0 + 30.0);
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -293,7 +331,19 @@ pub fn mooncross(x2cross: f64, jd_et: f64, flags: i32) -> Result<LongitudeCrossi
 /// described by [`crate::global::set_sid_mode`].
 pub fn mooncross_ut(x2cross: f64, jd_ut: f64, flags: i32) -> Result<LongitudeCrossing, Error> {
     check_crossing_inputs("mooncross_ut", x2cross, jd_ut)?;
-    with_native_access(|| {
+    with_native_access(|| mooncross_ut_locked(x2cross, jd_ut, flags))
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn mooncross_ut_locked(
+    x2cross: f64,
+    jd_ut: f64,
+    flags: i32,
+) -> Result<LongitudeCrossing, Error> {
+    check_crossing_inputs("mooncross_ut", x2cross, jd_ut)?;
+    {
         crate::domain::check_ut_locked("mooncross_ut", jd_ut, flags)?;
         let mut serr = [0 as c_char; SERR_LEN];
         // SAFETY: same contract as in [`solcross`].
@@ -301,7 +351,7 @@ pub fn mooncross_ut(x2cross: f64, jd_ut: f64, flags: i32) -> Result<LongitudeCro
         // SAFETY: same contract as in [`solcross`].
         let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
         classify_crossing("mooncross_ut", jd_ut, x2cross, flags, ret, diagnostic)
-    })
+    }
 }
 
 /// Find the next passage of the Moon over its own orbital node.
@@ -323,12 +373,12 @@ pub fn mooncross_ut(x2cross: f64, jd_ut: f64, flags: i32) -> Result<LongitudeCro
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, global::mooncross_node};
+/// use swisseph_bindings::native::{FLG_MOSEPH, global::mooncross_node};
 ///
 /// let cross = mooncross_node(2451545.0, FLG_MOSEPH)?;
 /// assert!(cross.time > 2451545.0 && cross.time < 2451545.0 + 15.0);
 /// assert!(cross.latitude.abs() < 1e-3);
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -343,7 +393,19 @@ pub fn mooncross_node(jd_et: f64, flags: i32) -> Result<NodeCrossing, Error> {
             "mooncross_node: Julian Day must be finite",
         ));
     }
-    with_native_access(|| {
+    with_native_access(|| mooncross_node_locked(jd_et, flags))
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn mooncross_node_locked(jd_et: f64, flags: i32) -> Result<NodeCrossing, Error> {
+    if !jd_et.is_finite() {
+        return Err(Error::invalid_input(
+            "mooncross_node: Julian Day must be finite",
+        ));
+    }
+    {
         crate::domain::check_et_locked("mooncross_node", jd_et, flags)?;
         let mut xlon = 0.0;
         let mut xlat = 0.0;
@@ -373,7 +435,7 @@ pub fn mooncross_node(jd_et: f64, flags: i32) -> Result<NodeCrossing, Error> {
                 diagnostic,
             })
         }
-    })
+    }
 }
 
 /// Find the next passage of the Moon over its own orbital node for a
@@ -385,12 +447,12 @@ pub fn mooncross_node(jd_et: f64, flags: i32) -> Result<NodeCrossing, Error> {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, global::mooncross_node_ut};
+/// use swisseph_bindings::native::{FLG_MOSEPH, global::mooncross_node_ut};
 ///
 /// let cross = mooncross_node_ut(2451545.0, FLG_MOSEPH)?;
 /// assert!(cross.time > 2451545.0 && cross.time < 2451545.0 + 15.0);
 /// assert!(cross.latitude.abs() < 1e-3);
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -405,7 +467,19 @@ pub fn mooncross_node_ut(jd_ut: f64, flags: i32) -> Result<NodeCrossing, Error> 
             "mooncross_node_ut: Julian Day must be finite",
         ));
     }
-    with_native_access(|| {
+    with_native_access(|| mooncross_node_ut_locked(jd_ut, flags))
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn mooncross_node_ut_locked(jd_ut: f64, flags: i32) -> Result<NodeCrossing, Error> {
+    if !jd_ut.is_finite() {
+        return Err(Error::invalid_input(
+            "mooncross_node_ut: Julian Day must be finite",
+        ));
+    }
+    {
         crate::domain::check_ut_locked("mooncross_node_ut", jd_ut, flags)?;
         let mut xlon = 0.0;
         let mut xlat = 0.0;
@@ -431,7 +505,7 @@ pub fn mooncross_node_ut(jd_ut: f64, flags: i32) -> Result<NodeCrossing, Error> 
                 diagnostic,
             })
         }
-    })
+    }
 }
 
 /// Build the error message for a failed node search, keeping the native
@@ -447,7 +521,7 @@ fn describe_node_failure(function: &str, jd: f64, flags: i32, diagnostic: &str) 
 /// Find the next (or previous) crossing of a planet over a heliocentric
 /// ecliptic longitude.
 ///
-/// `body` is a body number (for example [`crate::MARS`]); `x2cross` is
+/// `body` is a body number (for example [`crate::constants::MARS`]); `x2cross` is
 /// the target heliocentric longitude in degrees (any finite value) and
 /// `jd_et` the Ephemeris Time search epoch. `flags` carries the
 /// ephemeris source bits. `dir` selects the search direction natively:
@@ -470,11 +544,11 @@ fn describe_node_failure(function: &str, jd: f64, flags: i32, diagnostic: &str) 
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, MARS, global::helio_cross};
+/// use swisseph_bindings::native::{FLG_MOSEPH, MARS, global::helio_cross};
 ///
 /// let cross = helio_cross(MARS, 0.0, 2451545.0, FLG_MOSEPH, 1)?;
 /// assert!(cross.time > 2451545.0);
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -491,7 +565,21 @@ pub fn helio_cross(
     dir: i32,
 ) -> Result<LongitudeCrossing, Error> {
     check_crossing_inputs("helio_cross", x2cross, jd_et)?;
-    with_native_access(|| {
+    with_native_access(|| helio_cross_locked(body, x2cross, jd_et, flags, dir))
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn helio_cross_locked(
+    body: i32,
+    x2cross: f64,
+    jd_et: f64,
+    flags: i32,
+    dir: i32,
+) -> Result<LongitudeCrossing, Error> {
+    check_crossing_inputs("helio_cross", x2cross, jd_et)?;
+    {
         crate::domain::check_et_locked("helio_cross", jd_et, flags)?;
         let mut jd_cross = 0.0;
         let mut serr = [0 as c_char; SERR_LEN];
@@ -522,14 +610,15 @@ pub fn helio_cross(
                 flags,
                 dir,
                 &diagnostic,
-            )))
+            ))
+            .with_native_channels("helio_cross", Some(ret), None, Some(&diagnostic)))
         } else {
             Ok(LongitudeCrossing {
                 time: jd_cross,
                 diagnostic,
             })
         }
-    })
+    }
 }
 
 /// Find the next (or previous) crossing of a planet over a heliocentric
@@ -541,11 +630,11 @@ pub fn helio_cross(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, MARS, global::helio_cross_ut};
+/// use swisseph_bindings::native::{FLG_MOSEPH, MARS, global::helio_cross_ut};
 ///
 /// let cross = helio_cross_ut(MARS, 0.0, 2451545.0, FLG_MOSEPH, 1)?;
 /// assert!(cross.time > 2451545.0);
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -562,7 +651,21 @@ pub fn helio_cross_ut(
     dir: i32,
 ) -> Result<LongitudeCrossing, Error> {
     check_crossing_inputs("helio_cross_ut", x2cross, jd_ut)?;
-    with_native_access(|| {
+    with_native_access(|| helio_cross_ut_locked(body, x2cross, jd_ut, flags, dir))
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn helio_cross_ut_locked(
+    body: i32,
+    x2cross: f64,
+    jd_ut: f64,
+    flags: i32,
+    dir: i32,
+) -> Result<LongitudeCrossing, Error> {
+    check_crossing_inputs("helio_cross_ut", x2cross, jd_ut)?;
+    {
         crate::domain::check_ut_locked("helio_cross_ut", jd_ut, flags)?;
         let mut jd_cross = 0.0;
         let mut serr = [0 as c_char; SERR_LEN];
@@ -589,14 +692,20 @@ pub fn helio_cross_ut(
                 flags,
                 dir,
                 &diagnostic,
-            )))
+            ))
+            .with_native_channels(
+                "helio_cross_ut",
+                Some(ret),
+                None,
+                Some(&diagnostic),
+            ))
         } else {
             Ok(LongitudeCrossing {
                 time: jd_cross,
                 diagnostic,
             })
         }
-    })
+    }
 }
 
 /// Build the error message for a failed heliocentric search, keeping the
@@ -790,13 +899,13 @@ fn check_eclipse_search_inputs(function: &str, jd_start: f64) -> Result<(), Erro
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{ECL_TOTAL, FLG_MOSEPH, global::sol_eclipse_when_glob};
+/// use swisseph_bindings::native::{ECL_TOTAL, FLG_MOSEPH, global::sol_eclipse_when_glob};
 ///
 /// // Next total solar eclipse after 2024-01-01 (Moshier needs no data).
 /// let ecl = sol_eclipse_when_glob(2460310.5, FLG_MOSEPH, ECL_TOTAL, false)?;
 /// assert!(ecl.maximum() > 2460310.5);
 /// assert!(ecl.begin() <= ecl.maximum() && ecl.maximum() <= ecl.end());
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -816,7 +925,20 @@ pub fn sol_eclipse_when_glob(
     backward: bool,
 ) -> Result<GlobalSolarEclipse, Error> {
     check_eclipse_search_inputs("sol_eclipse_when_glob", jd_start)?;
-    with_native_access(|| {
+    with_native_access(|| sol_eclipse_when_glob_locked(jd_start, flags, eclipse_type, backward))
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn sol_eclipse_when_glob_locked(
+    jd_start: f64,
+    flags: i32,
+    eclipse_type: i32,
+    backward: bool,
+) -> Result<GlobalSolarEclipse, Error> {
+    check_eclipse_search_inputs("sol_eclipse_when_glob", jd_start)?;
+    {
         crate::domain::check_ut_locked("sol_eclipse_when_glob", jd_start, flags)?;
         let mut tret = [0.0; ECLIPSE_TRET_LEN];
         let mut serr = [0 as c_char; SERR_LEN];
@@ -845,7 +967,13 @@ pub fn sol_eclipse_when_glob(
                 eclipse_type,
                 backward,
                 &diagnostic,
-            )))
+            ))
+            .with_native_channels(
+                "sol_eclipse_when_glob",
+                Some(ret),
+                None,
+                Some(&diagnostic),
+            ))
         } else {
             Ok(GlobalSolarEclipse {
                 eclipse_type: ret,
@@ -853,7 +981,7 @@ pub fn sol_eclipse_when_glob(
                 diagnostic,
             })
         }
-    })
+    }
 }
 
 /// Find the next (or previous) global lunar eclipse.
@@ -875,13 +1003,13 @@ pub fn sol_eclipse_when_glob(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{ECL_TOTAL, FLG_MOSEPH, global::lun_eclipse_when};
+/// use swisseph_bindings::native::{ECL_TOTAL, FLG_MOSEPH, global::lun_eclipse_when};
 ///
 /// // Next total lunar eclipse after 2024-01-01 (Moshier needs no data).
 /// let ecl = lun_eclipse_when(2460310.5, FLG_MOSEPH, ECL_TOTAL, false)?;
 /// assert!(ecl.maximum() > 2460310.5);
 /// assert!(ecl.partial_begin() <= ecl.maximum() && ecl.maximum() <= ecl.partial_end());
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -901,7 +1029,20 @@ pub fn lun_eclipse_when(
     backward: bool,
 ) -> Result<GlobalLunarEclipse, Error> {
     check_eclipse_search_inputs("lun_eclipse_when", jd_start)?;
-    with_native_access(|| {
+    with_native_access(|| lun_eclipse_when_locked(jd_start, flags, eclipse_type, backward))
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn lun_eclipse_when_locked(
+    jd_start: f64,
+    flags: i32,
+    eclipse_type: i32,
+    backward: bool,
+) -> Result<GlobalLunarEclipse, Error> {
+    check_eclipse_search_inputs("lun_eclipse_when", jd_start)?;
+    {
         crate::domain::check_ut_locked("lun_eclipse_when", jd_start, flags)?;
         let mut tret = [0.0; ECLIPSE_TRET_LEN];
         let mut serr = [0 as c_char; SERR_LEN];
@@ -926,7 +1067,13 @@ pub fn lun_eclipse_when(
                 eclipse_type,
                 backward,
                 &diagnostic,
-            )))
+            ))
+            .with_native_channels(
+                "lun_eclipse_when",
+                Some(ret),
+                None,
+                Some(&diagnostic),
+            ))
         } else {
             Ok(GlobalLunarEclipse {
                 eclipse_type: ret,
@@ -934,7 +1081,7 @@ pub fn lun_eclipse_when(
                 diagnostic,
             })
         }
-    })
+    }
 }
 
 /// Build the error message for a failed eclipse search, keeping the
@@ -1191,13 +1338,13 @@ impl LunarEclipseCircumstances {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, global::sol_eclipse_where};
+/// use swisseph_bindings::native::{FLG_MOSEPH, global::sol_eclipse_where};
 ///
 /// // Greatest eclipse of the 2024-04-08 total solar eclipse.
 /// let geo = sol_eclipse_where(2460409.26, FLG_MOSEPH)?;
 /// assert!(geo.eclipse_type != 0);
 /// assert!((geo.longitude + 104.0).abs() < 5.0);
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -1256,7 +1403,8 @@ pub(crate) fn sol_eclipse_where_full_locked(
             jd_ut,
             flags,
             &diagnostic,
-        )))
+        ))
+        .with_native_channels("sol_eclipse_where", Some(ret), None, Some(&diagnostic)))
     } else {
         Ok(SolarEclipseGeometryFull {
             geopos,
@@ -1312,13 +1460,13 @@ pub fn sol_eclipse_where(jd_ut: f64, flags: i32) -> Result<SolarEclipseGeometry,
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, global::sol_eclipse_how};
+/// use swisseph_bindings::native::{FLG_MOSEPH, global::sol_eclipse_how};
 ///
 /// // Totality near the greatest eclipse (25.3°N, 104.1°W) at maximum.
 /// let loc = sol_eclipse_how(2460409.26, FLG_MOSEPH, -104.1, 25.3, 0.0)?;
 /// assert!(loc.eclipse_type != 0);
 /// assert!(loc.magnitude() > 0.9);
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -1350,7 +1498,30 @@ pub fn sol_eclipse_how(
             "sol_eclipse_how: time and observer inputs must be finite",
         ));
     }
-    with_native_access(|| {
+    with_native_access(|| sol_eclipse_how_locked(jd_ut, flags, longitude, latitude, altitude))
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn sol_eclipse_how_locked(
+    jd_ut: f64,
+    flags: i32,
+    longitude: f64,
+    latitude: f64,
+    altitude: f64,
+) -> Result<SolarEclipseCircumstances, Error> {
+    crate::domain::check_observer_height("sol_eclipse_how", altitude)?;
+    if !jd_ut.is_finite()
+        || !longitude.is_finite()
+        || !latitude.is_finite()
+        || !altitude.is_finite()
+    {
+        return Err(Error::invalid_input(
+            "sol_eclipse_how: time and observer inputs must be finite",
+        ));
+    }
+    {
         crate::domain::check_ut_locked("sol_eclipse_how", jd_ut, flags)?;
         let geopos = [longitude, latitude, altitude];
         let mut attr = [0.0; ECLIPSE_ATTR_LEN];
@@ -1377,7 +1548,13 @@ pub fn sol_eclipse_how(
                 jd_ut,
                 flags,
                 &diagnostic,
-            )))
+            ))
+            .with_native_channels(
+                "sol_eclipse_how",
+                Some(ret),
+                None,
+                Some(&diagnostic),
+            ))
         } else {
             Ok(SolarEclipseCircumstances {
                 eclipse_type: ret,
@@ -1385,7 +1562,7 @@ pub fn sol_eclipse_how(
                 diagnostic,
             })
         }
-    })
+    }
 }
 
 /// Report the circumstances of the lunar eclipse at an instant.
@@ -1416,13 +1593,13 @@ pub fn sol_eclipse_how(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, global::lun_eclipse_how};
+/// use swisseph_bindings::native::{FLG_MOSEPH, global::lun_eclipse_how};
 ///
 /// // Near the maximum of the 2024-09-18 partial lunar eclipse.
 /// let lun = lun_eclipse_how(2460571.61, FLG_MOSEPH, None)?;
 /// assert!(lun.eclipse_type != 0);
 /// assert!(lun.umbral_magnitude() > 0.0);
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -1455,8 +1632,33 @@ pub fn lun_eclipse_how(
     // Caller-owned observer buffer: the native call only reads it, and
     // every access stays inside this buffer. `None` passes null, which
     // the engine treats as a geocentric request.
+    with_native_access(|| lun_eclipse_how_locked(jd_ut, flags, observer))
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn lun_eclipse_how_locked(
+    jd_ut: f64,
+    flags: i32,
+    observer: Option<(f64, f64, f64)>,
+) -> Result<LunarEclipseCircumstances, Error> {
+    if let Some((_, _, altitude)) = observer {
+        crate::domain::check_observer_height("lun_eclipse_how", altitude)?;
+    }
+    if !jd_ut.is_finite()
+        || observer
+            .is_some_and(|(lon, lat, alt)| !lon.is_finite() || !lat.is_finite() || !alt.is_finite())
+    {
+        return Err(Error::invalid_input(
+            "lun_eclipse_how: time and observer inputs must be finite",
+        ));
+    }
+    // Caller-owned observer buffer: the native call only reads it, and
+    // every access stays inside this buffer. `None` passes null, which
+    // the engine treats as a geocentric request.
     let geopos = observer.map(|(lon, lat, alt)| [lon, lat, alt]);
-    with_native_access(|| {
+    {
         crate::domain::check_ut_locked("lun_eclipse_how", jd_ut, flags)?;
         let mut attr = [0.0; ECLIPSE_ATTR_LEN];
         let mut serr = [0 as c_char; SERR_LEN];
@@ -1483,7 +1685,13 @@ pub fn lun_eclipse_how(
                 jd_ut,
                 flags,
                 &diagnostic,
-            )))
+            ))
+            .with_native_channels(
+                "lun_eclipse_how",
+                Some(ret),
+                None,
+                Some(&diagnostic),
+            ))
         } else {
             Ok(LunarEclipseCircumstances {
                 eclipse_type: ret,
@@ -1491,7 +1699,7 @@ pub fn lun_eclipse_how(
                 diagnostic,
             })
         }
-    })
+    }
 }
 
 /// Build the error message for a failed eclipse-moment call, keeping the
@@ -1812,7 +2020,7 @@ fn check_occult_body_input(
     body: i32,
     star_name: Option<&str>,
 ) -> Result<(), Error> {
-    if body == crate::MOON && star_name.is_none_or(|name| name.is_empty()) {
+    if body == crate::constants::MOON && star_name.is_none_or(|name| name.is_empty()) {
         return Err(Error::invalid_input(format!(
             "{function}: the Moon has no lunar occultation of its own (rejected before the native search, which does not terminate)"
         )));
@@ -1877,7 +2085,7 @@ fn describe_local_search_failure(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_SWIEPH, global::set_ephe_path, global::sol_eclipse_when_loc};
+/// use swisseph_bindings::native::{FLG_SWIEPH, global::set_ephe_path, global::sol_eclipse_when_loc};
 ///
 /// // Next solar eclipse visible from Dallas after 2024-01-01 (explicit
 /// // external data, else the checkout data, keeps this runnable).
@@ -1894,7 +2102,7 @@ fn describe_local_search_failure(
 /// let ecl = sol_eclipse_when_loc(2460310.5, FLG_SWIEPH, -96.8, 32.8, 0.0, false)?;
 /// assert!(ecl.maximum() > 2460310.5);
 /// assert!(ecl.first_contact() <= ecl.maximum() && ecl.maximum() <= ecl.fourth_contact());
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -1928,6 +2136,29 @@ pub fn sol_eclipse_when_loc(
         altitude,
     )?;
     with_native_access(|| {
+        sol_eclipse_when_loc_locked(jd_start, flags, longitude, latitude, altitude, backward)
+    })
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn sol_eclipse_when_loc_locked(
+    jd_start: f64,
+    flags: i32,
+    longitude: f64,
+    latitude: f64,
+    altitude: f64,
+    backward: bool,
+) -> Result<LocalSolarEclipse, Error> {
+    check_local_search_inputs(
+        "sol_eclipse_when_loc",
+        jd_start,
+        longitude,
+        latitude,
+        altitude,
+    )?;
+    {
         crate::domain::check_ut_locked("sol_eclipse_when_loc", jd_start, flags)?;
         let geopos = [longitude, latitude, altitude];
         // The engine writes exactly seven slots but leaves inapplicable
@@ -1962,7 +2193,13 @@ pub fn sol_eclipse_when_loc(
                 flags,
                 backward,
                 &diagnostic,
-            )))
+            ))
+            .with_native_channels(
+                "sol_eclipse_when_loc",
+                Some(ret),
+                None,
+                Some(&diagnostic),
+            ))
         } else {
             Ok(LocalSolarEclipse {
                 eclipse_type: ret,
@@ -1971,7 +2208,7 @@ pub fn sol_eclipse_when_loc(
                 diagnostic,
             })
         }
-    })
+    }
 }
 
 /// Find the next (or previous) lunar eclipse visible from a geographic
@@ -2007,7 +2244,7 @@ pub fn sol_eclipse_when_loc(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_SWIEPH, global::lun_eclipse_when_loc, global::set_ephe_path};
+/// use swisseph_bindings::native::{FLG_SWIEPH, global::lun_eclipse_when_loc, global::set_ephe_path};
 ///
 /// // Next lunar eclipse visible from London after 2024-04-15 (the
 /// // 2024-09-18 partial eclipse).
@@ -2024,7 +2261,7 @@ pub fn sol_eclipse_when_loc(
 /// let ecl = lun_eclipse_when_loc(2460415.5, FLG_SWIEPH, 0.0, 51.5, 0.0, false)?;
 /// assert!(ecl.maximum() > 2460415.5);
 /// assert!(ecl.partial_begin() <= ecl.maximum() && ecl.maximum() <= ecl.partial_end());
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -2058,6 +2295,29 @@ pub fn lun_eclipse_when_loc(
         altitude,
     )?;
     with_native_access(|| {
+        lun_eclipse_when_loc_locked(jd_start, flags, longitude, latitude, altitude, backward)
+    })
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn lun_eclipse_when_loc_locked(
+    jd_start: f64,
+    flags: i32,
+    longitude: f64,
+    latitude: f64,
+    altitude: f64,
+    backward: bool,
+) -> Result<LocalLunarEclipse, Error> {
+    check_local_search_inputs(
+        "lun_eclipse_when_loc",
+        jd_start,
+        longitude,
+        latitude,
+        altitude,
+    )?;
+    {
         crate::domain::check_ut_locked("lun_eclipse_when_loc", jd_start, flags)?;
         let geopos = [longitude, latitude, altitude];
         let mut tret = [0.0; ECLIPSE_TRET_LEN];
@@ -2084,7 +2344,13 @@ pub fn lun_eclipse_when_loc(
                 flags,
                 backward,
                 &diagnostic,
-            )))
+            ))
+            .with_native_channels(
+                "lun_eclipse_when_loc",
+                Some(ret),
+                None,
+                Some(&diagnostic),
+            ))
         } else {
             Ok(LocalLunarEclipse {
                 eclipse_type: ret,
@@ -2093,7 +2359,7 @@ pub fn lun_eclipse_when_loc(
                 diagnostic,
             })
         }
-    })
+    }
 }
 
 /// Next lunar occultation visible somewhere on Earth: type and phase
@@ -2413,7 +2679,7 @@ fn encode_occult_backward(search: OccultSearchOptions) -> i32 {
 /// Earth.
 ///
 /// `jd_start` is the Universal Time search epoch. `body` selects the
-/// occulted planet (for example [`crate::VENUS`]); pass a star via
+/// occulted planet (for example [`crate::constants::VENUS`]); pass a star via
 /// `star_name` (`Some` selects the fixed-star path, `None` the body
 /// path — an empty name behaves as `None` natively). Negative body
 /// numbers fold to the Sun natively; `SE_AST_OFFSET + 134340` folds to
@@ -2448,14 +2714,14 @@ fn encode_occult_backward(search: OccultSearchOptions) -> i32 {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, VENUS, global::lun_occult_when_glob};
+/// use swisseph_bindings::native::{FLG_MOSEPH, VENUS, global::lun_occult_when_glob};
 ///
 /// // Next lunar occultation of Venus after J2000 (Moshier needs no
 /// // data).
 /// let occ = lun_occult_when_glob(2451545.0, VENUS, None, FLG_MOSEPH, 0, false)?;
 /// assert!(occ.maximum() > 2451545.0);
 /// assert!(occ.begin() <= occ.maximum() && occ.maximum() <= occ.end());
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -2514,7 +2780,7 @@ pub fn lun_occult_when_glob(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, native::OccultSearchOptions, VENUS, global::lun_occult_when_glob, native::lun_occult_when_glob_with_options};
+/// use swisseph_bindings::native::{FLG_MOSEPH, native::OccultSearchOptions, VENUS, global::lun_occult_when_glob, native::lun_occult_when_glob_with_options};
 ///
 /// // Next lunar occultation of Venus after J2000 (Moshier needs no
 /// // data): the extended call without `one_try` agrees with the
@@ -2530,7 +2796,7 @@ pub fn lun_occult_when_glob(
 /// )?;
 /// assert_eq!(extended.occult_type, classic.occult_type);
 /// assert_eq!(extended.times, classic.times);
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -2582,6 +2848,39 @@ fn lun_occult_when_glob_impl(
         }
     }
     with_native_access(|| {
+        lun_occult_when_glob_impl_locked(jd_start, body, star_name, flags, eclipse_type, search)
+    })
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn lun_occult_when_glob_impl_locked(
+    jd_start: f64,
+    body: i32,
+    star_name: Option<&str>,
+    flags: i32,
+    eclipse_type: i32,
+    search: OccultSearchOptions,
+) -> Result<GlobalOccultation, Error> {
+    if !jd_start.is_finite() {
+        return Err(Error::invalid_input(
+            "lun_occult_when_glob: search epoch must be finite",
+        ));
+    }
+    check_occult_star_input("lun_occult_when_glob", star_name)?;
+    check_occult_body_input("lun_occult_when_glob", body, star_name)?;
+    // Caller-owned star buffer: the native call reads the name while
+    // resolving a fixed star (and `swe_fixstar` writes the resolved name
+    // back), so every access must stay inside this buffer. The body path
+    // passes null, which the engine treats as "no star".
+    let mut star_buffer = [0 as c_char; TEXT_BUF_LEN];
+    if let Some(name) = star_name {
+        for (slot, byte) in star_buffer.iter_mut().zip(name.bytes()) {
+            *slot = byte as c_char;
+        }
+    }
+    {
         crate::domain::check_ut_locked("lun_occult_when_glob_impl", jd_start, flags)?;
         let mut tret = [0.0; ECLIPSE_TRET_LEN];
         let mut serr = [0 as c_char; SERR_LEN];
@@ -2619,7 +2918,13 @@ fn lun_occult_when_glob_impl(
                 eclipse_type,
                 search,
                 &diagnostic,
-            )))
+            ))
+            .with_native_channels(
+                "lun_occult_when_glob",
+                Some(ret),
+                None,
+                Some(&diagnostic),
+            ))
         } else {
             Ok(GlobalOccultation {
                 occult_type: ret,
@@ -2627,7 +2932,7 @@ fn lun_occult_when_glob_impl(
                 diagnostic,
             })
         }
-    })
+    }
 }
 
 /// Find the next (or previous) lunar occultation visible from a
@@ -2666,14 +2971,14 @@ fn lun_occult_when_glob_impl(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, VENUS, global::lun_occult_when_loc};
+/// use swisseph_bindings::native::{FLG_MOSEPH, VENUS, global::lun_occult_when_loc};
 ///
 /// // Next lunar occultation of Venus visible from Greenwich after
 /// // J2000 (Moshier needs no data files, so no data path is set here).
 /// let occ = lun_occult_when_loc(2451545.0, VENUS, None, FLG_MOSEPH, 0.0, 51.5, 0.0, false)?;
 /// assert!(occ.maximum() > 2451545.0);
 /// assert!(occ.first_contact() <= occ.maximum() && occ.maximum() <= occ.fourth_contact());
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -2739,7 +3044,7 @@ pub fn lun_occult_when_loc(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, native::OccultSearchOptions, VENUS, global::lun_occult_when_loc, native::lun_occult_when_loc_with_options};
+/// use swisseph_bindings::native::{FLG_MOSEPH, native::OccultSearchOptions, VENUS, global::lun_occult_when_loc, native::lun_occult_when_loc_with_options};
 ///
 /// // Next lunar occultation of Venus visible from Greenwich after
 /// // J2000 (Moshier needs no data files, so no data path is set here):
@@ -2758,7 +3063,7 @@ pub fn lun_occult_when_loc(
 /// )?;
 /// assert_eq!(extended.occult_type, classic.occult_type);
 /// assert_eq!(extended.times, classic.times);
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -2821,6 +3126,43 @@ fn lun_occult_when_loc_impl(
         }
     }
     with_native_access(|| {
+        lun_occult_when_loc_impl_locked(
+            jd_start, body, star_name, flags, longitude, latitude, altitude, search,
+        )
+    })
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn lun_occult_when_loc_impl_locked(
+    jd_start: f64,
+    body: i32,
+    star_name: Option<&str>,
+    flags: i32,
+    longitude: f64,
+    latitude: f64,
+    altitude: f64,
+    search: OccultSearchOptions,
+) -> Result<LocalOccultation, Error> {
+    check_local_search_inputs(
+        "lun_occult_when_loc",
+        jd_start,
+        longitude,
+        latitude,
+        altitude,
+    )?;
+    check_occult_star_input("lun_occult_when_loc", star_name)?;
+    check_occult_body_input("lun_occult_when_loc", body, star_name)?;
+    // Same caller-owned star buffer contract as in
+    // [`lun_occult_when_glob`].
+    let mut star_buffer = [0 as c_char; TEXT_BUF_LEN];
+    if let Some(name) = star_name {
+        for (slot, byte) in star_buffer.iter_mut().zip(name.bytes()) {
+            *slot = byte as c_char;
+        }
+    }
+    {
         crate::domain::check_ut_locked("lun_occult_when_loc_impl", jd_start, flags)?;
         let geopos = [longitude, latitude, altitude];
         // The engine zeroes ten slots on entry and fills the first
@@ -2864,7 +3206,13 @@ fn lun_occult_when_loc_impl(
                 0,
                 search,
                 &diagnostic,
-            )))
+            ))
+            .with_native_channels(
+                "lun_occult_when_loc",
+                Some(ret),
+                None,
+                Some(&diagnostic),
+            ))
         } else {
             Ok(LocalOccultation {
                 occult_type: ret,
@@ -2873,7 +3221,7 @@ fn lun_occult_when_loc_impl(
                 diagnostic,
             })
         }
-    })
+    }
 }
 
 /// Report the geographic circumstances of the lunar occultation in
@@ -2904,7 +3252,7 @@ fn lun_occult_when_loc_impl(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, VENUS, global::lun_occult_when_glob, global::lun_occult_where};
+/// use swisseph_bindings::native::{FLG_MOSEPH, VENUS, global::lun_occult_when_glob, global::lun_occult_where};
 ///
 /// // Circumstances of the next Venus occultation after J2000 at its
 /// // own maximum.
@@ -2912,7 +3260,7 @@ fn lun_occult_when_loc_impl(
 /// let geo = lun_occult_where(occ.maximum(), VENUS, None, FLG_MOSEPH)?;
 /// assert!(geo.occult_type != 0);
 /// assert!(geo.magnitude() > 0.0);
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -2955,7 +3303,7 @@ pub(crate) fn lun_occult_where_full_locked(
     // A coincident lunar target has no defined occultation geometry: the
     // native calculation produces non-finite geographic components. Keep the
     // existing safe boundary's explicit rejection rather than exposing them.
-    if body == crate::MOON && star_name.is_none_or(str::is_empty) {
+    if body == crate::constants::MOON && star_name.is_none_or(str::is_empty) {
         return Err(Error::invalid_input(
             "lun_occult_where: the Moon cannot be its own occultation target",
         ));
@@ -3004,7 +3352,8 @@ pub(crate) fn lun_occult_where_full_locked(
             body,
             flags,
             &diagnostic,
-        )))
+        ))
+        .with_native_channels("lun_occult_where", Some(ret), None, Some(&diagnostic)))
     } else {
         Ok(OccultationGeometryFull {
             geopos,
@@ -3181,7 +3530,7 @@ impl HeliacalEvent {
 /// - 13 `TbVR`: optimum time the object is visible, VR criterion (JD UT)
 /// - 14 `TlastVR`: last time the object is visible, VR criterion (JD UT)
 /// - 15 `TbYallop`: best time the object is visible, Yallop criterion
-///   (JD UT; [`crate::TJD_INVALID`] for non-lunar objects)
+///   (JD UT; [`crate::constants::TJD_INVALID`] for non-lunar objects)
 /// - 16 `WMoon`: crescent width of the Moon (deg)
 /// - 17 `qYal`: Yallop q-test value (-)
 /// - 18 `qCrit`: Yallop q-test criterion (-)
@@ -3306,7 +3655,7 @@ impl HeliacalPhenomena {
     }
 
     /// Best time the object is visible, Yallop criterion, as a Julian Day
-    /// in Universal Time (component 15; [`crate::TJD_INVALID`] for
+    /// in Universal Time (component 15; [`crate::constants::TJD_INVALID`] for
     /// non-lunar objects, which have no Yallop timing).
     pub fn yallop_best_jd(&self) -> f64 {
         self.values[15]
@@ -3470,7 +3819,7 @@ pub enum VisibilityOutcome {
 /// written; slot 0 is the native -100 marker and no limiting magnitude exists.
 #[derive(Debug, Clone, PartialEq)]
 pub struct VisibilityFull {
-    /// Native vision-mode status (0-3), or [`crate::HELFLAG_BELOW_HORIZON`]
+    /// Native vision-mode status (0-3), or [`crate::constants::HELFLAG_BELOW_HORIZON`]
     /// (-2). The latter is valid data, not a native failure.
     pub status: i32,
     /// All ten initialized transport slots, preserved without reconstruction.
@@ -3542,17 +3891,17 @@ fn heliacal_name_buffer(object: &str) -> [c_char; TEXT_BUF_LEN] {
 /// `atmosphere` carries pressure (mbar), temperature (°C), relative
 /// humidity (%) and the meteorological range or extinction coefficient;
 /// `observer` carries age (years), Snellen acuity, the binocular flag and
-/// — with [`crate::HELFLAG_OPTICAL_PARAMS`] — magnification, aperture
+/// — with [`crate::constants::HELFLAG_OPTICAL_PARAMS`] — magnification, aperture
 /// (mm) and transmission. Zero entries in either block select the native
 /// defaults. `object` names the planet (`"Venus"`, `"Mars"`, `"Moon"`,
 /// ...) or fixed star (`"Sirius"`, ...). `event_type` selects
-/// [`crate::HELIACAL_RISING`] (morning first), [`crate::HELIACAL_SETTING`]
-/// (evening last), [`crate::EVENING_FIRST`] or [`crate::MORNING_LAST`]
+/// [`crate::constants::HELIACAL_RISING`] (morning first), [`crate::constants::HELIACAL_SETTING`]
+/// (evening last), [`crate::constants::EVENING_FIRST`] or [`crate::constants::MORNING_LAST`]
 /// (inner planets and the Moon only); any other integer passes through
 /// and fails natively (acronychal types 5-6 are declared but "still not
 /// implemented" in the pinned header). `helflag` combines the ephemeris
 /// source bits (`FLG_SWIEPH`/`FLG_JPLEPH`/`FLG_MOSEPH`) with the
-/// [`crate::HELFLAG_LONG_SEARCH`] … [`crate::HELFLAG_AVKIND`] search bits.
+/// [`crate::constants::HELFLAG_LONG_SEARCH`] … [`crate::constants::HELFLAG_AVKIND`] search bits.
 ///
 /// The search always runs forward from the epoch; there is no native
 /// backward search. The Sun has no heliacal event and fails natively.
@@ -3582,7 +3931,7 @@ fn heliacal_name_buffer(object: &str) -> [c_char; TEXT_BUF_LEN] {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, HELIACAL_RISING, global::heliacal_ut};
+/// use swisseph_bindings::native::{FLG_MOSEPH, HELIACAL_RISING, global::heliacal_ut};
 ///
 /// // Next heliacal rising of Venus after J2000 (Moshier needs no data).
 /// let event = heliacal_ut(
@@ -3591,7 +3940,7 @@ fn heliacal_name_buffer(object: &str) -> [c_char; TEXT_BUF_LEN] {
 /// )?;
 /// assert!(event.begin() > 2451545.0);
 /// assert!(event.begin() <= event.optimum() && event.optimum() <= event.end());
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -3625,13 +3974,85 @@ pub fn heliacal_ut(
         &observer,
         object,
     )?;
-    if helflag & crate::HELFLAG_AVKIND != 0 {
+    if helflag & crate::constants::HELFLAG_AVKIND != 0 {
+        return Err(Error::invalid_input(
+            "heliacal_ut: arcus-visionis search flags are unavailable in the pinned native library (internal buffer capacity defect)",
+        ));
+    }
+    with_native_access(|| {
+        heliacal_ut_locked(
+            jd_start_ut,
+            longitude,
+            latitude,
+            altitude,
+            atmosphere,
+            observer,
+            object,
+            event_type,
+            helflag,
+        )
+    })
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn heliacal_ut_locked(
+    jd_start_ut: f64,
+    longitude: f64,
+    latitude: f64,
+    altitude: f64,
+    atmosphere: [f64; HELIACAL_ATM_LEN],
+    observer: [f64; HELIACAL_OBS_LEN],
+    object: &str,
+    event_type: i32,
+    helflag: i32,
+) -> Result<HeliacalEvent, Error> {
+    heliacal_ut_complete_locked(
+        jd_start_ut,
+        longitude,
+        latitude,
+        altitude,
+        atmosphere,
+        observer,
+        object,
+        event_type,
+        helflag,
+    )
+    .map(|(value, _, _)| value)
+}
+
+/// Preserve the actual native integer and diagnostic channels in one call.
+/// Caller holds native access; the legacy SDK projects only its original record.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn heliacal_ut_complete_locked(
+    jd_start_ut: f64,
+    longitude: f64,
+    latitude: f64,
+    altitude: f64,
+    atmosphere: [f64; HELIACAL_ATM_LEN],
+    observer: [f64; HELIACAL_OBS_LEN],
+    object: &str,
+    event_type: i32,
+    helflag: i32,
+) -> Result<(HeliacalEvent, i32, Option<String>), Error> {
+    check_heliacal_inputs(
+        "heliacal_ut",
+        jd_start_ut,
+        longitude,
+        latitude,
+        altitude,
+        &atmosphere,
+        &observer,
+        object,
+    )?;
+    if helflag & crate::constants::HELFLAG_AVKIND != 0 {
         return Err(Error::invalid_input(
             "heliacal_ut: arcus-visionis search flags are unavailable in the pinned native library (internal buffer capacity defect)",
         ));
     }
     let mut name_buffer = heliacal_name_buffer(object);
-    with_native_access(|| {
+    {
         crate::domain::check_ut_locked("heliacal_ut", jd_start_ut, -1)?;
         let mut geopos = [0.0; HELIACAL_GEO_LEN];
         geopos[0] = longitude;
@@ -3677,14 +4098,19 @@ pub fn heliacal_ut(
                 event_type,
                 helflag,
                 &diagnostic,
-            )))
+            ))
+            .with_native_channels("heliacal_ut", Some(ret), None, Some(&diagnostic)))
         } else {
-            Ok(HeliacalEvent {
-                times: dret,
-                diagnostic,
-            })
+            Ok((
+                HeliacalEvent {
+                    times: dret,
+                    diagnostic,
+                },
+                ret,
+                None,
+            ))
         }
-    })
+    }
 }
 
 /// Report the heliacal visibility circumstances of a planet or fixed star
@@ -3716,7 +4142,7 @@ pub fn heliacal_ut(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, HELIACAL_RISING, global::heliacal_pheno_ut, global::heliacal_ut};
+/// use swisseph_bindings::native::{FLG_MOSEPH, HELIACAL_RISING, global::heliacal_pheno_ut, global::heliacal_ut};
 ///
 /// // Circumstances of the next Venus heliacal rising at its optimum
 /// // (Moshier needs no data files).
@@ -3729,7 +4155,7 @@ pub fn heliacal_ut(
 ///     "Venus", HELIACAL_RISING, FLG_MOSEPH,
 /// )?;
 /// assert!((-5.0..-3.0).contains(&pheno.object_magnitude()));
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -3838,7 +4264,8 @@ pub(crate) fn heliacal_pheno_ut_full_locked(
             event_type,
             helflag,
             &diagnostic,
-        )))
+        ))
+        .with_native_channels("heliacal_pheno_ut", Some(ret), None, Some(&diagnostic)))
     } else {
         Ok(HeliacalPhenomenaFull {
             values: darr,
@@ -3916,7 +4343,7 @@ pub fn heliacal_pheno_ut(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, HELIACAL_RISING, VisibilityOutcome, global::heliacal_ut, global::vis_limit_mag};
+/// use swisseph_bindings::native::{FLG_MOSEPH, HELIACAL_RISING, VisibilityOutcome, global::heliacal_ut, global::vis_limit_mag};
 ///
 /// // At its heliacal-rising optimum Venus is above the horizon and has
 /// // a limiting magnitude (Moshier needs no data files).
@@ -3929,7 +4356,7 @@ pub fn heliacal_pheno_ut(
 ///     "Venus", FLG_MOSEPH,
 /// )?;
 /// assert!(matches!(outcome, VisibilityOutcome::Visible(_)));
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -3957,7 +4384,7 @@ pub fn vis_limit_mag(
     )?;
     let mut values = [0.0; VISLIM_DRET_LEN];
     values.copy_from_slice(&full.values[..VISLIM_DRET_LEN]);
-    if full.status == crate::HELFLAG_BELOW_HORIZON {
+    if full.status == crate::constants::HELFLAG_BELOW_HORIZON {
         Ok(VisibilityOutcome::BelowHorizon(BelowHorizon {
             values,
             diagnostic: full.diagnostic,
@@ -3978,7 +4405,7 @@ pub fn vis_limit_mag(
 /// `jd_ut` is UT Julian days, longitude/latitude are east/north degrees,
 /// altitude is metres, and atmosphere/observer units, object and flags follow
 /// [`heliacal_ut`]. No event search runs. Configuration is inherited from the
-/// free setters; use [`crate::Session::vis_limit_mag_full`] for atomic settings.
+/// free setters; use [`crate::native::Session::vis_limit_mag_full`] for atomic settings.
 ///
 /// Native slots 0-7 have the layout of [`VisibilityLimit`]. Slots 8-9 retain
 /// their initial zero values because the engine does not write them. They
@@ -4070,14 +4497,15 @@ pub(crate) fn vis_limit_mag_full_locked(
     };
     // SAFETY: serr is initialized and owned; this read is bounded by SERR_LEN.
     let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
-    if ret < 0 && ret != crate::HELFLAG_BELOW_HORIZON {
+    if ret < 0 && ret != crate::constants::HELFLAG_BELOW_HORIZON {
         Err(Error::native(describe_vislim_failure(
             "vis_limit_mag",
             jd_ut,
             object,
             helflag,
             &diagnostic,
-        )))
+        ))
+        .with_native_channels("vis_limit_mag", Some(ret), None, Some(&diagnostic)))
     } else {
         Ok(VisibilityFull {
             status: ret,

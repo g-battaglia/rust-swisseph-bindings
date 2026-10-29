@@ -9,7 +9,7 @@
 //! process-global observer; the default observer is restored at the end
 //! of the location test.
 
-use swisseph_bindings::{
+use swisseph_bindings::native::{
     ErrorKind, FLG_MOSEPH, MERCURY, MOON, VENUS, global::lun_occult_when_glob,
     global::lun_occult_when_loc, global::set_topo, native::OccultSearchOptions,
     native::lun_occult_when_glob_with_options, native::lun_occult_when_loc_with_options,

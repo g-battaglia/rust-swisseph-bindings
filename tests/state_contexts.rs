@@ -42,7 +42,7 @@ mod isolated;
 use std::sync::{Mutex, MutexGuard};
 use std::thread;
 
-use swisseph_bindings::{
+use swisseph_bindings::native::{
     CALC_RISE, Calendar, EQU2HOR, ErrorKind, FLG_MOSEPH, FLG_SPEED, FLG_SWIEPH, FLG_TOPOCTR,
     HELIACAL_RISING, MARS, MOON, SE_TIDAL_AUTOMATIC, SE_TIDAL_DE421, SE_TIDAL_DEFAULT,
     SIDM_FAGAN_BRADLEY, SIDM_LAHIRI, SUN, TRUE_TO_APP, global::azalt, global::calc_ut,
@@ -402,10 +402,10 @@ fn concurrent_config_independent_calls_share_the_lock() {
                 )
                 .expect("worker sunrise");
                 match rise {
-                    swisseph_bindings::RiseTransitOutcome::Event { time_ut, .. } => {
+                    swisseph_bindings::native::RiseTransitOutcome::Event { time_ut, .. } => {
                         assert!(time_ut.is_finite());
                     }
-                    swisseph_bindings::RiseTransitOutcome::Circumpolar { .. } => {}
+                    swisseph_bindings::native::RiseTransitOutcome::Circumpolar { .. } => {}
                 }
                 let helio = heliacal_ut(
                     J2000,

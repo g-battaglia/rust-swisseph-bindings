@@ -8,7 +8,7 @@
 //! classification, same-engine consistency), never stored reference
 //! vectors.
 
-use swisseph_bindings::{
+use swisseph_bindings::native::{
     ECL_1ST_VISIBLE, ECL_2ND_VISIBLE, ECL_3RD_VISIBLE, ECL_4TH_VISIBLE, ECL_ALLTYPES_LUNAR,
     ECL_ALLTYPES_SOLAR, ECL_ANNULAR, ECL_ANNULAR_TOTAL, ECL_CENTRAL, ECL_HYBRID, ECL_MAX_VISIBLE,
     ECL_NONCENTRAL, ECL_OCC_BEG_DAYLIGHT, ECL_OCC_END_DAYLIGHT, ECL_ONE_TRY, ECL_PARTBEG_VISIBLE,

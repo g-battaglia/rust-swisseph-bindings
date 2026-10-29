@@ -8,8 +8,8 @@ use super::registry::Op;
 use super::session_commands::{
     self as command, ALL, DELTA, JPL, LAPSE, PATH, Recipe, SIDEREAL, TIDAL, TOPO,
 };
-use swisseph_bindings::*;
-use swisseph_bindings::{native::MAX_EPHE_PATH_LEN, native::MAX_JPL_FILE_LEN};
+use swisseph_bindings::native::*;
+use swisseph_bindings::native::{native::MAX_EPHE_PATH_LEN, native::MAX_JPL_FILE_LEN};
 
 /// Executed state-script evidence, distinct from declaration/full acceptance.
 #[derive(Default)]

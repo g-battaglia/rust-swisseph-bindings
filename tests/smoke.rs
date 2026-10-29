@@ -12,7 +12,7 @@ mod isolated;
 
 use std::sync::{Mutex, MutexGuard};
 
-use swisseph_bindings::{
+use swisseph_bindings::native::{
     Calendar, ErrorKind, FLG_MOSEPH, FLG_SPEED, FLG_SWIEPH, SUN, global::calc_ut,
     global::fixstar_ut, global::houses, global::houses_ex, global::set_ephe_path, native::julday,
     native::revjul, native::version,

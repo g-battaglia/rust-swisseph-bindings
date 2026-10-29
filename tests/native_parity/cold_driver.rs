@@ -7,7 +7,7 @@ use super::protocol::Request;
 use super::registry::Op;
 use std::path::Path;
 use std::time::Duration;
-use swisseph_bindings::*;
+use swisseph_bindings::native::*;
 
 /// Construct ordinary safe public-ABI operations for a fresh worker pair.
 fn recipes(empty: &str) -> Vec<(&'static str, Vec<Request>)> {

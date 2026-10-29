@@ -50,11 +50,6 @@ pub struct Position {
     /// value is a warning when all position components are finite. A
     /// non-finite native position is classified as `ErrorKind::Native`.
     pub diagnostic: String,
-    /// Structured producer advisories. This native position API supplies none;
-    /// its actual warning text remains in `diagnostic`, without classification.
-    pub warnings: Vec<crate::Advisory>,
-    /// Separate producer messages, empty when the engine supplies no channel.
-    pub messages: Vec<String>,
 }
 
 impl Position {
@@ -110,15 +105,13 @@ pub(crate) fn calc_ut_locked(jd_ut: f64, body: i32, flags: i32) -> Result<Positi
             values: xx,
             returned_flags: ret,
             diagnostic,
-            warnings: Vec::new(),
-            messages: Vec::new(),
         })
     }
 }
 
 /// Calculate a body position for a Universal Time Julian Day.
 ///
-/// `body` is a body number (for example [`crate::MOON`]); `flags`
+/// `body` is a body number (for example [`crate::constants::MOON`]); `flags`
 /// combines source bits (`FLG_SWIEPH`, `FLG_JPLEPH`, `FLG_MOSEPH`),
 /// geometry bits (`FLG_HELCTR`, `FLG_TRUEPOS`, `FLG_TOPOCTR`, ...) and
 /// output bits (`FLG_SPEED`, `FLG_EQUATORIAL`, `FLG_XYZ`, ...). The
@@ -136,13 +129,13 @@ pub(crate) fn calc_ut_locked(jd_ut: f64, body: i32, flags: i32) -> Result<Positi
 /// files visible through [`crate::global::set_ephe_path`]. Each free call holds
 /// the process-wide native lock across its own native sequence; a
 /// `set_*` plus this computation remain two acquisitions. Callers needing
-/// atomic config-plus-computation must use [`crate::Session`], which holds
+/// atomic config-plus-computation must use [`crate::native::Session`], which holds
 /// the same lock across the whole apply-then-compute sequence.
 ///
 /// # Errors
 ///
 /// Non-finite `jd_ut`/`jd_et` is rejected with
-/// [`ErrorKind::InvalidInput`](crate::ErrorKind) before any native call.
+/// [`ErrorKind::InvalidInput`](crate::native::ErrorKind) before any native call.
 /// Returns [`Error`] when the native call fails (unknown body, missing or
 /// out-of-range data). A non-negative native status — including results
 /// computed with a fallback source or carrying a warning — is `Ok` when
@@ -154,12 +147,12 @@ pub(crate) fn calc_ut_locked(jd_ut: f64, body: i32, flags: i32) -> Result<Positi
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, FLG_SPEED, MOON, global::calc_ut};
+/// use swisseph_bindings::native::{FLG_MOSEPH, FLG_SPEED, MOON, global::calc_ut};
 ///
 /// // The Moshier model needs no data files, so this runs anywhere.
 /// let moon = calc_ut(2451545.0, MOON, FLG_MOSEPH | FLG_SPEED)?;
 /// assert!((0.0..360.0).contains(&moon.longitude()));
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -208,8 +201,6 @@ pub(crate) fn calc_locked(jd_et: f64, body: i32, flags: i32) -> Result<Position,
             values: xx,
             returned_flags: ret,
             diagnostic,
-            warnings: Vec::new(),
-            messages: Vec::new(),
         })
     }
 }
@@ -240,7 +231,7 @@ pub fn calc(jd_et: f64, body: i32, flags: i32) -> Result<Position, Error> {
 /// Calculate a body position as seen from another body (planet-centric).
 ///
 /// `body` is the target body number, `center` the observing body number
-/// (for example [`crate::MARS`]); `flags` combines the same source,
+/// (for example [`crate::constants::MARS`]); `flags` combines the same source,
 /// geometry and output bits as [`calc_ut`]. The distance component is the
 /// distance from `center` to `body` in AU.
 ///
@@ -263,7 +254,7 @@ pub fn calc(jd_et: f64, body: i32, flags: i32) -> Result<Position, Error> {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_SPEED, FLG_SWIEPH, MARS, MOON, global::calc_pctr, global::set_ephe_path};
+/// use swisseph_bindings::native::{FLG_SPEED, FLG_SWIEPH, MARS, MOON, global::calc_pctr, global::set_ephe_path};
 ///
 /// // Planet-centric positions need data files: the Moshier model is not
 /// // supported natively for this entry point (an explicit external data
@@ -280,7 +271,7 @@ pub fn calc(jd_et: f64, body: i32, flags: i32) -> Result<Position, Error> {
 /// set_ephe_path(Some(&data_dir))?;
 /// let moon = calc_pctr(2451545.0, MOON, MARS, FLG_SWIEPH | FLG_SPEED)?;
 /// assert!((0.0..360.0).contains(&moon.longitude()));
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -354,8 +345,6 @@ pub(crate) fn calc_pctr_locked(
             values: xx,
             returned_flags: ret,
             diagnostic,
-            warnings: Vec::new(),
-            messages: Vec::new(),
         })
     }
 }
@@ -372,7 +361,7 @@ pub(crate) fn calc_pctr_locked(
 /// (`SUN`..`INTP_PERG`, plus the `ECL_NUT` pseudo-body), fictitious bodies
 /// (`CUPIDO`..`WALDEMATH`), numbered asteroids (`AST_OFFSET + number`,
 /// which alias the dedicated ids where both exist — `AST_OFFSET + 1` is
-/// `"Ceres"`, like [`crate::CERES`]) and planetary-moon offsets
+/// `"Ceres"`, like [`crate::constants::CERES`]) and planetary-moon offsets
 /// (`PLMOON_OFFSET +...`). Out-of-range numbers are **not** rejected on
 /// the Rust side: the native library answers them with descriptive text
 /// that is preserved verbatim (for example `"name not found"`,
@@ -386,7 +375,7 @@ pub(crate) fn calc_pctr_locked(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{AST_OFFSET, CERES, CUPIDO, SUN, global::get_planet_name, global::set_ephe_path};
+/// use swisseph_bindings::native::{AST_OFFSET, CERES, CUPIDO, SUN, global::get_planet_name, global::set_ephe_path};
 ///
 /// // Ephemeris data comes from an explicit external directory when set,
 /// // otherwise from the checkout data (doctests run with the package root
@@ -403,10 +392,17 @@ pub(crate) fn calc_pctr_locked(
 /// assert_eq!(get_planet_name(AST_OFFSET + 1)?, get_planet_name(CERES)?);
 /// // Unknown numbers keep the native verdict verbatim instead of failing:
 /// assert!(get_planet_name(999)?.contains("not found"));
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 pub fn get_planet_name(body: i32) -> Result<String, Error> {
-    with_native_access(|| {
+    with_native_access(|| get_planet_name_locked(body))
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn get_planet_name_locked(body: i32) -> Result<String, Error> {
+    {
         let mut buffer = [0 as c_char; TEXT_BUF_LEN];
         // SAFETY: `buffer` owns TEXT_BUF_LEN writable bytes; the returned
         // pointer aliases it (or is null). The name is copied into an
@@ -427,7 +423,7 @@ pub fn get_planet_name(body: i32) -> Result<String, Error> {
         } else {
             Ok(name)
         }
-    })
+    }
 }
 
 /// Build the error message for a failed position computation, keeping the
@@ -470,28 +466,26 @@ fn describe_calc_failure(
 ///
 /// This performs no native call and takes no lock; it only inspects the
 /// already-owned [`Position`]. A mismatch is an [`Error`] of kind
-/// [`crate::ErrorKind::Native`] carrying both flag sets and the preserved
+/// [`crate::native::ErrorKind::Native`] carrying both flag sets and the preserved
 /// native diagnostic, never invented position data.
 ///
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, FLG_SPEED, FLG_SWIEPH, Position, native::require_source_flags};
+/// use swisseph_bindings::native::{FLG_MOSEPH, FLG_SPEED, FLG_SWIEPH, Position, native::require_source_flags};
 ///
 /// // A Moshier result satisfies a Moshier request.
 /// let moshier = Position {
 ///     values: [0.0; 6],
 ///     returned_flags: FLG_MOSEPH | FLG_SPEED,
 ///     diagnostic: String::new(),
-///     warnings: Vec::new(),
-///     messages: Vec::new(),
 /// };
 /// require_source_flags(&moshier, FLG_MOSEPH | FLG_SPEED)?;
 /// //... but not a Swiss-data request: the fallback is rejected.
 /// assert!(require_source_flags(&moshier, FLG_SWIEPH | FLG_SPEED).is_err());
 /// // No source bit requested means the default chain: nothing to enforce.
 /// assert!(require_source_flags(&moshier, FLG_SPEED).is_ok());
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 pub fn require_source_flags(position: &Position, requested_flags: i32) -> Result<(), Error> {
     const SOURCE_MASK: i32 = FLG_SWIEPH | FLG_JPLEPH | FLG_MOSEPH;

@@ -1,8 +1,8 @@
 //! Owned session operations compared to serial free calls and conflicting threads.
 //! Expected arrays stay in memory; assertions print only operation and case ids.
 use std::sync::Arc;
-use swisseph_bindings::*;
-use swisseph_bindings::{
+use swisseph_bindings::native::*;
+use swisseph_bindings::native::{
     global::calc_pctr, global::fixstar, global::fixstar_mag, global::fixstar_ut, global::fixstar2,
     global::fixstar2_mag, global::fixstar2_ut, global::get_ayanamsa, global::get_ayanamsa_ex,
     global::get_ayanamsa_ex_ut, global::houses_ex2, global::houses_gauquelin,

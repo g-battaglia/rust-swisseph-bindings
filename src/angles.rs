@@ -48,7 +48,7 @@ use crate::state::with_native_access;
 /// let equinox = cotrans(0.0, 0.0, 1.0, 23.44)?;
 /// assert!(equinox[0].abs() < 1e-9 && equinox[1].abs() < 1e-9);
 /// assert_eq!(equinox[2], 1.0);
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 pub fn cotrans(
     longitude_or_ra: f64,
@@ -93,7 +93,7 @@ pub fn cotrans(
 /// assert!(pos[0].abs() < 1e-9 && pos[1].abs() < 1e-9);
 /// assert_eq!(pos[2], 1.0);
 /// assert!(speed[0] > 0.9 && speed[0] < 1.1);
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 #[allow(clippy::too_many_arguments)]
 pub fn cotrans_sp(
@@ -316,7 +316,7 @@ pub fn rad_midp(x1: f64, x0: f64) -> f64 {
 /// # Errors
 ///
 /// Non-finite inputs and magnitudes at or above `2_147_483_647.5`
-/// are rejected with [`ErrorKind::InvalidInput`](crate::ErrorKind)
+/// are rejected with [`ErrorKind::InvalidInput`](crate::native::ErrorKind)
 /// before any native call: the native conversion performs no range
 /// check, so an unchecked out-of-range input would be undefined
 /// behavior on the C side.
@@ -331,7 +331,7 @@ pub fn rad_midp(x1: f64, x0: f64) -> f64 {
 ///
 /// assert_eq!(d2l(2.5)?, 3);
 /// assert_eq!(d2l(-0.5)?, -1);
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 pub fn d2l(x: f64) -> Result<i32, Error> {
     if !x.is_finite() || (x.abs() + 0.5).trunc() > f64::from(i32::MAX) {
@@ -389,7 +389,7 @@ pub fn csnorm(p: i32) -> i32 {
 ///
 /// # Errors
 ///
-/// Returns [`ErrorKind::InvalidInput`](crate::ErrorKind) when
+/// Returns [`ErrorKind::InvalidInput`](crate::native::ErrorKind) when
 /// `p1.checked_sub(p2)` overflows. All astronomically meaningful angle
 /// pairs (differences within a few turns) are unaffected; only pairs
 /// whose raw difference cannot be represented as `i32` are rejected.
@@ -401,7 +401,7 @@ pub fn csnorm(p: i32) -> i32 {
 ///
 /// assert_eq!(difcsn(720000, 360000)?, 360000);
 /// assert_eq!(difcsn(360000, 720000)?, 129240000);
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 pub fn difcsn(p1: i32, p2: i32) -> Result<i32, Error> {
     if p1.checked_sub(p2).is_none() {
@@ -427,7 +427,7 @@ pub fn difcsn(p1: i32, p2: i32) -> Result<i32, Error> {
 ///
 /// # Errors
 ///
-/// Returns [`ErrorKind::InvalidInput`](crate::ErrorKind) when
+/// Returns [`ErrorKind::InvalidInput`](crate::native::ErrorKind) when
 /// `p1.checked_sub(p2)` overflows.
 ///
 /// # Examples
@@ -437,7 +437,7 @@ pub fn difcsn(p1: i32, p2: i32) -> Result<i32, Error> {
 ///
 /// assert_eq!(difcs2n(360000, 720000)?, -360000);
 /// assert_eq!(difcs2n(64800000, 0)?, -64800000);
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 pub fn difcs2n(p1: i32, p2: i32) -> Result<i32, Error> {
     if p1.checked_sub(p2).is_none() {
@@ -468,7 +468,7 @@ pub fn difcs2n(p1: i32, p2: i32) -> Result<i32, Error> {
 ///
 /// # Errors
 ///
-/// Returns [`ErrorKind::InvalidInput`](crate::ErrorKind) when `x` lies
+/// Returns [`ErrorKind::InvalidInput`](crate::native::ErrorKind) when `x` lies
 /// within 100 of either `i32` extreme.
 ///
 /// # Examples
@@ -479,7 +479,7 @@ pub fn difcs2n(p1: i32, p2: i32) -> Result<i32, Error> {
 /// assert_eq!(csroundsec(150)?, 200);
 /// assert_eq!(csroundsec(149)?, 100);
 /// assert_eq!(csroundsec(-150)?, -100);
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 pub fn csroundsec(x: i32) -> Result<i32, Error> {
     if !(i32::MIN + 100..=i32::MAX - 100).contains(&x) {
@@ -511,7 +511,7 @@ pub fn csroundsec(x: i32) -> Result<i32, Error> {
 /// # Errors
 ///
 /// A NUL separator is rejected with
-/// [`ErrorKind::InvalidInput`](crate::ErrorKind) before any native call:
+/// [`ErrorKind::InvalidInput`](crate::native::ErrorKind) before any native call:
 /// it would silently truncate the output. The absolute input plus the
 /// native rounding addition of 50 must fit `i32`.
 ///
@@ -523,7 +523,7 @@ pub fn csroundsec(x: i32) -> Result<i32, Error> {
 /// assert_eq!(cs2timestr(0, b':', false)?, "00:00:00");
 /// assert_eq!(cs2timestr(4526050, b':', false)?, "12:34:21");
 /// assert_eq!(cs2timestr(4524000, b':', true)?, "12:34");
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 pub fn cs2timestr(cs: i32, sep: u8, suppress_zero: bool) -> Result<String, Error> {
     if sep == 0 {
@@ -567,7 +567,7 @@ pub fn cs2timestr(cs: i32, sep: u8, suppress_zero: bool) -> Result<String, Error
 /// # Errors
 ///
 /// NUL direction characters are rejected with
-/// [`ErrorKind::InvalidInput`](crate::ErrorKind) before any native call.
+/// [`ErrorKind::InvalidInput`](crate::native::ErrorKind) before any native call.
 /// The absolute input plus the native rounding addition of 50 must fit
 /// `i32`; this excludes `i32::MIN` and magnitudes above `i32::MAX - 50`.
 ///
@@ -578,7 +578,7 @@ pub fn cs2timestr(cs: i32, sep: u8, suppress_zero: bool) -> Result<String, Error
 ///
 /// assert_eq!(cs2lonlatstr(360000, b'N', b'S')?, "1N00");
 /// assert_eq!(cs2lonlatstr(-360000, b'N', b'S')?, "1S00");
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 pub fn cs2lonlatstr(cs: i32, plus: u8, minus: u8) -> Result<String, Error> {
     if plus == 0 || minus == 0 {
@@ -614,7 +614,7 @@ pub fn cs2lonlatstr(cs: i32, plus: u8, minus: u8) -> Result<String, Error> {
 /// # Errors
 ///
 /// `i32::MIN` is rejected with
-/// [`ErrorKind::InvalidInput`](crate::ErrorKind) before any native call:
+/// [`ErrorKind::InvalidInput`](crate::native::ErrorKind) before any native call:
 /// its absolute value overflows natively. `Result` otherwise covers lock
 /// poisoning only.
 ///
@@ -625,7 +625,7 @@ pub fn cs2lonlatstr(cs: i32, plus: u8, minus: u8) -> Result<String, Error> {
 ///
 /// assert_eq!(cs2degstr(360000)?, " 1°00'00");
 /// assert_eq!(cs2degstr(-360000)?, "-1°00'00");
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 pub fn cs2degstr(cs: i32) -> Result<String, Error> {
     if cs == i32::MIN {
@@ -652,9 +652,9 @@ pub fn cs2degstr(cs: i32) -> Result<String, Error> {
 /// arcseconds (0-59), `secfr` holds the fractional arcseconds (zero when
 /// rounding in the current engine, rounded whole seconds in 2.10.03) and
 /// `sign` holds `+1`/`−1` for an ordinary split, the 0-11 zodiac segment
-/// with [`SPLIT_DEG_ZODIACAL`](crate::SPLIT_DEG_ZODIACAL), or the
+/// with [`SPLIT_DEG_ZODIACAL`](crate::constants::SPLIT_DEG_ZODIACAL), or the
 /// nakshatra index with
-/// [`SPLIT_DEG_NAKSHATRA`](crate::SPLIT_DEG_NAKSHATRA).
+/// [`SPLIT_DEG_NAKSHATRA`](crate::constants::SPLIT_DEG_NAKSHATRA).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SplitDeg {
     /// Whole degrees (within the segment when a segment flag is used).
@@ -671,14 +671,14 @@ pub struct SplitDeg {
 
 /// Split a degree value into degrees, minutes, seconds and sign/segment.
 ///
-/// `roundflag` combines the [`SPLIT_DEG_*`](crate::SPLIT_DEG_ROUND_SEC)
+/// `roundflag` combines the [`SPLIT_DEG_*`](crate::constants::SPLIT_DEG_ROUND_SEC)
 /// bits: round to seconds/minutes/degrees, reduce into 30° zodiac
-/// segments ([`SPLIT_DEG_ZODIACAL`](crate::SPLIT_DEG_ZODIACAL)) or
+/// segments ([`SPLIT_DEG_ZODIACAL`](crate::constants::SPLIT_DEG_ZODIACAL)) or
 /// nakshatra segments
-/// ([`SPLIT_DEG_NAKSHATRA`](crate::SPLIT_DEG_NAKSHATRA)), and guard the
+/// ([`SPLIT_DEG_NAKSHATRA`](crate::constants::SPLIT_DEG_NAKSHATRA)), and guard the
 /// rounding against crossing a sign
-/// ([`SPLIT_DEG_KEEP_SIGN`](crate::SPLIT_DEG_KEEP_SIGN)) or degree
-/// ([`SPLIT_DEG_KEEP_DEG`](crate::SPLIT_DEG_KEEP_DEG)) boundary. Unknown
+/// ([`SPLIT_DEG_KEEP_SIGN`](crate::constants::SPLIT_DEG_KEEP_SIGN)) or degree
+/// ([`SPLIT_DEG_KEEP_DEG`](crate::constants::SPLIT_DEG_KEEP_DEG)) boundary. Unknown
 /// bits pass through engine-defined; any integer is accepted, like the
 /// method argument of [`crate::global::nod_aps`].
 ///
@@ -693,7 +693,7 @@ pub struct SplitDeg {
 ///
 /// Non-finite inputs and magnitudes beyond the `i32`-representable degree
 /// range are rejected with
-/// [`ErrorKind::InvalidInput`](crate::ErrorKind) before any native call:
+/// [`ErrorKind::InvalidInput`](crate::native::ErrorKind) before any native call:
 /// the native decomposition performs no range check, so an unchecked
 /// out-of-range magnitude (for example `1e100`, established by UBSan
 /// probing) would be undefined behavior in the floating-to-integer
@@ -706,13 +706,13 @@ pub struct SplitDeg {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{SPLIT_DEG_ZODIACAL, native::split_deg};
+/// use swisseph_bindings::native::{SPLIT_DEG_ZODIACAL, native::split_deg};
 ///
 /// let plain = split_deg(45.5, 0)?;
 /// assert_eq!((plain.deg, plain.min, plain.sec, plain.sign), (45, 30, 0, 1));
 /// let zodiac = split_deg(45.5, SPLIT_DEG_ZODIACAL)?;
 /// assert_eq!((zodiac.deg, zodiac.min, zodiac.sign), (15, 30, 1));
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 pub fn split_deg(degree: f64, roundflag: i32) -> Result<SplitDeg, Error> {
     split_deg_with(degree, roundflag, ffi::swe_split_deg)
@@ -729,14 +729,14 @@ pub fn split_deg(degree: f64, roundflag: i32) -> Result<SplitDeg, Error> {
 /// process-wide lock, including the True Sheoran offset.
 ///
 /// Non-finite degrees and values outside ±2,147,483,647 degrees return
-/// [`crate::ErrorKind::InvalidInput`]. Native lock poisoning and reentry retain
+/// [`crate::native::ErrorKind::InvalidInput`]. Native lock poisoning and reentry retain
 /// their ordinary errors. No ephemeris files or position calculations are used.
 ///
 /// ```
 /// let legacy = swisseph_bindings::native::split_deg_2_10_03(12.345678, 1)?;
 /// assert_eq!(legacy.secfr, f64::from(legacy.sec));
 /// assert_eq!(swisseph_bindings::native::split_deg(12.345678, 1)?.secfr, 0.0);
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 pub fn split_deg_2_10_03(degree: f64, roundflag: i32) -> Result<SplitDeg, Error> {
     split_deg_with(degree, roundflag, ffi::swe_split_deg_2_10_03)

@@ -85,24 +85,23 @@ use std::ffi::CString;
 use std::sync::{Arc, Mutex};
 
 use crate::config::{
-    MAX_EPHE_PATH_LEN, MAX_JPL_FILE_LEN, apply_delta_t_locked, apply_jpl_file_locked,
-    apply_tid_acc_locked, apply_topo_locked, check_sidereal_request_locked,
-    ensure_ephe_path_with_environment_locked, ensure_sid_mode_locked, get_ayanamsa_ut_locked,
-    get_current_file_data_locked,
+    MAX_EPHE_PATH_LEN, MAX_JPL_FILE_LEN, SessionSearchContext, apply_delta_t_locked,
+    apply_tid_acc_locked, apply_topo_locked, ensure_jpl_file_locked, ensure_owned_ephe_path_locked,
+    get_ayanamsa_ut_locked, get_current_file_data_locked,
 };
 use crate::error::Error;
 use crate::ffi::{HELIACAL_ATM_LEN, HELIACAL_OBS_LEN};
 use crate::houses::{Houses, check_houses_inputs, check_system, houses_ex_locked, houses_locked};
+use crate::legacy::{
+    Ayanamsha, EquationOfTime, GauquelinSectors, HeliacalPhenomenaFull, HousesWithSpeeds,
+    OccultationGeometryFull, SolarEclipseGeometryFull, StarMagnitude, StarPosition, VisibilityFull,
+};
 use crate::observer::{
     RiseTransitOutcome, apply_lapse_rate_locked, check_rise_inputs, rise_trans_locked,
 };
 use crate::positions::{Position, calc_locked, calc_ut_locked};
 use crate::state::with_native_access;
 use crate::time::deltat_locked;
-use crate::{
-    Ayanamsha, EquationOfTime, GauquelinSectors, HeliacalPhenomenaFull, HousesWithSpeeds,
-    OccultationGeometryFull, SolarEclipseGeometryFull, StarMagnitude, StarPosition, VisibilityFull,
-};
 
 /// Builder for [`Session`].
 ///
@@ -127,7 +126,7 @@ pub struct SessionBuilder {
 }
 
 impl SessionBuilder {
-    /// Start a session builder with every knob unset (fully inherited).
+    /// Start an SDK builder with optional settings inherited from native state.
     pub fn new() -> Self {
         Self::default()
     }
@@ -272,6 +271,34 @@ impl SessionBuilder {
     /// and unrepresentable user reference epochs/effective shifts are
     /// rejected with `InvalidInput`.
     pub fn build(&self) -> Result<Session, Error> {
+        self.build_complete(false)
+    }
+
+    /// Complete every primary setting without inheriting process-global state.
+    pub(crate) fn build_owned(&self) -> Result<Session, Error> {
+        // Optional builder fields are overrides, never inherited native state.
+        // Complete every setting before validation and private construction so
+        // no primary calculation owner can contain an unspecified knob.
+        let complete = Self {
+            ephe_path: self.ephe_path.clone().or(Some(None)),
+            jpl_file: self.jpl_file.clone().or(Some(None)),
+            topo: self.topo.or(Some((0.0, 0.0, 0.0))),
+            sid_mode: self
+                .sid_mode
+                .or(Some((crate::constants::SIDM_FAGAN_BRADLEY, 0.0, 0.0))),
+            tid_acc: self.tid_acc.or(Some(crate::constants::SE_TIDAL_AUTOMATIC)),
+            delta_t: self.delta_t.or(Some(None)),
+            lapse_rate: self.lapse_rate.or(Some(0.0065)),
+            // Native lifecycle relaxations cannot weaken the primary contract.
+            ephe_path_environment_on_installation: false,
+            keep_relative_ephe_path: false,
+            ..self.clone()
+        };
+        complete.build_complete(true)
+    }
+
+    /// Validate common SDK inputs, with stricter ownership on the primary path.
+    fn build_complete(&self, owned: bool) -> Result<Session, Error> {
         let ephe_path = match &self.ephe_path {
             None => None,
             Some(None) => Some(None),
@@ -296,7 +323,8 @@ impl SessionBuilder {
         };
         let jpl_file = match &self.jpl_file {
             None => None,
-            Some(None) => Some(None),
+            // Store the actual empty native argument once, not per calculation.
+            Some(None) => Some(Some(CString::default())),
             Some(Some(text)) => {
                 if text.as_bytes().contains(&0) {
                     return Err(Error::invalid_input(
@@ -338,7 +366,7 @@ impl SessionBuilder {
             ));
         }
         if let Some((mode, t0, _)) = self.sid_mode
-            && mode & 255 == crate::SIDM_USER
+            && mode & 255 == crate::constants::SIDM_USER
         {
             crate::domain::check_et("SessionBuilder: user reference epoch", t0)?;
         }
@@ -359,19 +387,44 @@ impl SessionBuilder {
                 "SessionBuilder: lapse rate must be finite",
             ));
         }
-        if let Some((mode, t0, _)) = self.sid_mode {
-            with_native_access(|| {
-                check_sidereal_request_locked(
-                    "SessionBuilder: user reference epoch",
-                    mode,
-                    t0,
-                    self.delta_t,
-                    self.tid_acc.is_some() || self.ephe_path.is_some() || self.jpl_file.is_some(),
-                )
-            })?;
+        if !owned {
+            if let Some((mode, t0, _)) = self.sid_mode {
+                with_native_access(|| {
+                    crate::config::check_sidereal_request_locked(
+                        "SessionBuilder: user reference epoch",
+                        mode,
+                        t0,
+                        self.delta_t,
+                        self.tid_acc.is_some()
+                            || self.ephe_path.is_some()
+                            || self.jpl_file.is_some(),
+                    )
+                })?;
+            }
+        } else {
+            // Only a pinned owned shift can be checked before installing the
+            // session's data/model configuration. Never read the global override
+            // or run a temporary setter chain while constructing an owned handle.
+            if let Some((mode, t0, _)) = self.sid_mode
+                && mode & 255 == crate::constants::SIDM_USER
+                && mode & crate::config::USER_UT_BIT != 0
+                && let Some(Some(dt)) = self.delta_t
+                && dt != crate::constants::SE_DELTAT_AUTOMATIC
+            {
+                crate::domain::check_et("SessionBuilder: user reference epoch", t0 + dt)?;
+            }
         }
         let capture_file_slots = self.excluded_file_data_slots.map(|excluded| !excluded);
+        let search_context = if owned {
+            Some(SessionSearchContext::capture(
+                ephe_path.as_ref().and_then(Option::as_ref),
+            )?)
+        } else {
+            None
+        };
         Ok(Session {
+            owned,
+            search_context,
             ephe_path,
             jpl_file,
             topo: self.topo,
@@ -406,6 +459,10 @@ impl SessionBuilder {
 /// when computations use native data files.
 #[derive(Debug, Clone)]
 pub struct Session {
+    /// External lookup inputs must remain the ones selected at construction.
+    search_context: Option<SessionSearchContext>,
+    /// Only the primary path completes and owns every native setting.
+    owned: bool,
     ephe_path: Option<Option<CString>>,
     jpl_file: Option<Option<CString>>,
     topo: Option<(f64, f64, f64)>,
@@ -424,7 +481,7 @@ pub struct Session {
     /// Owned copies of slots 0..=4, the range accepted by the pinned
     /// `swe_get_current_file_data`. Only accessed under the native lock;
     /// the inner mutex provides safe interior mutability for `&self`.
-    file_data: Arc<Mutex<[Option<crate::CurrentFileData>; 5]>>,
+    file_data: Arc<Mutex<[Option<crate::legacy::CurrentFileData>; 5]>>,
 }
 
 impl Session {
@@ -432,7 +489,10 @@ impl Session {
     /// one acquisition. No user-provided callback reaches this helper.
     /// Lock order is always native access, then the metadata mutex.
     #[inline(always)]
-    fn compute<R>(&self, operation: impl FnOnce() -> Result<R, Error>) -> Result<R, Error> {
+    pub(crate) fn compute<R>(
+        &self,
+        operation: impl FnOnce() -> Result<R, Error>,
+    ) -> Result<R, Error> {
         // With no requested snapshot, forward the operation result directly;
         // it need not remain live across the snapshot-policy/error branches.
         if !self.capture_file_data {
@@ -446,7 +506,7 @@ impl Session {
             let result = operation();
             if result
                 .as_ref()
-                .is_err_and(|error| error.kind() == crate::ErrorKind::InvalidInput)
+                .is_err_and(|error| error.kind() == crate::legacy::ErrorKind::InvalidInput)
             {
                 return result;
             }
@@ -464,11 +524,12 @@ impl Session {
                 Err(_) => {
                     // Keep the same selected observations before the existing lock
                     // failure, including when the computation already failed.
-                    let _files: [Option<crate::CurrentFileData>; 5] = std::array::from_fn(|slot| {
-                        self.capture_file_slots[slot]
-                            .then(|| get_current_file_data_locked(slot as i32))
-                            .flatten()
-                    });
+                    let _files: [Option<crate::legacy::CurrentFileData>; 5] =
+                        std::array::from_fn(|slot| {
+                            self.capture_file_slots[slot]
+                                .then(|| get_current_file_data_locked(slot as i32))
+                                .flatten()
+                        });
                     return Err(Error::lock_poisoned());
                 }
             }
@@ -480,8 +541,22 @@ impl Session {
     /// lock (`compute` establishes one native acquisition wrapping this,
     /// the computation and the metadata snapshot).
     fn apply_locked(&self) -> Result<(), Error> {
+        if !self.owned {
+            return self.apply_legacy_locked();
+        }
+
+        if let Some(context) = &self.search_context {
+            context.check(
+                self.ephe_path.as_ref().and_then(Option::as_ref),
+                !self.ephe_path_environment_on_installation,
+                !self.keep_relative_ephe_path,
+            )?;
+        }
+        if let Some((mode, t0, ayan)) = self.sid_mode {
+            crate::config::prepare_owned_model_locked(mode, t0, ayan)?;
+        }
         if let Some(path) = &self.ephe_path {
-            ensure_ephe_path_with_environment_locked(
+            ensure_owned_ephe_path_locked(
                 path.as_ref(),
                 !self.ephe_path_environment_on_installation,
                 !self.keep_relative_ephe_path,
@@ -489,23 +564,61 @@ impl Session {
         }
         if let Some(jpl) = &self.jpl_file {
             match jpl {
-                Some(name) => apply_jpl_file_locked(name),
+                Some(name) => ensure_jpl_file_locked(name)?,
                 // SAFETY: an empty `CString` is a valid empty C string;
                 // the native setter treats it as "close the JPL file".
-                None => apply_jpl_file_locked(&CString::new("").unwrap_or_default()),
+                None => ensure_jpl_file_locked(&CString::default())?,
+            }
+        }
+        if let Some((lon, lat, alt)) = self.topo {
+            apply_topo_locked(lon, lat, alt)?;
+        }
+        // Path replay may have restored a previous caller's sidereal option.
+        // Restore the native model defaults after that replay, then apply the
+        // session's own sidereal request (which may explicitly select originals).
+        if let Some((mode, t0, ayan_t0)) = self.sid_mode {
+            crate::config::apply_owned_model_locked(mode, t0, ayan_t0)?;
+        }
+        if let Some(acc) = self.tid_acc {
+            apply_tid_acc_locked(acc)?;
+        }
+        if let Some(dt) = self.delta_t {
+            apply_delta_t_locked(dt.unwrap_or(crate::constants::SE_DELTAT_AUTOMATIC))?;
+        }
+        if let Some(rate) = self.lapse_rate {
+            apply_lapse_rate_locked(rate);
+        }
+        Ok(())
+    }
+
+    /// Apply the retained SDK lifecycle, including its optional inherited knobs.
+    fn apply_legacy_locked(&self) -> Result<(), Error> {
+        if let Some(path) = &self.ephe_path {
+            crate::config::ensure_ephe_path_with_environment_locked(
+                path.as_ref(),
+                !self.ephe_path_environment_on_installation,
+                !self.keep_relative_ephe_path,
+            )?;
+        }
+        if let Some(jpl) = &self.jpl_file {
+            match jpl {
+                Some(name) => crate::config::apply_jpl_file_locked(name),
+                // SAFETY: an empty `CString` is a valid empty C string;
+                // the native setter treats it as "close the JPL file".
+                None => crate::config::apply_jpl_file_locked(&CString::new("").unwrap_or_default()),
             }?;
         }
         if let Some((lon, lat, alt)) = self.topo {
             apply_topo_locked(lon, lat, alt)?;
         }
         if let Some((mode, t0, ayan_t0)) = self.sid_mode {
-            ensure_sid_mode_locked(mode, t0, ayan_t0)?;
+            crate::config::ensure_sid_mode_locked(mode, t0, ayan_t0)?;
         }
         if let Some(acc) = self.tid_acc {
             apply_tid_acc_locked(acc)?;
         }
         if let Some(dt) = self.delta_t {
-            apply_delta_t_locked(dt.unwrap_or(crate::SE_DELTAT_AUTOMATIC))?;
+            apply_delta_t_locked(dt.unwrap_or(crate::constants::SE_DELTAT_AUTOMATIC))?;
         }
         if let Some(rate) = self.lapse_rate {
             apply_lapse_rate_locked(rate);
@@ -537,7 +650,12 @@ impl Session {
     ///
     /// Non-finite days fail before configuration is applied. Other domain,
     /// native and lock errors follow the free operation without a retry.
-    pub fn pheno_ut(&self, jd_ut: f64, body: i32, flags: i32) -> Result<crate::Phenomena, Error> {
+    pub fn pheno_ut(
+        &self,
+        jd_ut: f64,
+        body: i32,
+        flags: i32,
+    ) -> Result<crate::legacy::Phenomena, Error> {
         if !jd_ut.is_finite() {
             return Err(Error::invalid_input("pheno_ut: Julian Day must be finite"));
         }
@@ -553,12 +671,12 @@ impl Session {
         body: i32,
         method: i32,
         flags: i32,
-    ) -> Result<crate::NodesApsides, Error> {
+    ) -> Result<crate::legacy::NodesApsides, Error> {
         if !jd_tt.is_finite() {
             return Err(Error::invalid_input("nod_aps: Julian Day must be finite"));
         }
         self.compute(|| crate::observer::nod_aps_locked(jd_tt, body, flags, method))
-            .map(crate::NodesApsides::from_native)
+            .map(crate::legacy::NodesApsides::from_native)
     }
 
     /// Nodes and apsides for a Universal Time Julian Day.
@@ -579,14 +697,14 @@ impl Session {
         body: i32,
         method: i32,
         flags: i32,
-    ) -> Result<crate::NodesApsides, Error> {
+    ) -> Result<crate::legacy::NodesApsides, Error> {
         if !jd_ut.is_finite() {
             return Err(Error::invalid_input(
                 "nod_aps_ut: Julian Day must be finite",
             ));
         }
         self.compute(|| crate::observer::nod_aps_ut_locked(jd_ut, body, flags, method))
-            .map(crate::NodesApsides::from_native)
+            .map(crate::legacy::NodesApsides::from_native)
     }
 
     /// Body position for an Ephemeris Time Julian Day.
@@ -847,7 +965,7 @@ impl Session {
     /// owned path is installed in the same acquisition. Query semantics and
     /// missing-catalog/native errors follow [`crate::global::fixstar2_mag`]; preserve
     /// the actual diagnostic, with no date calculation or catalog substitution.
-    pub fn fixstar2_mag(&self, star: &str) -> Result<crate::StarMagnitude, Error> {
+    pub fn fixstar2_mag(&self, star: &str) -> Result<crate::legacy::StarMagnitude, Error> {
         crate::stars::check_star_name("fixstar2_mag", star)?;
         self.compute(|| crate::stars::fixstar2_mag_locked(star))
     }
@@ -857,7 +975,7 @@ impl Session {
     /// magnitudes and diagnostics are retained. Missing/empty catalog, native
     /// failures and poisoned state are errors; no positional calculation,
     /// deduplication, download or external-C isolation is added.
-    pub fn fixed_star_catalog(&self) -> Result<Vec<crate::StarMagnitude>, Error> {
+    pub fn fixed_star_catalog(&self) -> Result<Vec<crate::legacy::StarMagnitude>, Error> {
         self.compute(crate::stars::fixed_star_catalog_locked)
     }
 
@@ -938,7 +1056,7 @@ impl Session {
     /// an empty slot or a session with no captured file sets `target` to `None`.
     /// Clones share the session snapshot, never the caller's output storage.
     ///
-    /// An invalid slot returns [`crate::ErrorKind::InvalidInput`]. Native or
+    /// An invalid slot returns [`crate::native::ErrorKind::InvalidInput`]. Native or
     /// metadata lock poisoning and same-thread native reentry use the existing
     /// error categories. Every error leaves `target` unchanged. Lock order is
     /// native access, then metadata; no user callback runs under either lock.
@@ -959,8 +1077,8 @@ impl Session {
     /// after a calculation, and concurrent calculations publish a complete
     /// snapshot before readers can acquire it. No native pointer escapes.
     ///
-    /// Invalid slots return [`crate::ErrorKind::InvalidInput`], and a poisoned
-    /// snapshot mutex returns [`crate::ErrorKind::LockPoisoned`]. Errors leave
+    /// Invalid slots return [`crate::native::ErrorKind::InvalidInput`], and a poisoned
+    /// snapshot mutex returns [`crate::native::ErrorKind::LockPoisoned`]. Errors leave
     /// `target` unchanged. Unlike the native-access query, an unrelated native
     /// lock failure does not prevent reading this independently owned data.
     pub fn copy_captured_file_path_into(
@@ -1002,7 +1120,7 @@ impl Session {
     pub fn get_current_file_data(
         &self,
         ifno: i32,
-    ) -> Result<Option<crate::CurrentFileData>, Error> {
+    ) -> Result<Option<crate::legacy::CurrentFileData>, Error> {
         with_native_access(|| {
             let files = self.file_data.lock().map_err(|_| Error::lock_poisoned())?;
             Ok(usize::try_from(ifno)

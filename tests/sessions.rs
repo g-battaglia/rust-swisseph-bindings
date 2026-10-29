@@ -34,7 +34,7 @@
 use std::sync::{Arc, Barrier, Mutex, MutexGuard};
 use std::thread;
 
-use swisseph_bindings::{
+use swisseph_bindings::native::{
     CALC_RISE, ErrorKind, FLG_MOSEPH, FLG_SIDEREAL, FLG_SPEED, FLG_TOPOCTR, MOON,
     SIDM_FAGAN_BRADLEY, SIDM_LAHIRI, SIDM_USER, SUN, SessionBuilder, global::calc_ut,
     global::close, global::get_ayanamsa_ut, global::rise_trans, global::set_sid_mode,

@@ -305,7 +305,7 @@ pub fn source_policy(
     primary: i32,
     moshier_component: bool,
 ) -> Result<usize, String> {
-    use swisseph_bindings::{FLG_JPLEPH, FLG_MOSEPH, FLG_SWIEPH};
+    use swisseph_bindings::native::{FLG_JPLEPH, FLG_MOSEPH, FLG_SWIEPH};
     let mask = FLG_JPLEPH | FLG_MOSEPH | FLG_SWIEPH;
     if native.code < 0
         || native.code & mask != primary

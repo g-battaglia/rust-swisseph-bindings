@@ -2,7 +2,7 @@
 //! Numerical values are compared in memory against the unmodified C operation.
 
 use std::ffi::{CStr, CString, c_char};
-use swisseph_bindings::{
+use swisseph_bindings::native::{
     FLG_EQUATORIAL, FLG_SIDEREAL, FLG_SPEED, FLG_SWIEPH, SIDM_LAHIRI, SIDM_USER, SessionBuilder,
     global::set_ephe_path, global::set_sid_mode, native::close_preserving_path,
 };
@@ -34,7 +34,7 @@ fn close_drops_files_but_keeps_explicit_delta_t() {
     set_ephe_path(Some(&data)).unwrap();
     let session = SessionBuilder::new().ephe_path(&data).build().unwrap();
     session
-        .calc_ut(2451545.0, swisseph_bindings::MARS, FLG_SWIEPH)
+        .calc_ut(2451545.0, swisseph_bindings::native::MARS, FLG_SWIEPH)
         .unwrap();
     assert!(
         swisseph_bindings::global::get_current_file_data(0)
@@ -89,14 +89,14 @@ fn close_does_not_relabel_relative_path_identity() {
     std::env::set_current_dir(&full).unwrap();
     let session = SessionBuilder::new().ephe_path(".").build().unwrap();
     let before = session
-        .calc_ut(2451545.0, swisseph_bindings::MARS, FLG_SWIEPH)
+        .calc_ut(2451545.0, swisseph_bindings::native::MARS, FLG_SWIEPH)
         .unwrap();
     swisseph_bindings::native::require_source_flags(&before, FLG_SWIEPH).unwrap();
     // Native path installation happened in `full`, not the reset directory.
     std::env::set_current_dir(&empty).unwrap();
     close_preserving_path().unwrap();
     let after = session
-        .calc_ut(2451545.0, swisseph_bindings::MARS, FLG_SWIEPH)
+        .calc_ut(2451545.0, swisseph_bindings::native::MARS, FLG_SWIEPH)
         .unwrap();
     assert!(swisseph_bindings::native::require_source_flags(&after, FLG_SWIEPH).is_err());
     close_preserving_path().unwrap();

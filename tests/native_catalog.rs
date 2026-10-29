@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
     process::Command,
 };
-use swisseph_bindings::{
+use swisseph_bindings::native::{
     ErrorKind, SessionBuilder, global::fixstar2_mag, native::fixed_star_catalog,
 };
 

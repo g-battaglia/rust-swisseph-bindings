@@ -94,6 +94,21 @@ impl Error {
         self
     }
 
+    /// Retain only channels actually supplied by the completed native call.
+    pub(crate) fn with_native_channels(
+        mut self,
+        operation: &'static str,
+        status: Option<i32>,
+        scalar: Option<f64>,
+        diagnostic: Option<&str>,
+    ) -> Self {
+        self.native_operation = Some(operation);
+        self.native_status = status;
+        self.native_scalar_return_bits = scalar.map(f64::to_bits);
+        self.native_diagnostic = diagnostic.map(str::to_owned);
+        self
+    }
+
     /// Retain the actual scalar return and diagnostic from a failed crossing.
     ///
     /// Store binary64 bits without rounding or guessing an integer status.

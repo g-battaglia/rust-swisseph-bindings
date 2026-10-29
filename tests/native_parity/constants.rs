@@ -1,6 +1,6 @@
 //! Compiled-header constant checks; result-status aliases are explicit.
 use super::protocol::Record;
-use swisseph_bindings::*;
+use swisseph_bindings::native::*;
 
 /// Produce Rust constant values without parsing their numeric source literals.
 pub fn rust_constants() -> Record {

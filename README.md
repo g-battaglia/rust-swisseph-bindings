@@ -42,19 +42,18 @@ Set `CC` to select the C compiler executable.
 
 ## Quick start
 
-This development branch prepares the unpublished 2.0 API; the example below
-uses its typed calendar result. For unchanged 1.x scalar signatures on this
-branch, use the explicit `native` extension paths. The complete 2.0 migration
-is still in progress; see [the checkpoint](validation/primary-api.md).
+This checkout implements the unpublished 2.0 primary API. The published 1.x
+crate retains its original interface. The example below uses the new typed
+results; see [the migration and qualification notes](validation/primary-api.md).
 
 Compute the Sun's position and speed using Moshier, without external data files:
 
 ```rust
-use swisseph_bindings::{Calendar, FLG_MOSEPH, FLG_SPEED, SUN, SessionBuilder, native::julday};
+use swisseph_bindings::{Calendar, FLG_MOSEPH, FLG_SPEED, SUN, SessionBuilder, julday};
 
 fn main() -> Result<(), swisseph_bindings::Error> {
     let jd_ut = julday(2000, 1, 1, 12.0, Calendar::Gregorian)?.value;
-    let session = SessionBuilder::new().default_ephe_path().build()?;
+    let session = SessionBuilder::new().build()?;
     let position = session.calc_ut(jd_ut, SUN, FLG_MOSEPH | FLG_SPEED)?;
     // Degrees, degrees, AU; then degrees/day, degrees/day, AU/day.
     println!("{:?}", position.values);
@@ -71,24 +70,40 @@ for individual functions and types.
 
 ## Configuration and ephemeris data
 
-Free functions share process-global native configuration. Each call is
-serialized, but a free setter followed by a calculation can interleave with
-another caller. Use `SessionBuilder` and fully specify settings that must remain
-consistent for a computation. Unset session settings inherit global state.
-Configured paths check `SE_EPHE_PATH` on every computation by default. Select
-`refresh_ephe_path_environment(false)` to sample it only when installing a path,
-following the native setter lifecycle. Explicit setters always sample again;
-path, close, thread, relative-directory and tidal invalidations still reinstall.
-Independently, `reinstall_ephe_path_on_directory_change(false)` retains C's
-installed relative path and open files when cwd changes; later native file opens
-use the current directory. The default remains relative-directory tracking.
+The primary `SessionBuilder` owns all numerical settings. Omitted settings use
+the documented defaults: observer `(0,0,0)`, Fagan/Bradley sidereal mode,
+automatic tidal acceleration and Delta-T, and lapse rate `0.0065 K/m`.
+No primary computation inherits a global caller's settings. Configuration and
+calculation execute under one native lock. Dropping a session does not close
+another caller's native files.
 
-Swiss and JPL data files are external to the Cargo package. Configure the data
-path through `set_ephe_path` or the session builder. `SWISSEPH_EPHE_DIR` selects
-data for the example and tests; native `SE_EPHE_PATH` can override path selection.
-Moshier supports data-independent calculations within its native coverage.
-Fallback remains visible in returned flags and diagnostics; `require_source_flags`
-can reject unexpected sources, including reported component fallback.
+Data selection is engine-specific and remains in `native`:
+
+```rust
+use swisseph_bindings as eph;
+let mut native = eph::native::SessionBuilder::new();
+native.ephe_path("/absolute/path/to/ephemeris");
+let session = eph::native::primary_session(&native)?;
+# Ok::<(), eph::Error>(())
+```
+
+Native `SE_EPHE_PATH` retains its precedence. Primary construction captures
+lookup context; later environment or relevant directory changes are rejected
+before native writes. Rebuild explicitly to adopt them. Native lifecycle
+relaxation options never weaken primary ownership. External concurrent
+filesystem/environment mutation is outside the synchronization contract.
+
+Original free functions live in `global` and `native`, retaining C argument
+order, scalar observer arguments and original records. The configured SDK
+`native::SessionBuilder`/`native::Session` also retains optional inherited
+settings and its existing path/environment lifecycle. It is separate from the
+closed primary session. Free setter/calculation pairs are separate lock
+acquisitions; use the primary session for complete owned configuration.
+
+Swiss and JPL data remain external to the Cargo package. `SWISSEPH_EPHE_DIR`
+selects data for tests/examples. Moshier supports data-independent calculations
+within native coverage. Fallback is visible in actual flags and diagnostics;
+`native::require_source_flags` checks the original SDK position record.
 
 See the [Rust/C API contract](validation/api-contract.md) for domains, result
 layouts, state behavior and native limitations.

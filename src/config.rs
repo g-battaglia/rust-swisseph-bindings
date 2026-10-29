@@ -14,7 +14,7 @@ use crate::ffi::{self, SERR_LEN, read_native_text};
 use crate::state::with_native_access;
 
 /// Native `SE_SIDBIT_USER_UT`, verified in the pinned public header.
-const USER_UT_BIT: i32 = 1024;
+pub(crate) const USER_UT_BIT: i32 = 1024;
 
 thread_local! {
     /// Immutable identity of this thread, independent of native settings.
@@ -30,7 +30,7 @@ fn configuration_thread_id() -> std::thread::ThreadId {
 }
 
 /// Working-directory identity needed only by a relative native search entry.
-#[derive(Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 enum EphemerisDirectory {
     /// Every effective search entry is absolute; cwd cannot alter its lookup.
     Independent,
@@ -48,6 +48,8 @@ enum EphemerisDirectory {
 struct ValidationSettings {
     /// A binding sidereal setter has initialized the native defaults.
     sidereal_initialized: bool,
+    /// Complete owned sidereal/model inputs last installed under native access.
+    owned_model: Option<(i32, u64, u64)>,
     /// UT reference epoch of the active user sidereal mode, if any.
     sidereal_ut_epoch: Option<f64>,
     /// Native Delta-T override; None represents automatic computation.
@@ -58,6 +60,8 @@ struct ValidationSettings {
     ephe_path_directory: EphemerisDirectory,
     /// Native builds with thread-local storage need an installation per thread.
     ephe_path_thread: Option<std::thread::ThreadId>,
+    /// Requested JPL name installed on this native thread, not file metadata.
+    jpl_file: Option<(CString, std::thread::ThreadId)>,
     /// Path installation is still eligible for automatic tidal selection.
     /// Manual tidal writes clear this even when the numerical value is equal.
     ephe_path_automatic_tidal: bool,
@@ -69,14 +73,52 @@ struct ValidationSettings {
     sidereal_thread: Option<std::thread::ThreadId>,
 }
 
+/// Invalidate numerical caches only when another owner/model has intervened.
+/// Full session configuration is applied afterward. Repeated owned calls keep
+/// files/caches open; foreign process-global sequences cannot supply our models.
+pub(crate) fn prepare_owned_model_locked(mode: i32, t0: f64, ayan: f64) -> Result<(), Error> {
+    let key = (mode, t0.to_bits(), ayan.to_bits());
+    let mut settings = VALIDATION_SETTINGS
+        .lock()
+        .map_err(|_| Error::lock_poisoned())?;
+    if settings.owned_model != Some(key) {
+        // SAFETY: caller holds native access; close owns no Rust buffers and
+        // releases only the native cache. All owned settings are restored before
+        // calculation; previously captured Rust snapshots remain independently owned.
+        unsafe { ffi::swe_close() };
+        *settings = ValidationSettings::default();
+    }
+    Ok(())
+}
+
+/// Install native defaults then the requested mode after any path/JPL resets.
+pub(crate) fn apply_owned_model_locked(mode: i32, t0: f64, ayan: f64) -> Result<(), Error> {
+    let key = (mode, t0.to_bits(), ayan.to_bits());
+    let current = VALIDATION_SETTINGS
+        .lock()
+        .map_err(|_| Error::lock_poisoned())?
+        .owned_model;
+    if current != Some(key) {
+        apply_default_models_locked();
+        apply_sid_mode_locked(mode, t0, ayan)?;
+        VALIDATION_SETTINGS
+            .lock()
+            .map_err(|_| Error::lock_poisoned())?
+            .owned_model = Some(key);
+    }
+    Ok(())
+}
+
 /// Fresh native defaults; explicit close resets both settings (ABI probe).
 static VALIDATION_SETTINGS: Mutex<ValidationSettings> = Mutex::new(ValidationSettings {
     sidereal_initialized: false,
+    owned_model: None,
     sidereal_ut_epoch: None,
     delta_t: None,
     ephe_path: None,
     ephe_path_directory: EphemerisDirectory::Unavailable,
     ephe_path_thread: None,
+    jpl_file: None,
     ephe_path_automatic_tidal: false,
     topo: None,
     sidereal_mode: None,
@@ -97,9 +139,9 @@ fn initialize_sidereal_locked() -> Result<(), Error> {
         // any binding sidereal setter. Initializes native defaults without
         // replacing a user-selected mode; raw-C configuration is outside
         // the binding's supported shared-state contract.
-        unsafe { ffi::swe_set_sid_mode(crate::SIDM_FAGAN_BRADLEY, 0.0, 0.0) };
+        unsafe { ffi::swe_set_sid_mode(crate::constants::SIDM_FAGAN_BRADLEY, 0.0, 0.0) };
         settings.sidereal_initialized = true;
-        settings.sidereal_mode = Some((crate::SIDM_FAGAN_BRADLEY, 0.0, 0.0));
+        settings.sidereal_mode = Some((crate::constants::SIDM_FAGAN_BRADLEY, 0.0, 0.0));
         settings.sidereal_thread = Some(configuration_thread_id());
     }
     Ok(())
@@ -140,7 +182,7 @@ pub(crate) fn check_sidereal_request_locked(
     delta_t: Option<Option<f64>>,
     model_changes: bool,
 ) -> Result<(), Error> {
-    if mode & 255 != crate::SIDM_USER {
+    if mode & 255 != crate::constants::SIDM_USER {
         return Ok(());
     }
     crate::domain::check_et(function, t0)?;
@@ -148,7 +190,7 @@ pub(crate) fn check_sidereal_request_locked(
         return Ok(());
     }
     if let Some(Some(dt)) = delta_t
-        && dt != crate::SE_DELTAT_AUTOMATIC
+        && dt != crate::constants::SE_DELTAT_AUTOMATIC
     {
         return crate::domain::check_et(function, t0 + dt);
     }
@@ -166,10 +208,10 @@ pub(crate) fn check_sidereal_request_locked(
     }
     initialize_sidereal_locked()?;
     if delta_t.is_some() {
-        let _restore = RestoreDeltaT(saved.unwrap_or(crate::SE_DELTAT_AUTOMATIC));
+        let _restore = RestoreDeltaT(saved.unwrap_or(crate::constants::SE_DELTAT_AUTOMATIC));
         // SAFETY: caller holds native access; clear only for this native
         // Delta-T preflight, then RestoreDeltaT restores the exact override.
-        unsafe { ffi::swe_set_delta_t_userdef(crate::SE_DELTAT_AUTOMATIC) };
+        unsafe { ffi::swe_set_delta_t_userdef(crate::constants::SE_DELTAT_AUTOMATIC) };
         crate::domain::check_ut_date_locked(function, t0, -1)
     } else {
         crate::domain::check_ut_date_locked(function, t0, -1)
@@ -230,6 +272,58 @@ fn ephe_path_directory(
     }
 }
 
+/// Immutable external lookup inputs captured when an owned session is built.
+/// Native setters consult the environment and relative paths; reject observed
+/// changes rather than silently selecting different data for the same session.
+#[derive(Debug, Clone)]
+pub(crate) struct SessionSearchContext {
+    environment: Option<std::ffi::OsString>,
+    directory: EphemerisDirectory,
+}
+
+impl SessionSearchContext {
+    /// Capture only lookup inputs, never inferred data identities or C outputs.
+    pub(crate) fn capture(path: Option<&CString>) -> Result<Self, Error> {
+        let environment = std::env::var_os("SE_EPHE_PATH");
+        let directory = ephe_path_directory(path, environment.as_deref());
+        if directory == EphemerisDirectory::Unavailable {
+            return Err(Error::invalid_input(
+                "SessionBuilder: cannot capture the working directory for a relative native search path",
+            ));
+        }
+        Ok(Self {
+            environment,
+            directory,
+        })
+    }
+
+    /// Caller holds native access before any setter or dependent computation.
+    /// Concurrent external environment/cwd mutation is outside the binding's
+    /// synchronization contract; no process environment mutation is performed.
+    pub(crate) fn check(
+        &self,
+        path: Option<&CString>,
+        check_environment: bool,
+        check_directory: bool,
+    ) -> Result<(), Error> {
+        let environment = std::env::var_os("SE_EPHE_PATH");
+        let directory_environment = if check_environment {
+            &environment
+        } else {
+            &self.environment
+        };
+        let directory = ephe_path_directory(path, directory_environment.as_deref());
+        if (check_environment && environment != self.environment)
+            || (check_directory && directory != self.directory)
+        {
+            return Err(Error::invalid_input(
+                "Session: native search environment or relative working directory changed since build; rebuild the session explicitly",
+            ));
+        }
+        Ok(())
+    }
+}
+
 /// Apply an ephemeris path while native access is already held.
 ///
 /// # Safety contract
@@ -254,6 +348,7 @@ pub(crate) fn apply_ephe_path_locked(path: Option<&CString>) -> Result<(), Error
     // A changed path replays the remembered mode below; an unchanged write
     // leaves it for the next configured Session to install explicitly.
     settings.sidereal_thread = None;
+    settings.owned_model = None;
     // SAFETY: native access is held; strings remain alive and are copied by C.
     // C's path setter retains the extended catalog. A real path change therefore
     // requires public close before path installation. Replay binding-owned
@@ -276,6 +371,9 @@ pub(crate) fn apply_ephe_path_locked(path: Option<&CString>) -> Result<(), Error
             }
         }
     }
+    // Every forced path installation may close JPL resources. Invalidate only
+    // the setter-input cache; no file identity or successful open is inferred.
+    settings.jpl_file = None;
     settings.ephe_path = Some(key);
     settings.ephe_path_directory = directory;
     settings.ephe_path_thread = Some(thread);
@@ -301,6 +399,20 @@ pub(crate) fn ensure_ephe_path_with_environment_locked(
     path: Option<&CString>,
     refresh_environment: bool,
     reinstall_on_directory_change: bool,
+) -> Result<(), Error> {
+    ensure_ephe_path_policy_locked(
+        path,
+        refresh_environment,
+        reinstall_on_directory_change,
+        true,
+    )
+}
+
+fn ensure_ephe_path_policy_locked(
+    path: Option<&CString>,
+    refresh_environment: bool,
+    reinstall_on_directory_change: bool,
+    restore_automatic_tidal: bool,
 ) -> Result<(), Error> {
     let environment = refresh_environment.then(|| std::env::var_os("SE_EPHE_PATH"));
     let reusable = {
@@ -333,7 +445,7 @@ pub(crate) fn ensure_ephe_path_with_environment_locked(
                 && settings.ephe_path_thread == Some(configuration_thread_id())
                 // Explicit manual tidal writes require the setter's automatic
                 // selection effect, even if the numeric value was unchanged.
-                && settings.ephe_path_automatic_tidal
+                && (!restore_automatic_tidal || settings.ephe_path_automatic_tidal)
             })
     };
     if reusable {
@@ -341,6 +453,20 @@ pub(crate) fn ensure_ephe_path_with_environment_locked(
     } else {
         apply_ephe_path_locked(path)
     }
+}
+
+/// Owned requests reapply their own tide; manual tide alone does not reload files.
+pub(crate) fn ensure_owned_ephe_path_locked(
+    path: Option<&CString>,
+    refresh_environment: bool,
+    reinstall_on_directory_change: bool,
+) -> Result<(), Error> {
+    ensure_ephe_path_policy_locked(
+        path,
+        refresh_environment,
+        reinstall_on_directory_change,
+        false,
+    )
 }
 
 /// Apply an observer position while native access is already held.
@@ -364,6 +490,18 @@ pub(crate) fn apply_topo_locked(longitude: f64, latitude: f64, altitude: f64) ->
     Ok(())
 }
 
+/// Install the native current-version model defaults for an owned request.
+/// Caller holds native access. Sidereal options can alter precession/nutation
+/// models even after a later ordinary sidereal setter, so these write-only
+/// defaults must precede the requested sidereal mode. No files are closed.
+pub(crate) fn apply_default_models_locked() {
+    let mut selector = [0 as c_char; 32];
+    // SAFETY: initialized mutable NUL-terminated storage outlives the call.
+    // The public ABI's empty selector chooses this engine version's defaults;
+    // flags zero requests no historical-version/provider-dependent override.
+    unsafe { ffi::swe_set_astro_models(selector.as_mut_ptr(), 0) };
+}
+
 /// Apply a sidereal mode while native access is already held.
 ///
 /// Caller must hold the native lock; same reason as [`apply_topo_locked`].
@@ -371,45 +509,18 @@ pub(crate) fn apply_sid_mode_locked(mode: i32, t0: f64, ayan_t0: f64) -> Result<
     let mut settings = VALIDATION_SETTINGS
         .lock()
         .map_err(|_| Error::lock_poisoned())?;
+    settings.owned_model = None;
     // SAFETY: pure value call; serialized for the same reason as
     // [`apply_topo_locked`].
     unsafe {
         ffi::swe_set_sid_mode(mode, t0 as c_double, ayan_t0 as c_double);
     }
     settings.sidereal_ut_epoch =
-        (mode & 255 == crate::SIDM_USER && mode & USER_UT_BIT != 0).then_some(t0);
+        (mode & 255 == crate::constants::SIDM_USER && mode & USER_UT_BIT != 0).then_some(t0);
     settings.sidereal_initialized = true;
     settings.sidereal_mode = Some((mode, t0, ayan_t0));
     settings.sidereal_thread = Some(configuration_thread_id());
     Ok(())
-}
-
-/// Retain an identical Session sidereal configuration on its native thread.
-///
-/// The caller holds native access. `t0` is a Julian Day and `ayan_t0` an angle
-/// in degrees; exact bits distinguish every finite admitted request. Explicit
-/// public setters still force the C write. This retains only configuration
-/// identity; every requested computation still enters C. A poisoned metadata
-/// mutex is an error. Unsynchronized external C writes are not tracked.
-pub(crate) fn ensure_sid_mode_locked(mode: i32, t0: f64, ayan_t0: f64) -> Result<(), Error> {
-    let reusable = {
-        let settings = VALIDATION_SETTINGS
-            .lock()
-            .map_err(|_| Error::lock_poisoned())?;
-        settings.sidereal_thread == Some(configuration_thread_id())
-            && settings
-                .sidereal_mode
-                .is_some_and(|(saved_mode, saved_t0, saved_ayan)| {
-                    saved_mode == mode
-                        && saved_t0.to_bits() == t0.to_bits()
-                        && saved_ayan.to_bits() == ayan_t0.to_bits()
-                })
-    };
-    if reusable {
-        Ok(())
-    } else {
-        apply_sid_mode_locked(mode, t0, ayan_t0)
-    }
 }
 
 /// Apply a JPL file selection while native access is already held.
@@ -426,9 +537,29 @@ pub(crate) fn apply_jpl_file_locked(native_name: &CString) -> Result<(), Error> 
     unsafe {
         ffi::swe_set_jpl_file(native_name.as_ptr());
     }
-    // The C setter clears precession models while retaining the mode fields.
     settings.sidereal_thread = None;
+    settings.owned_model = None;
+    settings.jpl_file = Some((native_name.clone(), std::thread::current().id()));
     Ok(())
+}
+
+/// Reuse an identical requested JPL name on this thread without closing files.
+/// Path writes and close invalidate this input-only cache. It never claims that
+/// the requested file exists or that a calculation was served by JPL.
+pub(crate) fn ensure_jpl_file_locked(native_name: &CString) -> Result<(), Error> {
+    let reusable = VALIDATION_SETTINGS
+        .lock()
+        .map_err(|_| Error::lock_poisoned())?
+        .jpl_file
+        .as_ref()
+        .is_some_and(|(saved, thread)| {
+            saved == native_name && *thread == std::thread::current().id()
+        });
+    if reusable {
+        Ok(())
+    } else {
+        apply_jpl_file_locked(native_name)
+    }
 }
 
 /// Apply a tidal acceleration while native access is already held.
@@ -462,7 +593,7 @@ pub(crate) fn apply_delta_t_locked(native_dt: f64) -> Result<(), Error> {
     unsafe {
         ffi::swe_set_delta_t_userdef(native_dt as c_double);
     }
-    settings.delta_t = (native_dt != crate::SE_DELTAT_AUTOMATIC).then_some(native_dt);
+    settings.delta_t = (native_dt != crate::constants::SE_DELTAT_AUTOMATIC).then_some(native_dt);
     Ok(())
 }
 
@@ -472,7 +603,7 @@ pub(crate) fn apply_delta_t_locked(native_dt: f64) -> Result<(), Error> {
 /// path. The native library copies the path, so the Rust string does not
 /// need to outlive the call.
 /// Every call reloads native files and caches, even for an unchanged path.
-/// [`ensure_ephe_path`] and configured [`crate::Session`] computations may
+/// [`ensure_ephe_path`] and configured [`crate::native::Session`] computations may
 /// instead reuse an unchanged installation under the process-wide lock.
 ///
 /// # Environment interaction
@@ -493,7 +624,7 @@ pub(crate) fn apply_delta_t_locked(native_dt: f64) -> Result<(), Error> {
 /// ```
 /// // Restore the default search path.
 /// swisseph_bindings::global::set_ephe_path(None)?;
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 pub fn set_ephe_path(path: Option<&str>) -> Result<(), Error> {
     let native_path = ephe_path_argument(path)?;
@@ -514,7 +645,7 @@ pub fn set_ephe_path(path: Option<&str>) -> Result<(), Error> {
 /// Use [`set_ephe_path`] to force a reload even when the spelling is unchanged,
 /// for example after replacing a data file. Like that setter, this function
 /// releases native access before returning: a later free computation needs
-/// caller serialization. Prefer [`crate::Session`] to configure and compute in
+/// caller serialization. Prefer [`crate::native::Session`] to configure and compute in
 /// one native acquisition. Raw C changes outside these bindings are not tracked.
 ///
 /// # Errors
@@ -571,7 +702,7 @@ fn ephe_path_argument(path: Option<&str>) -> Result<Option<CString>, Error> {
 /// # Errors
 ///
 /// Non-finite inputs are rejected with
-/// [`ErrorKind::InvalidInput`](crate::ErrorKind) before any native call,
+/// [`ErrorKind::InvalidInput`](crate::native::ErrorKind) before any native call,
 /// leaving the previously configured observer untouched: a NaN observer
 /// would otherwise contaminate every later topocentric computation with
 /// non-finite components (established by probing). Heights whose magnitude
@@ -594,8 +725,8 @@ pub fn set_topo(longitude: f64, latitude: f64, altitude: f64) -> Result<(), Erro
 /// Select the sidereal (ayanamsha) mode.
 ///
 /// `mode` is one of the `SIDM_*` constants (for example
-/// [`crate::SIDM_LAHIRI`]); `t0` and `ayan_t0` parameterize the
-/// user-defined mode [`crate::SIDM_USER`] and are otherwise the epoch and
+/// [`crate::constants::SIDM_LAHIRI`]); `t0` and `ayan_t0` parameterize the
+/// user-defined mode [`crate::constants::SIDM_USER`] and are otherwise the epoch and
 /// offset the native mode definition requires (usually `0.0`). The setting
 /// applies to subsequent calculations with `FLG_SIDEREAL` and to
 /// [`get_ayanamsa_ut`].
@@ -606,7 +737,7 @@ pub fn set_topo(longitude: f64, latitude: f64, altitude: f64) -> Result<(), Erro
 /// # Errors
 ///
 /// Non-finite `t0`/`ayan_t0` are rejected with
-/// [`ErrorKind::InvalidInput`](crate::ErrorKind) before any native call,
+/// [`ErrorKind::InvalidInput`](crate::native::ErrorKind) before any native call,
 /// leaving the previously configured sidereal mode untouched.
 /// In `SIDM_USER` (including its option bits), `t0` must also have an
 /// `i32`-representable year in both native calendars. A UT reference also
@@ -619,7 +750,7 @@ pub fn set_sid_mode(mode: i32, t0: f64, ayan_t0: f64) -> Result<(), Error> {
             "set_sid_mode: t0 and ayan_t0 must be finite",
         ));
     }
-    if mode & 255 == crate::SIDM_USER {
+    if mode & 255 == crate::constants::SIDM_USER {
         crate::domain::check_et("set_sid_mode: user reference epoch", t0)?;
     }
     with_native_access(|| {
@@ -662,7 +793,7 @@ pub const MAX_JPL_FILE_LEN: usize = 255;
 /// ```no_run
 /// // Requires a JPL data file visible through the ephemeris path.
 /// swisseph_bindings::native::set_jpl_file("de431.eph")?;
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 pub fn set_jpl_file(fname: &str) -> Result<(), Error> {
     if fname.as_bytes().contains(&0) {
@@ -684,7 +815,7 @@ pub fn set_jpl_file(fname: &str) -> Result<(), Error> {
 
 /// Set the tidal acceleration of the Moon used in Delta-T calculations.
 ///
-/// `acc` is arcsec/cy²; [`crate::SE_TIDAL_AUTOMATIC`] restores automatic
+/// `acc` is arcsec/cy²; [`crate::constants::SE_TIDAL_AUTOMATIC`] restores automatic
 /// selection. The setting rescales the Delta T returned by [`crate::global::deltat`]
 /// and [`crate::global::deltat_ex`] for dates before 1955.0; from 1955.0 onwards
 /// Delta T is pinned by modern observations and unaffected. A user Delta-T
@@ -694,7 +825,7 @@ pub fn set_jpl_file(fname: &str) -> Result<(), Error> {
 /// files can update the held value to that ephemeris' intrinsic tidal
 /// acceleration (visible through [`get_tid_acc`]), so the read-back value
 /// after file-based calculations is not necessarily
-/// [`crate::SE_TIDAL_DEFAULT`].
+/// [`crate::constants::SE_TIDAL_DEFAULT`].
 ///
 /// # Errors
 ///
@@ -713,19 +844,19 @@ pub fn set_tid_acc(acc: f64) -> Result<(), Error> {
 ///
 /// This is the value currently used by [`crate::global::deltat`] and
 /// [`crate::global::deltat_ex`]: either set explicitly by [`set_tid_acc`] or, in
-/// automatic mode, the native default ([`crate::SE_TIDAL_DEFAULT`]) as
+/// automatic mode, the native default ([`crate::constants::SE_TIDAL_DEFAULT`]) as
 /// possibly updated to the intrinsic value of opened data files (see
 /// [`set_tid_acc`]).
 ///
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{SE_TIDAL_AUTOMATIC, SE_TIDAL_DE421, global::get_tid_acc, global::set_tid_acc};
+/// use swisseph_bindings::native::{SE_TIDAL_AUTOMATIC, SE_TIDAL_DE421, global::get_tid_acc, global::set_tid_acc};
 ///
 /// set_tid_acc(SE_TIDAL_DE421)?;
 /// assert_eq!(get_tid_acc()?, SE_TIDAL_DE421);
 /// set_tid_acc(SE_TIDAL_AUTOMATIC)?;
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 pub fn get_tid_acc() -> Result<f64, Error> {
     with_native_access(|| {
@@ -739,7 +870,7 @@ pub fn get_tid_acc() -> Result<f64, Error> {
 /// and [`crate::global::deltat_ex`], or resume computed values.
 ///
 /// `Some(dt)` pins Delta T to `dt` days; `None` clears the override by
-/// passing the native [`crate::SE_DELTAT_AUTOMATIC`] sentinel. While an
+/// passing the native [`crate::constants::SE_DELTAT_AUTOMATIC`] sentinel. While an
 /// override is active it takes precedence over [`set_tid_acc`].
 /// There is no native getter for the override state: callers that need to
 /// know whether an override is active must track it themselves.
@@ -751,12 +882,12 @@ pub fn get_tid_acc() -> Result<f64, Error> {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{global::deltat, global::set_delta_t_userdef};
+/// use swisseph_bindings::native::{global::deltat, global::set_delta_t_userdef};
 ///
 /// set_delta_t_userdef(Some(65.0 / 86400.0))?;
 /// assert!((deltat(2451545.0)? - 65.0 / 86400.0).abs() < 1e-12);
 /// set_delta_t_userdef(None)?;
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 pub fn set_delta_t_userdef(dt: Option<f64>) -> Result<(), Error> {
     let native_dt = match dt {
@@ -768,7 +899,7 @@ pub fn set_delta_t_userdef(dt: Option<f64>) -> Result<(), Error> {
             }
             value
         }
-        None => crate::SE_DELTAT_AUTOMATIC,
+        None => crate::constants::SE_DELTAT_AUTOMATIC,
     };
     with_native_access(|| apply_delta_t_locked(native_dt))
 }
@@ -805,13 +936,13 @@ pub(crate) fn get_ayanamsa_ut_locked(jd_ut: f64) -> Result<f64, Error> {
 
 /// Scalar native ayanamsha entry points have no status result. Never
 /// expose a non-finite result as a successful astronomical value.
-fn checked_ayanamsha(function: &str, value: f64) -> Result<f64, Error> {
+fn checked_ayanamsha(function: &'static str, value: f64) -> Result<f64, Error> {
     if value.is_finite() {
         Ok(value)
     } else {
         Err(Error::native(format!(
             "{function}: non-finite native ayanamsha; check sidereal epoch and Delta-T configuration"
-        )))
+        )).with_native_channels(function, None, Some(value), None))
     }
 }
 
@@ -824,12 +955,12 @@ fn checked_ayanamsha(function: &str, value: f64) -> Result<f64, Error> {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{SIDM_LAHIRI, global::get_ayanamsa_ut, global::set_sid_mode};
+/// use swisseph_bindings::native::{SIDM_LAHIRI, global::get_ayanamsa_ut, global::set_sid_mode};
 ///
 /// set_sid_mode(SIDM_LAHIRI, 0.0, 0.0)?;
 /// let ayan = get_ayanamsa_ut(2451545.0)?;
 /// assert!((23.0..25.0).contains(&ayan));
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires a finite date with an `i32`-representable
@@ -855,12 +986,12 @@ pub fn get_ayanamsa_ut(jd_ut: f64) -> Result<f64, Error> {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{SIDM_LAHIRI, global::get_ayanamsa, global::set_sid_mode};
+/// use swisseph_bindings::native::{SIDM_LAHIRI, global::get_ayanamsa, global::set_sid_mode};
 ///
 /// set_sid_mode(SIDM_LAHIRI, 0.0, 0.0)?;
 /// let ayan = get_ayanamsa(2451545.0)?;
 /// assert!((23.0..25.0).contains(&ayan));
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires a finite date with an `i32`-representable
@@ -911,12 +1042,12 @@ pub(crate) fn get_ayanamsa_locked(jd_et: f64) -> Result<f64, Error> {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_SWIEPH, SIDM_LAHIRI, global::get_ayanamsa_ex, global::set_sid_mode};
+/// use swisseph_bindings::native::{FLG_SWIEPH, SIDM_LAHIRI, global::get_ayanamsa_ex, global::set_sid_mode};
 ///
 /// set_sid_mode(SIDM_LAHIRI, 0.0, 0.0)?;
 /// let ayan = get_ayanamsa_ex(2451545.0, FLG_SWIEPH)?;
 /// assert!((23.0..25.0).contains(&ayan.value));
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires a finite date with an `i32`-representable
@@ -957,7 +1088,7 @@ pub(crate) fn get_ayanamsa_ex_locked(jd_et: f64, flags: i32) -> Result<Ayanamsha
     if ret < 0 || !daya.is_finite() {
         return Err(Error::native(format!(
             "get_ayanamsa_ex: native computation failed (jd_et={jd_et}, flags={flags}): {diagnostic}"
-        )));
+        )).with_native_channels("get_ayanamsa_ex", Some(ret), None, Some(&diagnostic)));
     }
     Ok(Ayanamsha {
         value: daya,
@@ -975,12 +1106,12 @@ pub(crate) fn get_ayanamsa_ex_locked(jd_et: f64, flags: i32) -> Result<Ayanamsha
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_SWIEPH, SIDM_LAHIRI, global::get_ayanamsa_ex_ut, global::set_sid_mode};
+/// use swisseph_bindings::native::{FLG_SWIEPH, SIDM_LAHIRI, global::get_ayanamsa_ex_ut, global::set_sid_mode};
 ///
 /// set_sid_mode(SIDM_LAHIRI, 0.0, 0.0)?;
 /// let ayan = get_ayanamsa_ex_ut(2451545.0, FLG_SWIEPH)?;
 /// assert!((23.0..25.0).contains(&ayan.value));
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires a finite date with an `i32`-representable
@@ -1018,7 +1149,7 @@ pub(crate) fn get_ayanamsa_ex_ut_locked(jd_ut: f64, flags: i32) -> Result<Ayanam
     if ret < 0 || !daya.is_finite() {
         return Err(Error::native(format!(
             "get_ayanamsa_ex_ut: native computation failed (jd_ut={jd_ut}, flags={flags}): {diagnostic}"
-        )));
+        )).with_native_channels("get_ayanamsa_ex_ut", Some(ret), None, Some(&diagnostic)));
     }
     Ok(Ayanamsha {
         value: daya,
@@ -1030,7 +1161,7 @@ pub(crate) fn get_ayanamsa_ex_ut_locked(jd_ut: f64, flags: i32) -> Result<Ayanam
 /// Short native name of a sidereal (ayanamsha) mode.
 ///
 /// `mode` is one of the `SIDM_*` constants (for example
-/// [`crate::SIDM_LAHIRI`] yields `"Lahiri"`). Modes without a predefined
+/// [`crate::constants::SIDM_LAHIRI`] yields `"Lahiri"`). Modes without a predefined
 /// name fail natively (null return) and become [`Error`].
 ///
 /// # Errors
@@ -1042,11 +1173,11 @@ pub(crate) fn get_ayanamsa_ex_ut_locked(jd_ut: f64, flags: i32) -> Result<Ayanam
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{SIDM_FAGAN_BRADLEY, SIDM_LAHIRI, native::get_ayanamsa_name};
+/// use swisseph_bindings::native::{SIDM_FAGAN_BRADLEY, SIDM_LAHIRI, native::get_ayanamsa_name};
 ///
 /// assert_eq!(get_ayanamsa_name(SIDM_LAHIRI)?, "Lahiri");
 /// assert_eq!(get_ayanamsa_name(SIDM_FAGAN_BRADLEY)?, "Fagan/Bradley");
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 pub fn get_ayanamsa_name(mode: i32) -> Result<String, Error> {
     if mode < 0 {
@@ -1213,7 +1344,7 @@ pub(crate) fn capture_current_file_data_locked(ifno: i32, target: &mut Option<Cu
 ///
 /// The report reflects the files the engine has actually opened, so a
 /// file-based computation (for example [`crate::global::calc_ut`] with
-/// [`crate::FLG_SWIEPH`]) must run first; the query itself holds the
+/// [`crate::constants::FLG_SWIEPH`]) must run first; the query itself holds the
 /// native lock with its read.
 ///
 /// # Examples
@@ -1222,7 +1353,7 @@ pub(crate) fn capture_current_file_data_locked(ifno: i32, target: &mut Option<Cu
 /// // The query always succeeds; whether a file is loaded depends on
 /// // the process-global data configuration and computation history.
 /// let _report = swisseph_bindings::global::get_current_file_data(0)?;
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 pub fn get_current_file_data(ifno: i32) -> Result<Option<CurrentFileData>, Error> {
     with_native_access(|| Ok(get_current_file_data_locked(ifno)))
@@ -1274,5 +1405,27 @@ mod path_directory_tests {
             Some(&relative),
             Some(environment)
         ));
+    }
+}
+
+/// Retain the original SDK sidereal-setting reuse policy under native access.
+pub(crate) fn ensure_sid_mode_locked(mode: i32, t0: f64, ayan_t0: f64) -> Result<(), Error> {
+    let reusable = {
+        let settings = VALIDATION_SETTINGS
+            .lock()
+            .map_err(|_| Error::lock_poisoned())?;
+        settings.sidereal_thread == Some(configuration_thread_id())
+            && settings
+                .sidereal_mode
+                .is_some_and(|(saved_mode, saved_t0, saved_ayan)| {
+                    saved_mode == mode
+                        && saved_t0.to_bits() == t0.to_bits()
+                        && saved_ayan.to_bits() == ayan_t0.to_bits()
+                })
+    };
+    if reusable {
+        Ok(())
+    } else {
+        apply_sid_mode_locked(mode, t0, ayan_t0)
     }
 }

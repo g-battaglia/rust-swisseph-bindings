@@ -1,7 +1,7 @@
 //! Typed, configuration-independent calendar results for the primary API.
 //! Legacy scalar signatures remain in `native`; no calendar formula is copied.
 
-use crate::{Calendar, CalendarDate, Error};
+use crate::legacy::{Calendar, CalendarDate, Error};
 
 /// Julian Day from pure calendar arithmetic, without an assigned time scale.
 ///

@@ -3,8 +3,8 @@
 //! inferred from scientific relationships between separate calculations.
 use super::protocol::{Record, Request};
 use super::registry::Op;
-use swisseph_bindings::*;
-use swisseph_bindings::{
+use swisseph_bindings::native::*;
+use swisseph_bindings::native::{
     global::azalt, global::azalt_rev, global::fixstar, global::fixstar_mag, global::fixstar_ut,
     global::fixstar2, global::fixstar2_mag, global::fixstar2_ut, global::gauquelin_sector,
     global::get_orbital_elements, global::nod_aps, global::nod_aps_ut,

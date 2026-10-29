@@ -1,7 +1,7 @@
 //! Public event fields and accessors, independent of C slot projectors.
 //! Arrays are copied whole before appending each separately called getter.
 use super::protocol::Record;
-use swisseph_bindings::*;
+use swisseph_bindings::native::*;
 
 /// Pack native type/status, all declared floating outputs and complete text.
 fn event(code: i32, fields: impl IntoIterator<Item = f64>, diagnostic: String) -> Record {

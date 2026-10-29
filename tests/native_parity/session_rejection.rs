@@ -4,7 +4,7 @@ use super::protocol::{Record, Request};
 use super::registry::Op;
 use super::rust_worker::INVALID_INPUT;
 use super::session_probe::State;
-use swisseph_bindings::*;
+use swisseph_bindings::native::*;
 
 /// Private rejection recipe; its input epoch is never a native C request.
 pub const REJECT: u32 = 2002;

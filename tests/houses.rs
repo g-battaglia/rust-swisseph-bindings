@@ -9,7 +9,7 @@
 //! configuration. Assertions are structural (ranges, agreement,
 //! provenance, error classification), never stored reference vectors.
 
-use swisseph_bindings::{
+use swisseph_bindings::native::{
     ErrorKind, FLG_MOSEPH, FLG_SWIEPH, MARS, SIDM_FAGAN_BRADLEY, SIDM_LAHIRI,
     global::gauquelin_sector, global::get_ayanamsa, global::get_ayanamsa_ex,
     global::get_ayanamsa_ex_ut, global::get_ayanamsa_ut, global::house_pos, global::houses,

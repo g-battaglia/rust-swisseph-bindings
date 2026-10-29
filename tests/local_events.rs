@@ -7,7 +7,7 @@
 //! Assertions are structural (ranges, ordering, error classification,
 //! same-engine consistency), never stored reference vectors.
 
-use swisseph_bindings::{
+use swisseph_bindings::native::{
     ECL_1ST_VISIBLE, ECL_2ND_VISIBLE, ECL_3RD_VISIBLE, ECL_4TH_VISIBLE, ECL_ANNULAR, ECL_CENTRAL,
     ECL_MAX_VISIBLE, ECL_PARTIAL, ECL_PENUMBRAL, ECL_TOTAL, ECL_VISIBLE, ErrorKind, FLG_MOSEPH,
     FLG_SWIEPH, MOON, SUN, VENUS, global::calc_ut, global::lun_eclipse_when_loc,

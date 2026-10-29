@@ -7,7 +7,7 @@
 //! output vectors are persisted here: assertions check rejection,
 //! classification and state preservation only.
 
-use swisseph_bindings::{
+use swisseph_bindings::native::{
     Calendar, ErrorKind, FLG_MOSEPH, FLG_SPEED, FLG_TOPOCTR, MOON, SIDM_FAGAN_BRADLEY, SIDM_USER,
     global::calc_ut, global::deltat, global::houses, global::jdet_to_utc, global::jdut1_to_utc,
     global::lat_to_lmt, global::lmt_to_lat, global::set_sid_mode, global::set_topo,
@@ -16,7 +16,10 @@ use swisseph_bindings::{
     native::difcs2n, native::difcsn, native::split_deg, native::utc_time_zone,
 };
 
-fn assert_invalid(result: Result<impl std::fmt::Debug, swisseph_bindings::Error>, context: &str) {
+fn assert_invalid(
+    result: Result<impl std::fmt::Debug, swisseph_bindings::native::Error>,
+    context: &str,
+) {
     let err = result.expect_err(context);
     assert_eq!(
         err.kind(),

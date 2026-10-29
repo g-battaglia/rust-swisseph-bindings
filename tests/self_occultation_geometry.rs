@@ -1,5 +1,5 @@
-//! Preserve the pinned C engine's undefined fixed-instant geometry, not a fake error.
-use swisseph_bindings::{FLG_MOSEPH, MOON, SessionBuilder, global, native};
+//! Raw C witnesses undefined geometry; safe interfaces preserve current admission.
+use swisseph_bindings::native::{FLG_MOSEPH, MOON, SessionBuilder, global, native};
 
 #[test]
 fn pinned_c_witness_confirms_the_undefined_geography() {
@@ -37,24 +37,23 @@ fn pinned_c_witness_confirms_the_undefined_geography() {
 }
 
 #[test]
-fn session_and_projection_retain_every_fixed_instant_native_word() {
-    let native = native::lun_occult_where_full(2451545.0, MOON, None, FLG_MOSEPH).unwrap();
-    let session = SessionBuilder::new()
-        .build()
-        .unwrap()
-        .lun_occult_where_full(2451545.0, MOON, None, FLG_MOSEPH)
-        .unwrap();
-    assert_eq!(native.occult_type, session.occult_type);
-    assert_eq!(native.diagnostic, session.diagnostic);
-    assert!(
-        native
-            .geopos
-            .into_iter()
-            .chain(native.attributes)
-            .zip(session.geopos.into_iter().chain(session.attributes))
-            .all(|(a, b)| a.to_bits() == b.to_bits())
-    );
-    let projected = global::lun_occult_where(2451545.0, MOON, None, FLG_MOSEPH).unwrap();
-    assert_eq!(projected.longitude.to_bits(), native.geopos[0].to_bits());
-    assert_eq!(projected.latitude.to_bits(), native.geopos[1].to_bits());
+fn safe_interfaces_reject_undefined_self_occultation_geometry() {
+    let results = [
+        native::lun_occult_where_full(2451545.0, MOON, None, FLG_MOSEPH).map(|_| ()),
+        SessionBuilder::new()
+            .build()
+            .unwrap()
+            .lun_occult_where_full(2451545.0, MOON, None, FLG_MOSEPH)
+            .map(|_| ()),
+        global::lun_occult_where(2451545.0, MOON, None, FLG_MOSEPH).map(|_| ()),
+    ];
+    for result in results {
+        match result {
+            Err(error) => assert_eq!(
+                error.kind(),
+                swisseph_bindings::native::ErrorKind::InvalidInput
+            ),
+            Ok(_) => panic!("undefined Moon self-geometry must be rejected"),
+        }
+    }
 }

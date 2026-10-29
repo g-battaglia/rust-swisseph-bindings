@@ -5,8 +5,8 @@
 use super::protocol::{Record, Request, read_frame, write_frame};
 use super::registry::Op;
 use std::io;
-use swisseph_bindings::*;
-use swisseph_bindings::{
+use swisseph_bindings::native::*;
+use swisseph_bindings::native::{
     global::calc, global::calc_pctr, global::calc_ut, global::close, global::deltat,
     global::deltat_ex, global::get_ayanamsa, global::get_ayanamsa_ex, global::get_ayanamsa_ex_ut,
     global::get_ayanamsa_ut, global::get_current_file_data, global::get_planet_name,

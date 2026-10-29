@@ -21,9 +21,9 @@ use crate::state::with_native_access;
 /// ```
 /// let version = swisseph_bindings::native::version()?;
 /// assert!(!version.is_empty());
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
-pub fn version() -> Result<String, crate::Error> {
+pub fn version() -> Result<String, crate::legacy::Error> {
     with_native_access(|| {
         let mut buffer = [0 as c_char; TEXT_BUF_LEN];
         // SAFETY: `buffer` owns TEXT_BUF_LEN writable bytes for this call.
@@ -47,7 +47,7 @@ pub fn version() -> Result<String, crate::Error> {
 /// may truncate it to 256 bytes; some native build variants return an empty
 /// string. Invalid UTF-8 at a truncation boundary is decoded lossily.
 /// The Rust result owns its contents and no native pointer escapes.
-pub fn library_path() -> Result<String, crate::Error> {
+pub fn library_path() -> Result<String, crate::legacy::Error> {
     with_native_access(|| {
         let mut buffer = [0 as c_char; LIBRARY_PATH_LEN];
         // SAFETY: the pinned path helper writes at most 256 pathname

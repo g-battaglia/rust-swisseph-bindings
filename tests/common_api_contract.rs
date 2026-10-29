@@ -1,47 +1,133 @@
-//! Data-independent primary API structural bootstrap; incomplete until all mapping entries are active.
+//! Exhaustive consumer contract for the closed primary API.
 use swisseph_bindings as eph;
 // COMMON_API_CONTRACT_BEGIN
-// P0 structural bootstrap, NOT the complete 2.0/4.0 contract. The mapping lists
-// unresolved signatures/schemas explicitly; final acceptance forbids pending
-// entries. These checks perform no astronomy, load no data, and infer no sources.
-
+// The complete suffix is identical in both independently implemented crates.
 use std::fmt::Debug;
-
 fn owned<T: Clone + Send + Sync + Debug>() {}
-
+fn comparable<T: PartialEq>() {}
 #[test]
-fn retained_value_and_session_traits() {
-    owned::<eph::Calendar>();
-    owned::<eph::CalendarDate>();
-    owned::<eph::JulianDay>();
-    owned::<eph::DateConversion>();
-    owned::<eph::Weekday>();
-    owned::<eph::UtcDateTime>();
-    owned::<eph::Houses>();
-    owned::<eph::HousesWithSpeeds>();
-    owned::<eph::GauquelinSectors>();
-    owned::<eph::Ayanamsha>();
-    owned::<eph::LongitudeCrossing>();
-    owned::<eph::NodeCrossing>();
-    owned::<eph::NodesApsides>();
-    owned::<eph::Horizontal>();
-    owned::<eph::Celestial>();
-    owned::<eph::Position>();
+fn complete_owned_traits() {
     owned::<eph::Advisory>();
     owned::<eph::AdvisoryDetail>();
+    owned::<eph::Angle>();
+    owned::<eph::ArmcHouses>();
+    owned::<eph::ArmcHousesWithSpeeds>();
+    owned::<eph::Ayanamsha>();
+    owned::<eph::Calendar>();
+    owned::<eph::CalendarDate>();
+    owned::<eph::Celestial>();
+    owned::<eph::DateConversion>();
+    owned::<eph::DeltaT>();
+    owned::<eph::DistanceExtremes>();
+    owned::<eph::EquationOfTime>();
     owned::<eph::Error>();
+    owned::<eph::ErrorKind>();
+    owned::<eph::GauquelinSector>();
+    owned::<eph::GauquelinSectors>();
+    owned::<eph::GlobalLunarEclipse>();
+    owned::<eph::GlobalOccultation>();
+    owned::<eph::GlobalSolarEclipse>();
+    owned::<eph::HeliacalEvent>();
+    owned::<eph::HeliacalPhenomena>();
+    owned::<eph::Horizontal>();
+    owned::<eph::HousePosition>();
+    owned::<eph::Houses>();
+    owned::<eph::HousesWithSpeeds>();
+    owned::<eph::Integer>();
+    owned::<eph::JulDays>();
+    owned::<eph::JulianDay>();
+    owned::<eph::LocalLunarEclipse>();
+    owned::<eph::LocalOccultation>();
+    owned::<eph::LocalSolarEclipse>();
+    owned::<eph::LocalSolarTimes>();
+    owned::<eph::LocalTime>();
+    owned::<eph::LongitudeCrossing>();
+    owned::<eph::LunarEclipseCircumstances>();
+    owned::<eph::NodeCrossing>();
+    owned::<eph::NodesApsides>();
+    owned::<eph::OccultationGeometry>();
+    owned::<eph::OrbitalElements>();
+    owned::<eph::Phenomena>();
+    owned::<eph::Position>();
+    owned::<eph::Refraction>();
+    owned::<eph::RiseTransit>();
+    owned::<eph::RiseTransitTimes>();
     owned::<eph::Session>();
     owned::<eph::SessionBuilder>();
+    owned::<eph::SiderealTime>();
+    owned::<eph::SolarEclipseCircumstances>();
+    owned::<eph::SolarEclipseGeometry>();
+    owned::<eph::Spherical>();
+    owned::<eph::SphericalState>();
+    owned::<eph::SplitDeg>();
+    owned::<eph::StarMagnitude>();
+    owned::<eph::StarPosition>();
+    owned::<eph::Target>();
+    owned::<eph::Text>();
+    owned::<eph::UtcDateTime>();
+    owned::<eph::Visibility>();
+    owned::<eph::Weekday>();
+    comparable::<eph::Advisory>();
+    comparable::<eph::AdvisoryDetail>();
+    comparable::<eph::Angle>();
+    comparable::<eph::ArmcHouses>();
+    comparable::<eph::ArmcHousesWithSpeeds>();
+    comparable::<eph::Ayanamsha>();
+    comparable::<eph::Calendar>();
+    comparable::<eph::CalendarDate>();
+    comparable::<eph::Celestial>();
+    comparable::<eph::DateConversion>();
+    comparable::<eph::DeltaT>();
+    comparable::<eph::DistanceExtremes>();
+    comparable::<eph::EquationOfTime>();
+    comparable::<eph::ErrorKind>();
+    comparable::<eph::GauquelinSector>();
+    comparable::<eph::GauquelinSectors>();
+    comparable::<eph::GlobalLunarEclipse>();
+    comparable::<eph::GlobalOccultation>();
+    comparable::<eph::GlobalSolarEclipse>();
+    comparable::<eph::HeliacalEvent>();
+    comparable::<eph::HeliacalPhenomena>();
+    comparable::<eph::Horizontal>();
+    comparable::<eph::HousePosition>();
+    comparable::<eph::Houses>();
+    comparable::<eph::HousesWithSpeeds>();
+    comparable::<eph::Integer>();
+    comparable::<eph::JulDays>();
+    comparable::<eph::JulianDay>();
+    comparable::<eph::LocalLunarEclipse>();
+    comparable::<eph::LocalOccultation>();
+    comparable::<eph::LocalSolarEclipse>();
+    comparable::<eph::LocalSolarTimes>();
+    comparable::<eph::LocalTime>();
+    comparable::<eph::LongitudeCrossing>();
+    comparable::<eph::LunarEclipseCircumstances>();
+    comparable::<eph::NodeCrossing>();
+    comparable::<eph::NodesApsides>();
+    comparable::<eph::OccultationGeometry>();
+    comparable::<eph::OrbitalElements>();
+    comparable::<eph::Phenomena>();
+    comparable::<eph::Position>();
+    comparable::<eph::Refraction>();
+    comparable::<eph::RiseTransit>();
+    comparable::<eph::RiseTransitTimes>();
+    comparable::<eph::SiderealTime>();
+    comparable::<eph::SolarEclipseCircumstances>();
+    comparable::<eph::SolarEclipseGeometry>();
+    comparable::<eph::Spherical>();
+    comparable::<eph::SphericalState>();
+    comparable::<eph::SplitDeg>();
+    comparable::<eph::StarMagnitude>();
+    comparable::<eph::StarPosition>();
+    comparable::<eph::Target>();
+    comparable::<eph::Text>();
+    comparable::<eph::UtcDateTime>();
+    comparable::<eph::Visibility>();
+    comparable::<eph::Weekday>();
 }
-
 #[test]
-#[expect(
-    clippy::type_complexity,
-    reason = "pin every timezone argument without hiding its signature behind an alias"
-)]
-fn pure_calendar_signatures() {
-    let _: fn(i32) -> Result<eph::Calendar, eph::Error> = eph::Calendar::from_flag;
-    let _: fn(eph::Calendar) -> i32 = eph::Calendar::flag;
+#[allow(clippy::type_complexity)]
+fn complete_operation_signatures() {
     let _: fn(i32, i32, i32, f64, eph::Calendar) -> Result<eph::JulianDay, eph::Error> =
         eph::julday;
     let _: fn(f64, eph::Calendar) -> Result<eph::CalendarDate, eph::Error> = eph::revjul;
@@ -50,110 +136,303 @@ fn pure_calendar_signatures() {
     let _: fn(f64) -> Result<eph::Weekday, eph::Error> = eph::day_of_week;
     let _: fn(i32, i32, i32, i32, i32, f64, f64) -> Result<eph::UtcDateTime, eph::Error> =
         eph::utc_time_zone;
-}
-
-#[test]
-fn calendar_flag_helpers_are_closed() {
-    for (flag, calendar) in [
-        (eph::JUL_CAL, eph::Calendar::Julian),
-        (eph::GREG_CAL, eph::Calendar::Gregorian),
-    ] {
-        assert_eq!(eph::Calendar::from_flag(flag).unwrap(), calendar);
-        assert_eq!(calendar.flag(), flag);
-    }
-    for flag in [i32::MIN, -1, 2, i32::MAX] {
-        assert!(eph::Calendar::from_flag(flag).is_err());
-    }
-}
-
-#[allow(dead_code)]
-fn pure_calendar_schemas(
-    julian: eph::JulianDay,
-    checked: eph::DateConversion,
-    weekday: eph::Weekday,
-    utc: eph::UtcDateTime,
-) {
-    let eph::JulianDay { value } = julian;
-    let _: f64 = value;
-    let eph::DateConversion {
-        valid,
-        julian_day,
-        date,
-        status,
-        diagnostic,
-    } = checked;
-    let _: bool = valid;
-    let _: f64 = julian_day;
-    let _: eph::CalendarDate = date;
-    let _: Option<i32> = status;
-    let _: Option<String> = diagnostic;
-    let eph::Weekday { index } = weekday;
-    let _: i32 = index;
-    let eph::UtcDateTime {
-        year,
-        month,
-        day,
-        hour,
-        minute,
-        second,
-    } = utc;
-    let _: (i32, i32, i32, i32, i32, f64) = (year, month, day, hour, minute, second);
-}
-
-#[test]
-fn retained_builder_signatures() {
-    let _: fn() -> eph::SessionBuilder = eph::SessionBuilder::new;
-    let _: fn(&eph::SessionBuilder) -> Result<eph::Session, eph::Error> =
-        eph::SessionBuilder::build;
-    let _: fn(&mut eph::SessionBuilder, f64, f64, f64) -> &mut eph::SessionBuilder =
-        eph::SessionBuilder::topo;
-    let _: fn(&mut eph::SessionBuilder, i32, f64, f64) -> &mut eph::SessionBuilder =
-        eph::SessionBuilder::sid_mode;
-    let _: fn(&mut eph::SessionBuilder, f64) -> &mut eph::SessionBuilder =
-        eph::SessionBuilder::tid_acc;
-    let _: fn(&mut eph::SessionBuilder, f64) -> &mut eph::SessionBuilder =
-        eph::SessionBuilder::delta_t_override;
-    let _: fn(&mut eph::SessionBuilder) -> &mut eph::SessionBuilder =
-        eph::SessionBuilder::clear_delta_t_override;
-    let _: fn(&mut eph::SessionBuilder, f64) -> &mut eph::SessionBuilder =
-        eph::SessionBuilder::lapse_rate;
-}
-
-#[test]
-fn retained_position_entry_signatures() {
+    let _: fn(f64) -> Result<eph::Angle, eph::Error> = eph::degnorm;
+    let _: fn(f64) -> Result<eph::Angle, eph::Error> = eph::radnorm;
+    let _: fn(f64, f64) -> Result<eph::Angle, eph::Error> = eph::difdegn;
+    let _: fn(f64, f64) -> Result<eph::Angle, eph::Error> = eph::difdeg2n;
+    let _: fn(f64, f64) -> Result<eph::Angle, eph::Error> = eph::difrad2n;
+    let _: fn(f64, f64) -> Result<eph::Angle, eph::Error> = eph::deg_midp;
+    let _: fn(f64, f64) -> Result<eph::Angle, eph::Error> = eph::rad_midp;
+    let _: fn(f64) -> Result<eph::Integer, eph::Error> = eph::d2l;
+    let _: fn(i64) -> Result<eph::Integer, eph::Error> = eph::csnorm;
+    let _: fn(i64) -> Result<eph::Integer, eph::Error> = eph::csroundsec;
+    let _: fn(i64, i64) -> Result<eph::Integer, eph::Error> = eph::difcsn;
+    let _: fn(i64, i64) -> Result<eph::Integer, eph::Error> = eph::difcs2n;
+    let _: fn(i64) -> Result<eph::Text, eph::Error> = eph::cs2degstr;
+    let _: fn(i64, &str, &str) -> Result<eph::Text, eph::Error> = eph::cs2lonlatstr;
+    let _: fn(i64, &str, bool) -> Result<eph::Text, eph::Error> = eph::cs2timestr;
+    let _: fn(f64, i32) -> Result<eph::SplitDeg, eph::Error> = eph::split_deg;
+    let _: fn(f64, f64, f64, f64) -> Result<eph::Spherical, eph::Error> = eph::cotrans;
+    let _: fn(f64, f64, f64, f64, f64, f64, f64) -> Result<eph::SphericalState, eph::Error> =
+        eph::cotrans_sp;
+    let _: fn(u8) -> Result<eph::Text, eph::Error> = eph::house_name;
+    let _: fn(i32) -> Result<eph::Text, eph::Error> = eph::get_ayanamsa_name;
     let _: fn(&eph::Session, f64, i32, i32) -> Result<eph::Position, eph::Error> =
         eph::Session::calc;
     let _: fn(&eph::Session, f64, i32, i32) -> Result<eph::Position, eph::Error> =
         eph::Session::calc_ut;
-    let _: fn(&eph::Session, f64, i32, i32, i32) -> Result<eph::Position, eph::Error> =
-        eph::Session::calc_pctr;
-}
-
-#[test]
-fn node_apse_entry_signatures() {
+    let _: fn(&eph::Session, f64, i32, i32) -> Result<eph::Phenomena, eph::Error> =
+        eph::Session::pheno;
+    let _: fn(&eph::Session, f64, i32, i32) -> Result<eph::Phenomena, eph::Error> =
+        eph::Session::pheno_ut;
     let _: fn(&eph::Session, f64, i32, i32, i32) -> Result<eph::NodesApsides, eph::Error> =
         eph::Session::nod_aps;
     let _: fn(&eph::Session, f64, i32, i32, i32) -> Result<eph::NodesApsides, eph::Error> =
         eph::Session::nod_aps_ut;
-}
-
-#[allow(dead_code)]
-fn node_apse_schema(result: eph::NodesApsides) {
-    let eph::NodesApsides {
-        ascending,
-        descending,
-        perihelion,
-        aphelion,
-        status,
-        diagnostic,
-    } = result;
-    let _: [[f64; 6]; 4] = [ascending, descending, perihelion, aphelion];
-    let _: Option<i32> = status;
-    let _: Option<String> = diagnostic;
-}
-
-#[test]
-fn retained_helper_signatures() {
+    let _: fn(&eph::Session, f64, i32, i32) -> Result<eph::OrbitalElements, eph::Error> =
+        eph::Session::get_orbital_elements;
+    let _: fn(&eph::Session, f64, i32, i32) -> Result<eph::DistanceExtremes, eph::Error> =
+        eph::Session::orbit_max_min_true_distance;
+    let _: fn(&eph::Session, f64, i32, i32, i32) -> Result<eph::Position, eph::Error> =
+        eph::Session::calc_pctr;
+    let _: fn(&eph::Session, i32) -> Result<eph::Text, eph::Error> = eph::Session::get_planet_name;
+    let _: fn(&eph::Session, &str, f64, i32) -> Result<eph::StarPosition, eph::Error> =
+        eph::Session::fixstar;
+    let _: fn(&eph::Session, &str, f64, i32) -> Result<eph::StarPosition, eph::Error> =
+        eph::Session::fixstar_ut;
+    let _: fn(&eph::Session, &str, f64, i32) -> Result<eph::StarPosition, eph::Error> =
+        eph::Session::fixstar2;
+    let _: fn(&eph::Session, &str, f64, i32) -> Result<eph::StarPosition, eph::Error> =
+        eph::Session::fixstar2_ut;
+    let _: fn(&eph::Session, &str) -> Result<eph::StarMagnitude, eph::Error> =
+        eph::Session::fixstar_mag;
+    let _: fn(&eph::Session, &str) -> Result<eph::StarMagnitude, eph::Error> =
+        eph::Session::fixstar2_mag;
+    let _: fn(&eph::Session, f64, f64, f64, u8) -> Result<eph::Houses, eph::Error> =
+        eph::Session::houses;
+    let _: fn(&eph::Session, f64, i32, f64, f64, u8) -> Result<eph::Houses, eph::Error> =
+        eph::Session::houses_ex;
+    let _: fn(&eph::Session, f64, i32, f64, f64, u8) -> Result<eph::HousesWithSpeeds, eph::Error> =
+        eph::Session::houses_ex2;
+    let _: fn(&eph::Session, f64, i32, f64, f64) -> Result<eph::GauquelinSectors, eph::Error> =
+        eph::Session::houses_gauquelin;
+    let _: fn(&eph::Session, f64, f64, f64, u8) -> Result<eph::ArmcHouses, eph::Error> =
+        eph::Session::houses_armc;
+    let _: fn(
+        &eph::Session,
+        f64,
+        f64,
+        f64,
+        u8,
+        f64,
+    ) -> Result<eph::ArmcHousesWithSpeeds, eph::Error> = eph::Session::houses_armc_ex2;
+    let _: fn(
+        &eph::Session,
+        f64,
+        f64,
+        f64,
+        u8,
+        f64,
+        f64,
+    ) -> Result<eph::HousePosition, eph::Error> = eph::Session::house_pos;
+    let _: fn(
+        &eph::Session,
+        f64,
+        &eph::Target,
+        i32,
+        [f64; 3],
+        f64,
+        f64,
+        i32,
+    ) -> Result<eph::GauquelinSector, eph::Error> = eph::Session::gauquelin_sector;
+    let _: fn(&eph::Session, f64) -> Result<eph::Angle, eph::Error> = eph::Session::get_ayanamsa;
+    let _: fn(&eph::Session, f64) -> Result<eph::Angle, eph::Error> = eph::Session::get_ayanamsa_ut;
+    let _: fn(&eph::Session, f64, i32) -> Result<eph::Ayanamsha, eph::Error> =
+        eph::Session::get_ayanamsa_ex;
+    let _: fn(&eph::Session, f64, i32) -> Result<eph::Ayanamsha, eph::Error> =
+        eph::Session::get_ayanamsa_ex_ut;
+    let _: fn(
+        &eph::Session,
+        i32,
+        i32,
+        i32,
+        i32,
+        i32,
+        f64,
+        eph::Calendar,
+    ) -> Result<eph::JulDays, eph::Error> = eph::Session::utc_to_jd;
+    let _: fn(&eph::Session, f64, eph::Calendar) -> Result<eph::UtcDateTime, eph::Error> =
+        eph::Session::jdet_to_utc;
+    let _: fn(&eph::Session, f64, eph::Calendar) -> Result<eph::UtcDateTime, eph::Error> =
+        eph::Session::jdut1_to_utc;
+    let _: fn(&eph::Session, f64) -> Result<eph::DeltaT, eph::Error> = eph::Session::deltat;
+    let _: fn(&eph::Session, f64, i32) -> Result<eph::DeltaT, eph::Error> = eph::Session::deltat_ex;
+    let _: fn(&eph::Session, f64) -> Result<eph::EquationOfTime, eph::Error> =
+        eph::Session::time_equ;
+    let _: fn(&eph::Session, f64, f64) -> Result<eph::LocalTime, eph::Error> =
+        eph::Session::lat_to_lmt;
+    let _: fn(&eph::Session, f64, f64) -> Result<eph::LocalTime, eph::Error> =
+        eph::Session::lmt_to_lat;
+    let _: fn(&eph::Session, f64) -> Result<eph::SiderealTime, eph::Error> = eph::Session::sidtime;
+    let _: fn(&eph::Session, f64, f64, f64) -> Result<eph::SiderealTime, eph::Error> =
+        eph::Session::sidtime0;
+    let _: fn(&eph::Session, f64, f64, i32) -> Result<eph::LongitudeCrossing, eph::Error> =
+        eph::Session::solcross;
+    let _: fn(&eph::Session, f64, f64, i32) -> Result<eph::LongitudeCrossing, eph::Error> =
+        eph::Session::solcross_ut;
+    let _: fn(&eph::Session, f64, f64, i32) -> Result<eph::LongitudeCrossing, eph::Error> =
+        eph::Session::mooncross;
+    let _: fn(&eph::Session, f64, f64, i32) -> Result<eph::LongitudeCrossing, eph::Error> =
+        eph::Session::mooncross_ut;
+    let _: fn(&eph::Session, f64, i32) -> Result<eph::NodeCrossing, eph::Error> =
+        eph::Session::mooncross_node;
+    let _: fn(&eph::Session, f64, i32) -> Result<eph::NodeCrossing, eph::Error> =
+        eph::Session::mooncross_node_ut;
+    let _: fn(
+        &eph::Session,
+        i32,
+        f64,
+        f64,
+        i32,
+        i32,
+    ) -> Result<eph::LongitudeCrossing, eph::Error> = eph::Session::helio_cross;
+    let _: fn(
+        &eph::Session,
+        i32,
+        f64,
+        f64,
+        i32,
+        i32,
+    ) -> Result<eph::LongitudeCrossing, eph::Error> = eph::Session::helio_cross_ut;
+    let _: fn(
+        &eph::Session,
+        f64,
+        &eph::Target,
+        i32,
+        [f64; 3],
+        f64,
+        f64,
+        i32,
+    ) -> Result<eph::RiseTransit, eph::Error> = eph::Session::rise_trans;
+    let _: fn(
+        &eph::Session,
+        f64,
+        &eph::Target,
+        i32,
+        [f64; 3],
+        f64,
+        f64,
+        f64,
+        i32,
+    ) -> Result<eph::RiseTransit, eph::Error> = eph::Session::rise_trans_true_hor;
+    let _: fn(
+        &eph::Session,
+        f64,
+        i32,
+        [f64; 3],
+        f64,
+        f64,
+        f64,
+        f64,
+    ) -> Result<eph::Horizontal, eph::Error> = eph::Session::azalt;
+    let _: fn(&eph::Session, f64, i32, [f64; 3], f64, f64) -> Result<eph::Celestial, eph::Error> =
+        eph::Session::azalt_rev;
+    let _: fn(&eph::Session, f64, f64, f64, i32) -> Result<eph::Angle, eph::Error> =
+        eph::Session::refrac;
+    let _: fn(&eph::Session, f64, f64, f64, f64, f64, i32) -> Result<eph::Refraction, eph::Error> =
+        eph::Session::refrac_extended;
+    let _: fn(&eph::Session, f64, i32, i32, bool) -> Result<eph::GlobalSolarEclipse, eph::Error> =
+        eph::Session::sol_eclipse_when_glob;
+    let _: fn(&eph::Session, f64, i32, i32, bool) -> Result<eph::GlobalLunarEclipse, eph::Error> =
+        eph::Session::lun_eclipse_when;
+    let _: fn(&eph::Session, f64, i32) -> Result<eph::SolarEclipseGeometry, eph::Error> =
+        eph::Session::sol_eclipse_where;
+    let _: fn(
+        &eph::Session,
+        f64,
+        [f64; 3],
+        i32,
+    ) -> Result<eph::SolarEclipseCircumstances, eph::Error> = eph::Session::sol_eclipse_how;
+    let _: fn(
+        &eph::Session,
+        f64,
+        [f64; 3],
+        i32,
+    ) -> Result<eph::LunarEclipseCircumstances, eph::Error> = eph::Session::lun_eclipse_how;
+    let _: fn(
+        &eph::Session,
+        f64,
+        [f64; 3],
+        i32,
+        bool,
+    ) -> Result<eph::LocalSolarEclipse, eph::Error> = eph::Session::sol_eclipse_when_loc;
+    let _: fn(
+        &eph::Session,
+        f64,
+        [f64; 3],
+        i32,
+        bool,
+    ) -> Result<eph::LocalLunarEclipse, eph::Error> = eph::Session::lun_eclipse_when_loc;
+    let _: fn(
+        &eph::Session,
+        f64,
+        &eph::Target,
+        i32,
+    ) -> Result<eph::OccultationGeometry, eph::Error> = eph::Session::lun_occult_where;
+    let _: fn(
+        &eph::Session,
+        f64,
+        &eph::Target,
+        i32,
+        i32,
+        i32,
+    ) -> Result<eph::GlobalOccultation, eph::Error> = eph::Session::lun_occult_when_glob;
+    let _: fn(
+        &eph::Session,
+        f64,
+        &eph::Target,
+        [f64; 3],
+        i32,
+        i32,
+    ) -> Result<eph::LocalOccultation, eph::Error> = eph::Session::lun_occult_when_loc;
+    let _: fn(
+        &eph::Session,
+        f64,
+        [f64; 3],
+        [f64; 4],
+        [f64; 6],
+        &str,
+        i32,
+        i32,
+    ) -> Result<eph::HeliacalEvent, eph::Error> = eph::Session::heliacal_ut;
+    let _: fn(
+        &eph::Session,
+        f64,
+        [f64; 3],
+        [f64; 4],
+        [f64; 6],
+        &str,
+        i32,
+        i32,
+    ) -> Result<eph::HeliacalPhenomena, eph::Error> = eph::Session::heliacal_pheno_ut;
+    let _: fn(
+        &eph::Session,
+        f64,
+        [f64; 3],
+        [f64; 4],
+        [f64; 6],
+        &str,
+        i32,
+    ) -> Result<eph::Visibility, eph::Error> = eph::Session::vis_limit_mag;
+    let _: fn() -> eph::SessionBuilder = eph::SessionBuilder::new;
+    let _: fn(&eph::SessionBuilder) -> Result<eph::Session, eph::Error> =
+        eph::SessionBuilder::build;
+    let _: for<'a> fn(&'a mut eph::SessionBuilder, f64, f64, f64) -> &'a mut eph::SessionBuilder =
+        eph::SessionBuilder::topo;
+    let _: for<'a> fn(&'a mut eph::SessionBuilder, i32, f64, f64) -> &'a mut eph::SessionBuilder =
+        eph::SessionBuilder::sid_mode;
+    let _: for<'a> fn(&'a mut eph::SessionBuilder, f64) -> &'a mut eph::SessionBuilder =
+        eph::SessionBuilder::tid_acc;
+    let _: for<'a> fn(&'a mut eph::SessionBuilder, f64) -> &'a mut eph::SessionBuilder =
+        eph::SessionBuilder::delta_t_override;
+    let _: for<'a> fn(&'a mut eph::SessionBuilder) -> &'a mut eph::SessionBuilder =
+        eph::SessionBuilder::clear_delta_t_override;
+    let _: for<'a> fn(&'a mut eph::SessionBuilder, f64) -> &'a mut eph::SessionBuilder =
+        eph::SessionBuilder::lapse_rate;
+    let _: fn(i32) -> Result<eph::Calendar, eph::Error> = eph::Calendar::from_flag;
+    let _: fn(eph::Calendar) -> i32 = eph::Calendar::flag;
+    let _: fn(
+        eph::ErrorKind,
+        Option<String>,
+        Option<i32>,
+        Option<f64>,
+        Option<String>,
+    ) -> eph::Error = eph::Error::new;
+    let _: fn(&eph::Error) -> eph::ErrorKind = eph::Error::kind;
+    let _: fn(&eph::Error) -> Option<&str> = eph::Error::operation;
+    let _: fn(&eph::Error) -> Option<i32> = eph::Error::native_status;
+    let _: fn(&eph::Error) -> Option<f64> = eph::Error::native_scalar;
+    let _: fn(&eph::Error) -> Option<&str> = eph::Error::diagnostic;
     let _: fn(&eph::Position) -> f64 = eph::Position::longitude;
     let _: fn(&eph::Position) -> f64 = eph::Position::latitude;
     let _: fn(&eph::Position) -> f64 = eph::Position::distance;
@@ -162,90 +441,878 @@ fn retained_helper_signatures() {
     let _: fn(&eph::HousesWithSpeeds) -> f64 = eph::HousesWithSpeeds::ascendant;
     let _: fn(&eph::HousesWithSpeeds) -> f64 = eph::HousesWithSpeeds::mc;
 }
-
-// Helpers are compiled even though no physical record is fabricated merely to
-// execute a destructuring test. A field addition or type change must fail.
-#[allow(dead_code, clippy::too_many_arguments)]
-fn retained_record_schemas(
-    date: eph::CalendarDate,
-    houses: eph::Houses,
-    speeds: eph::HousesWithSpeeds,
-    sectors: eph::GauquelinSectors,
-    ayanamsha: eph::Ayanamsha,
-    crossing: eph::LongitudeCrossing,
-    node: eph::NodeCrossing,
-    horizontal: eph::Horizontal,
-    celestial: eph::Celestial,
-) {
+#[allow(dead_code)]
+fn schema_angle(value: eph::Angle) {
+    let eph::Angle { value } = value;
+    let value: f64 = value;
+    let _ = eph::Angle { value };
+}
+#[allow(dead_code)]
+fn schema_integer(value: eph::Integer) {
+    let eph::Integer { value } = value;
+    let value: i64 = value;
+    let _ = eph::Integer { value };
+}
+#[allow(dead_code)]
+fn schema_text(value: eph::Text) {
+    let eph::Text { value } = value;
+    let value: String = value;
+    let _ = eph::Text { value };
+}
+#[allow(dead_code)]
+fn schema_spherical(value: eph::Spherical) {
+    let eph::Spherical { values } = value;
+    let values: [f64; 3] = values;
+    let _ = eph::Spherical { values };
+}
+#[allow(dead_code)]
+fn schema_spherical_state(value: eph::SphericalState) {
+    let eph::SphericalState { position, velocity } = value;
+    let position: [f64; 3] = position;
+    let velocity: [f64; 3] = velocity;
+    let _ = eph::SphericalState { position, velocity };
+}
+#[allow(dead_code)]
+fn schema_split_deg(value: eph::SplitDeg) {
+    let eph::SplitDeg {
+        degrees,
+        minutes,
+        seconds,
+        fraction,
+        sign,
+    } = value;
+    let degrees: i64 = degrees;
+    let minutes: i64 = minutes;
+    let seconds: i64 = seconds;
+    let fraction: f64 = fraction;
+    let sign: i64 = sign;
+    let _ = eph::SplitDeg {
+        degrees,
+        minutes,
+        seconds,
+        fraction,
+        sign,
+    };
+}
+#[allow(dead_code)]
+fn schema_julian_day(value: eph::JulianDay) {
+    let eph::JulianDay { value } = value;
+    let value: f64 = value;
+    let _ = eph::JulianDay { value };
+}
+#[allow(dead_code)]
+fn schema_calendar_date(value: eph::CalendarDate) {
     let eph::CalendarDate {
         year,
         month,
         day,
         hour,
-    } = date;
-    let _: (i32, i32, i32, f64) = (year, month, day, hour);
-    let eph::Houses { cusps, angles } = houses;
-    let _: ([f64; 12], [f64; 8]) = (cusps, angles);
-    let eph::HousesWithSpeeds {
-        cusps,
-        angles,
-        cusp_speeds,
-        angle_speeds,
-    } = speeds;
-    let _: ([f64; 12], [f64; 8], [f64; 12], [f64; 8]) = (cusps, angles, cusp_speeds, angle_speeds);
-    let eph::GauquelinSectors {
-        sectors,
-        angles,
-        sector_speeds,
-        angle_speeds,
-    } = sectors;
-    let _: ([f64; 36], [f64; 8], [f64; 36], [f64; 8]) =
-        (sectors, angles, sector_speeds, angle_speeds);
-    let eph::Ayanamsha {
-        value,
-        returned_flags,
-        diagnostic,
-    } = ayanamsha;
-    let _: (f64, i32, String) = (value, returned_flags, diagnostic);
-    let eph::LongitudeCrossing { time, diagnostic } = crossing;
-    let _: (f64, String) = (time, diagnostic);
-    let eph::NodeCrossing {
-        time,
-        longitude,
-        latitude,
-        diagnostic,
-    } = node;
-    let _: (f64, f64, f64, String) = (time, longitude, latitude, diagnostic);
-    let eph::Horizontal {
-        azimuth,
-        true_altitude,
-        apparent_altitude,
-    } = horizontal;
-    let _: (f64, f64, f64) = (azimuth, true_altitude, apparent_altitude);
-    let eph::Celestial {
-        longitude_or_ra,
-        latitude_or_dec,
-    } = celestial;
-    let _: (f64, f64) = (longitude_or_ra, latitude_or_dec);
+    } = value;
+    let year: i32 = year;
+    let month: i32 = month;
+    let day: i32 = day;
+    let hour: f64 = hour;
+    let _ = eph::CalendarDate {
+        year,
+        month,
+        day,
+        hour,
+    };
 }
-
 #[allow(dead_code)]
-fn position_and_advisory_schemas(position: eph::Position, advisory: eph::Advisory) {
+fn schema_date_conversion(value: eph::DateConversion) {
+    let eph::DateConversion {
+        valid,
+        julian_day,
+        date,
+        status,
+        diagnostic,
+    } = value;
+    let valid: bool = valid;
+    let julian_day: f64 = julian_day;
+    let date: eph::CalendarDate = date;
+    let status: Option<i32> = status;
+    let diagnostic: Option<String> = diagnostic;
+    let _ = eph::DateConversion {
+        valid,
+        julian_day,
+        date,
+        status,
+        diagnostic,
+    };
+}
+#[allow(dead_code)]
+fn schema_weekday(value: eph::Weekday) {
+    let eph::Weekday { index } = value;
+    let index: i32 = index;
+    let _ = eph::Weekday { index };
+}
+#[allow(dead_code)]
+fn schema_utc_date_time(value: eph::UtcDateTime) {
+    let eph::UtcDateTime {
+        year,
+        month,
+        day,
+        hour,
+        minute,
+        second,
+    } = value;
+    let year: i32 = year;
+    let month: i32 = month;
+    let day: i32 = day;
+    let hour: i32 = hour;
+    let minute: i32 = minute;
+    let second: f64 = second;
+    let _ = eph::UtcDateTime {
+        year,
+        month,
+        day,
+        hour,
+        minute,
+        second,
+    };
+}
+#[allow(dead_code)]
+fn schema_jul_days(value: eph::JulDays) {
+    let eph::JulDays { tt, ut1 } = value;
+    let tt: f64 = tt;
+    let ut1: f64 = ut1;
+    let _ = eph::JulDays { tt, ut1 };
+}
+#[allow(dead_code)]
+fn schema_position(value: eph::Position) {
     let eph::Position {
         values,
         returned_flags,
         diagnostic,
         warnings,
         messages,
-    } = position;
-    let _: [f64; 6] = values;
-    let _: i32 = returned_flags;
-    let _: String = diagnostic;
-    let _: Vec<eph::Advisory> = warnings;
-    let _: Vec<String> = messages;
-    let eph::Advisory { detail, message } = advisory;
-    let _: String = message;
-    match detail {
+    } = value;
+    let values: [f64; 6] = values;
+    let returned_flags: i32 = returned_flags;
+    let diagnostic: String = diagnostic;
+    let warnings: Vec<eph::Advisory> = warnings;
+    let messages: Vec<String> = messages;
+    let _ = eph::Position {
+        values,
+        returned_flags,
+        diagnostic,
+        warnings,
+        messages,
+    };
+}
+#[allow(dead_code)]
+fn schema_advisory(value: eph::Advisory) {
+    let eph::Advisory { detail, message } = value;
+    let detail: eph::AdvisoryDetail = detail;
+    let message: String = message;
+    let _ = eph::Advisory { detail, message };
+}
+#[allow(dead_code)]
+fn schema_houses(value: eph::Houses) {
+    let eph::Houses {
+        cusps,
+        angles,
+        status,
+        diagnostic,
+    } = value;
+    let cusps: [f64; 12] = cusps;
+    let angles: [f64; 8] = angles;
+    let status: Option<i32> = status;
+    let diagnostic: Option<String> = diagnostic;
+    let _ = eph::Houses {
+        cusps,
+        angles,
+        status,
+        diagnostic,
+    };
+}
+#[allow(dead_code)]
+fn schema_houses_with_speeds(value: eph::HousesWithSpeeds) {
+    let eph::HousesWithSpeeds {
+        cusps,
+        angles,
+        cusp_speeds,
+        angle_speeds,
+        status,
+        diagnostic,
+    } = value;
+    let cusps: [f64; 12] = cusps;
+    let angles: [f64; 8] = angles;
+    let cusp_speeds: [f64; 12] = cusp_speeds;
+    let angle_speeds: [f64; 8] = angle_speeds;
+    let status: Option<i32> = status;
+    let diagnostic: Option<String> = diagnostic;
+    let _ = eph::HousesWithSpeeds {
+        cusps,
+        angles,
+        cusp_speeds,
+        angle_speeds,
+        status,
+        diagnostic,
+    };
+}
+#[allow(dead_code)]
+fn schema_gauquelin_sectors(value: eph::GauquelinSectors) {
+    let eph::GauquelinSectors {
+        sectors,
+        angles,
+        sector_speeds,
+        angle_speeds,
+        status,
+        diagnostic,
+    } = value;
+    let sectors: [f64; 36] = sectors;
+    let angles: [f64; 8] = angles;
+    let sector_speeds: [f64; 36] = sector_speeds;
+    let angle_speeds: [f64; 8] = angle_speeds;
+    let status: Option<i32> = status;
+    let diagnostic: Option<String> = diagnostic;
+    let _ = eph::GauquelinSectors {
+        sectors,
+        angles,
+        sector_speeds,
+        angle_speeds,
+        status,
+        diagnostic,
+    };
+}
+#[allow(dead_code)]
+fn schema_ayanamsha(value: eph::Ayanamsha) {
+    let eph::Ayanamsha {
+        value,
+        returned_flags,
+        diagnostic,
+    } = value;
+    let value: f64 = value;
+    let returned_flags: i32 = returned_flags;
+    let diagnostic: String = diagnostic;
+    let _ = eph::Ayanamsha {
+        value,
+        returned_flags,
+        diagnostic,
+    };
+}
+#[allow(dead_code)]
+fn schema_house_position(value: eph::HousePosition) {
+    let eph::HousePosition { value, diagnostic } = value;
+    let value: f64 = value;
+    let diagnostic: Option<String> = diagnostic;
+    let _ = eph::HousePosition { value, diagnostic };
+}
+#[allow(dead_code)]
+fn schema_gauquelin_sector(value: eph::GauquelinSector) {
+    let eph::GauquelinSector {
+        value,
+        status,
+        diagnostic,
+    } = value;
+    let value: f64 = value;
+    let status: Option<i32> = status;
+    let diagnostic: Option<String> = diagnostic;
+    let _ = eph::GauquelinSector {
+        value,
+        status,
+        diagnostic,
+    };
+}
+#[allow(dead_code)]
+fn schema_star_position(value: eph::StarPosition) {
+    let eph::StarPosition {
+        values,
+        canonical_name,
+        returned_flags,
+        diagnostic,
+    } = value;
+    let values: [f64; 6] = values;
+    let canonical_name: String = canonical_name;
+    let returned_flags: i32 = returned_flags;
+    let diagnostic: Option<String> = diagnostic;
+    let _ = eph::StarPosition {
+        values,
+        canonical_name,
+        returned_flags,
+        diagnostic,
+    };
+}
+#[allow(dead_code)]
+fn schema_star_magnitude(value: eph::StarMagnitude) {
+    let eph::StarMagnitude {
+        magnitude,
+        canonical_name,
+        diagnostic,
+    } = value;
+    let magnitude: f64 = magnitude;
+    let canonical_name: Option<String> = canonical_name;
+    let diagnostic: Option<String> = diagnostic;
+    let _ = eph::StarMagnitude {
+        magnitude,
+        canonical_name,
+        diagnostic,
+    };
+}
+#[allow(dead_code)]
+fn schema_phenomena(value: eph::Phenomena) {
+    let eph::Phenomena {
+        values,
+        returned_flags,
+        diagnostic,
+    } = value;
+    let values: [f64; 20] = values;
+    let returned_flags: i32 = returned_flags;
+    let diagnostic: String = diagnostic;
+    let _ = eph::Phenomena {
+        values,
+        returned_flags,
+        diagnostic,
+    };
+}
+#[allow(dead_code)]
+fn schema_nodes_apsides(value: eph::NodesApsides) {
+    let eph::NodesApsides {
+        ascending,
+        descending,
+        perihelion,
+        aphelion,
+        status,
+        diagnostic,
+    } = value;
+    let ascending: [f64; 6] = ascending;
+    let descending: [f64; 6] = descending;
+    let perihelion: [f64; 6] = perihelion;
+    let aphelion: [f64; 6] = aphelion;
+    let status: Option<i32> = status;
+    let diagnostic: Option<String> = diagnostic;
+    let _ = eph::NodesApsides {
+        ascending,
+        descending,
+        perihelion,
+        aphelion,
+        status,
+        diagnostic,
+    };
+}
+#[allow(dead_code)]
+fn schema_orbital_elements(value: eph::OrbitalElements) {
+    let eph::OrbitalElements {
+        values,
+        status,
+        diagnostic,
+    } = value;
+    let values: [f64; 50] = values;
+    let status: Option<i32> = status;
+    let diagnostic: Option<String> = diagnostic;
+    let _ = eph::OrbitalElements {
+        values,
+        status,
+        diagnostic,
+    };
+}
+#[allow(dead_code)]
+fn schema_distance_extremes(value: eph::DistanceExtremes) {
+    let eph::DistanceExtremes {
+        maximum,
+        minimum,
+        current,
+        status,
+        diagnostic,
+    } = value;
+    let maximum: f64 = maximum;
+    let minimum: f64 = minimum;
+    let current: f64 = current;
+    let status: Option<i32> = status;
+    let diagnostic: Option<String> = diagnostic;
+    let _ = eph::DistanceExtremes {
+        maximum,
+        minimum,
+        current,
+        status,
+        diagnostic,
+    };
+}
+#[allow(dead_code)]
+fn schema_horizontal(value: eph::Horizontal) {
+    let eph::Horizontal {
+        azimuth,
+        true_altitude,
+        apparent_altitude,
+    } = value;
+    let azimuth: f64 = azimuth;
+    let true_altitude: f64 = true_altitude;
+    let apparent_altitude: f64 = apparent_altitude;
+    let _ = eph::Horizontal {
+        azimuth,
+        true_altitude,
+        apparent_altitude,
+    };
+}
+#[allow(dead_code)]
+fn schema_celestial(value: eph::Celestial) {
+    let eph::Celestial {
+        longitude_or_ra,
+        latitude_or_dec,
+    } = value;
+    let longitude_or_ra: f64 = longitude_or_ra;
+    let latitude_or_dec: f64 = latitude_or_dec;
+    let _ = eph::Celestial {
+        longitude_or_ra,
+        latitude_or_dec,
+    };
+}
+#[allow(dead_code)]
+fn schema_refraction(value: eph::Refraction) {
+    let eph::Refraction {
+        value,
+        details,
+        diagnostic,
+    } = value;
+    let value: f64 = value;
+    let details: [f64; 4] = details;
+    let diagnostic: Option<String> = diagnostic;
+    let _ = eph::Refraction {
+        value,
+        details,
+        diagnostic,
+    };
+}
+#[allow(dead_code)]
+fn schema_delta_t(value: eph::DeltaT) {
+    let eph::DeltaT { days, diagnostic } = value;
+    let days: f64 = days;
+    let diagnostic: Option<String> = diagnostic;
+    let _ = eph::DeltaT { days, diagnostic };
+}
+#[allow(dead_code)]
+fn schema_equation_of_time(value: eph::EquationOfTime) {
+    let eph::EquationOfTime {
+        days,
+        status,
+        diagnostic,
+    } = value;
+    let days: f64 = days;
+    let status: Option<i32> = status;
+    let diagnostic: Option<String> = diagnostic;
+    let _ = eph::EquationOfTime {
+        days,
+        status,
+        diagnostic,
+    };
+}
+#[allow(dead_code)]
+fn schema_local_time(value: eph::LocalTime) {
+    let eph::LocalTime {
+        julian_day,
+        status,
+        diagnostic,
+    } = value;
+    let julian_day: f64 = julian_day;
+    let status: Option<i32> = status;
+    let diagnostic: Option<String> = diagnostic;
+    let _ = eph::LocalTime {
+        julian_day,
+        status,
+        diagnostic,
+    };
+}
+#[allow(dead_code)]
+fn schema_sidereal_time(value: eph::SiderealTime) {
+    let eph::SiderealTime { hours, diagnostic } = value;
+    let hours: f64 = hours;
+    let diagnostic: Option<String> = diagnostic;
+    let _ = eph::SiderealTime { hours, diagnostic };
+}
+#[allow(dead_code)]
+fn schema_longitude_crossing(value: eph::LongitudeCrossing) {
+    let eph::LongitudeCrossing { time, diagnostic } = value;
+    let time: f64 = time;
+    let diagnostic: String = diagnostic;
+    let _ = eph::LongitudeCrossing { time, diagnostic };
+}
+#[allow(dead_code)]
+fn schema_node_crossing(value: eph::NodeCrossing) {
+    let eph::NodeCrossing {
+        time,
+        longitude,
+        latitude,
+        diagnostic,
+    } = value;
+    let time: f64 = time;
+    let longitude: f64 = longitude;
+    let latitude: f64 = latitude;
+    let diagnostic: String = diagnostic;
+    let _ = eph::NodeCrossing {
+        time,
+        longitude,
+        latitude,
+        diagnostic,
+    };
+}
+#[allow(dead_code)]
+fn schema_global_solar_eclipse(value: eph::GlobalSolarEclipse) {
+    let eph::GlobalSolarEclipse {
+        status,
+        times,
+        diagnostic,
+    } = value;
+    let status: i32 = status;
+    let times: [f64; 10] = times;
+    let diagnostic: Option<String> = diagnostic;
+    let _ = eph::GlobalSolarEclipse {
+        status,
+        times,
+        diagnostic,
+    };
+}
+#[allow(dead_code)]
+fn schema_global_lunar_eclipse(value: eph::GlobalLunarEclipse) {
+    let eph::GlobalLunarEclipse {
+        status,
+        times,
+        diagnostic,
+    } = value;
+    let status: i32 = status;
+    let times: [f64; 10] = times;
+    let diagnostic: Option<String> = diagnostic;
+    let _ = eph::GlobalLunarEclipse {
+        status,
+        times,
+        diagnostic,
+    };
+}
+#[allow(dead_code)]
+fn schema_solar_eclipse_geometry(value: eph::SolarEclipseGeometry) {
+    let eph::SolarEclipseGeometry {
+        status,
+        geography,
+        attributes,
+        diagnostic,
+    } = value;
+    let status: i32 = status;
+    let geography: [f64; 10] = geography;
+    let attributes: [f64; 20] = attributes;
+    let diagnostic: Option<String> = diagnostic;
+    let _ = eph::SolarEclipseGeometry {
+        status,
+        geography,
+        attributes,
+        diagnostic,
+    };
+}
+#[allow(dead_code)]
+fn schema_solar_eclipse_circumstances(value: eph::SolarEclipseCircumstances) {
+    let eph::SolarEclipseCircumstances {
+        status,
+        attributes,
+        diagnostic,
+    } = value;
+    let status: i32 = status;
+    let attributes: [f64; 20] = attributes;
+    let diagnostic: Option<String> = diagnostic;
+    let _ = eph::SolarEclipseCircumstances {
+        status,
+        attributes,
+        diagnostic,
+    };
+}
+#[allow(dead_code)]
+fn schema_lunar_eclipse_circumstances(value: eph::LunarEclipseCircumstances) {
+    let eph::LunarEclipseCircumstances {
+        status,
+        attributes,
+        diagnostic,
+    } = value;
+    let status: i32 = status;
+    let attributes: [f64; 20] = attributes;
+    let diagnostic: Option<String> = diagnostic;
+    let _ = eph::LunarEclipseCircumstances {
+        status,
+        attributes,
+        diagnostic,
+    };
+}
+#[allow(dead_code)]
+fn schema_local_solar_eclipse(value: eph::LocalSolarEclipse) {
+    let eph::LocalSolarEclipse {
+        status,
+        times,
+        attributes,
+        maximum,
+        first_contact,
+        second_contact,
+        third_contact,
+        fourth_contact,
+        sunrise,
+        sunset,
+        diagnostic,
+    } = value;
+    let status: i32 = status;
+    let times: eph::LocalSolarTimes = times;
+    let attributes: [f64; 20] = attributes;
+    let maximum: Option<f64> = maximum;
+    let first_contact: Option<f64> = first_contact;
+    let second_contact: Option<f64> = second_contact;
+    let third_contact: Option<f64> = third_contact;
+    let fourth_contact: Option<f64> = fourth_contact;
+    let sunrise: Option<f64> = sunrise;
+    let sunset: Option<f64> = sunset;
+    let diagnostic: Option<String> = diagnostic;
+    let _ = eph::LocalSolarEclipse {
+        status,
+        times,
+        attributes,
+        maximum,
+        first_contact,
+        second_contact,
+        third_contact,
+        fourth_contact,
+        sunrise,
+        sunset,
+        diagnostic,
+    };
+}
+#[allow(dead_code)]
+fn schema_local_lunar_eclipse(value: eph::LocalLunarEclipse) {
+    let eph::LocalLunarEclipse {
+        status,
+        times,
+        attributes,
+        diagnostic,
+    } = value;
+    let status: i32 = status;
+    let times: [f64; 10] = times;
+    let attributes: [f64; 20] = attributes;
+    let diagnostic: Option<String> = diagnostic;
+    let _ = eph::LocalLunarEclipse {
+        status,
+        times,
+        attributes,
+        diagnostic,
+    };
+}
+#[allow(dead_code)]
+fn schema_global_occultation(value: eph::GlobalOccultation) {
+    let eph::GlobalOccultation {
+        status,
+        times,
+        diagnostic,
+    } = value;
+    let status: i32 = status;
+    let times: [f64; 10] = times;
+    let diagnostic: Option<String> = diagnostic;
+    let _ = eph::GlobalOccultation {
+        status,
+        times,
+        diagnostic,
+    };
+}
+#[allow(dead_code)]
+fn schema_local_occultation(value: eph::LocalOccultation) {
+    let eph::LocalOccultation {
+        status,
+        times,
+        attributes,
+        diagnostic,
+    } = value;
+    let status: i32 = status;
+    let times: [f64; 10] = times;
+    let attributes: [f64; 20] = attributes;
+    let diagnostic: Option<String> = diagnostic;
+    let _ = eph::LocalOccultation {
+        status,
+        times,
+        attributes,
+        diagnostic,
+    };
+}
+#[allow(dead_code)]
+fn schema_occultation_geometry(value: eph::OccultationGeometry) {
+    let eph::OccultationGeometry {
+        status,
+        geography,
+        attributes,
+        diagnostic,
+    } = value;
+    let status: i32 = status;
+    let geography: [f64; 10] = geography;
+    let attributes: [f64; 20] = attributes;
+    let diagnostic: Option<String> = diagnostic;
+    let _ = eph::OccultationGeometry {
+        status,
+        geography,
+        attributes,
+        diagnostic,
+    };
+}
+#[allow(dead_code)]
+fn schema_rise_transit(value: eph::RiseTransit) {
+    let eph::RiseTransit {
+        status,
+        time,
+        times,
+        diagnostic,
+    } = value;
+    let status: i32 = status;
+    let time: Option<f64> = time;
+    let times: eph::RiseTransitTimes = times;
+    let diagnostic: Option<String> = diagnostic;
+    let _ = eph::RiseTransit {
+        status,
+        time,
+        times,
+        diagnostic,
+    };
+}
+#[allow(dead_code)]
+fn schema_heliacal_event(value: eph::HeliacalEvent) {
+    let eph::HeliacalEvent {
+        values,
+        status,
+        diagnostic,
+    } = value;
+    let values: Vec<f64> = values;
+    let status: Option<i32> = status;
+    let diagnostic: Option<String> = diagnostic;
+    let _ = eph::HeliacalEvent {
+        values,
+        status,
+        diagnostic,
+    };
+}
+#[allow(dead_code)]
+fn schema_heliacal_phenomena(value: eph::HeliacalPhenomena) {
+    let eph::HeliacalPhenomena {
+        values,
+        status,
+        diagnostic,
+    } = value;
+    let values: [f64; 50] = values;
+    let status: Option<i32> = status;
+    let diagnostic: Option<String> = diagnostic;
+    let _ = eph::HeliacalPhenomena {
+        values,
+        status,
+        diagnostic,
+    };
+}
+#[allow(dead_code)]
+fn schema_visibility(value: eph::Visibility) {
+    let eph::Visibility {
+        scalar,
+        status,
+        values,
+        diagnostic,
+    } = value;
+    let scalar: Option<f64> = scalar;
+    let status: Option<i32> = status;
+    let values: [f64; 10] = values;
+    let diagnostic: Option<String> = diagnostic;
+    let _ = eph::Visibility {
+        scalar,
+        status,
+        values,
+        diagnostic,
+    };
+}
+#[allow(dead_code)]
+fn schema_armc_houses(value: eph::ArmcHouses) {
+    let eph::ArmcHouses {
+        cusps,
+        angles,
+        status,
+        diagnostic,
+    } = value;
+    let cusps: Vec<f64> = cusps;
+    let angles: [f64; 8] = angles;
+    let status: Option<i32> = status;
+    let diagnostic: Option<String> = diagnostic;
+    let _ = eph::ArmcHouses {
+        cusps,
+        angles,
+        status,
+        diagnostic,
+    };
+}
+#[allow(dead_code)]
+fn schema_armc_houses_with_speeds(value: eph::ArmcHousesWithSpeeds) {
+    let eph::ArmcHousesWithSpeeds {
+        cusps,
+        angles,
+        cusp_speeds,
+        angle_speeds,
+        status,
+        diagnostic,
+    } = value;
+    let cusps: Vec<f64> = cusps;
+    let angles: [f64; 8] = angles;
+    let cusp_speeds: Vec<f64> = cusp_speeds;
+    let angle_speeds: [f64; 8] = angle_speeds;
+    let status: Option<i32> = status;
+    let diagnostic: Option<String> = diagnostic;
+    let _ = eph::ArmcHousesWithSpeeds {
+        cusps,
+        angles,
+        cusp_speeds,
+        angle_speeds,
+        status,
+        diagnostic,
+    };
+}
+#[allow(dead_code)]
+fn closed_calendar(value: eph::Calendar) {
+    match value {
+        eph::Calendar::Julian => {}
+        eph::Calendar::Gregorian => {}
+    }
+}
+#[allow(dead_code)]
+fn closed_target(value: eph::Target) {
+    match value {
+        eph::Target::Body(value) => {
+            let _: i32 = value;
+        }
+        eph::Target::Star(value) => {
+            let _: String = value;
+        }
+    }
+}
+#[allow(dead_code)]
+fn closed_local_solar_times(value: eph::LocalSolarTimes) {
+    match value {
+        eph::LocalSolarTimes::Seven(value) => {
+            let _: [f64; 7] = value;
+        }
+        eph::LocalSolarTimes::Ten(value) => {
+            let _: [f64; 10] = value;
+        }
+    }
+}
+#[allow(dead_code)]
+fn closed_rise_transit_times(value: eph::RiseTransitTimes) {
+    match value {
+        eph::RiseTransitTimes::One(value) => {
+            let _: [f64; 1] = value;
+        }
+        eph::RiseTransitTimes::Ten(value) => {
+            let _: [f64; 10] = value;
+        }
+        eph::RiseTransitTimes::Absent => {}
+    }
+}
+#[allow(dead_code)]
+fn closed_error_kind(value: eph::ErrorKind) {
+    match value {
+        eph::ErrorKind::InvalidInput => {}
+        eph::ErrorKind::MissingData => {}
+        eph::ErrorKind::OutOfRange => {}
+        eph::ErrorKind::Calculation => {}
+        eph::ErrorKind::Configuration => {}
+        eph::ErrorKind::Unsupported => {}
+        eph::ErrorKind::Unavailable => {}
+    }
+}
+#[allow(dead_code)]
+fn closed_advisory_detail(value: eph::AdvisoryDetail) {
+    match value {
         eph::AdvisoryDetail::LunarPolynomial {
             centuries_from_j2000,
             outside_valid_range,
@@ -268,23 +1335,31 @@ fn position_and_advisory_schemas(position: eph::Position, advisory: eph::Advisor
         }
     }
 }
-
-#[allow(dead_code)]
-fn calendar_variants(calendar: eph::Calendar) -> bool {
-    match calendar {
-        eph::Calendar::Julian => false,
-        eph::Calendar::Gregorian => true,
+#[test]
+fn calendar_helpers_and_error_metadata() {
+    for (flag, value) in [(0, eph::Calendar::Julian), (1, eph::Calendar::Gregorian)] {
+        assert_eq!(eph::Calendar::from_flag(flag).unwrap(), value);
+        assert_eq!(value.flag(), flag);
+    }
+    for flag in [i32::MIN, -1, 2, i32::MAX] {
+        assert!(eph::Calendar::from_flag(flag).is_err());
+    }
+    for bits in [0_u64, 0x8000_0000_0000_0000, 0x7ff8_0000_0000_0042] {
+        let error = eph::Error::new(
+            eph::ErrorKind::Calculation,
+            Some("actual operation".into()),
+            Some(-7),
+            Some(f64::from_bits(bits)),
+            Some("actual diagnostic".into()),
+        );
+        assert_eq!(error.kind(), eph::ErrorKind::Calculation);
+        assert_eq!(error.operation(), Some("actual operation"));
+        assert_eq!(error.native_status(), Some(-7));
+        assert_eq!(error.native_scalar().unwrap().to_bits(), bits);
+        assert_eq!(error.diagnostic(), Some("actual diagnostic"));
+        assert_eq!(error.to_string(), "actual diagnostic");
     }
 }
-
-#[test]
-fn calendar_constants_have_exact_type_and_value() {
-    let _: i32 = eph::JUL_CAL;
-    let _: i32 = eph::GREG_CAL;
-    assert_eq!(eph::JUL_CAL, 0);
-    assert_eq!(eph::GREG_CAL, 1);
-}
-
 #[test]
 fn agreed_constant_values_and_types() {
     let _: i32 = eph::ACRONYCHAL_RISING;

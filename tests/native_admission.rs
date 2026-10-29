@@ -1,8 +1,8 @@
 //! Native valid domains must survive Rust admission without losing real errors.
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use swisseph_bindings::*;
-use swisseph_bindings::{
+use swisseph_bindings::native::*;
+use swisseph_bindings::native::{
     global::fixstar2, global::fixstar2_mag, global::fixstar2_ut, global::mooncross_ut,
     global::set_ephe_path, native::fixed_star_catalog, native::lun_occult_where_full,
 };

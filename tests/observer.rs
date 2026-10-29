@@ -8,7 +8,7 @@
 //! classification, same-engine consistency), never stored reference
 //! vectors.
 
-use swisseph_bindings::{
+use swisseph_bindings::native::{
     BIT_DISC_CENTER, BIT_GEOCTR_NO_ECL_LAT, BIT_HINDU_RISING, BIT_NO_REFRACTION, CALC_ITRANSIT,
     CALC_MTRANSIT, CALC_RISE, CALC_SET, ErrorKind, FLG_MOSEPH, FLG_SPEED, FLG_SWIEPH, MARS, MOON,
     NODBIT_FOPOINT, NODBIT_MEAN, NODBIT_OSCU, NODBIT_OSCU_BAR, RiseTransitOutcome, SUN,

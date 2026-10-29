@@ -573,19 +573,19 @@ pub const DE_NUMBER: i32 = 431;
 /// Calculate the position of the center of the body instead of the photo
 /// center (flag bit for [`crate::global::calc`] / [`crate::global::calc_ut`]).
 pub const FLG_CENTER_BODY: i32 = 1024 * 1024;
-/// Ascendant index into the [`crate::Houses`] angles array.
+/// Ascendant index into the [`crate::native::Houses`] angles array.
 pub const ASC: i32 = 0;
-/// Medium Coeli index into the [`crate::Houses`] angles array.
+/// Medium Coeli index into the [`crate::native::Houses`] angles array.
 pub const MC: i32 = 1;
 /// ARMC (sidereal time of the MC) index into the angles array.
 pub const ARMC: i32 = 2;
-/// Vertex index into the [`crate::Houses`] angles array.
+/// Vertex index into the [`crate::native::Houses`] angles array.
 pub const VERTEX: i32 = 3;
-/// Equatorial ascendant index into the [`crate::Houses`] angles array.
+/// Equatorial ascendant index into the [`crate::native::Houses`] angles array.
 pub const EQUASC: i32 = 4;
-/// Koch co-ascendant index into the [`crate::Houses`] angles array.
+/// Koch co-ascendant index into the [`crate::native::Houses`] angles array.
 pub const COASC1: i32 = 5;
-/// Munkasey co-ascendant index into the [`crate::Houses`] angles array.
+/// Munkasey co-ascendant index into the [`crate::native::Houses`] angles array.
 pub const COASC2: i32 = 6;
 /// Asteroid name catalog file.
 pub const ASTNAMFILE: &str = "seasnam.txt";

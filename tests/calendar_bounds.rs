@@ -1,13 +1,13 @@
 //! Calendar domains follow native integer conversions, not the JD magnitude.
 //! Inputs and structural assertions only; no native output vectors stored.
 
-use swisseph_bindings::{
+use swisseph_bindings::native::{
     Calendar, ErrorKind, global::jdet_to_utc, global::jdut1_to_utc, global::set_delta_t_userdef,
     global::utc_to_jd, native::date_conversion, native::day_of_week, native::julday,
     native::revjul,
 };
 
-fn invalid(result: Result<impl std::fmt::Debug, swisseph_bindings::Error>) {
+fn invalid(result: Result<impl std::fmt::Debug, swisseph_bindings::native::Error>) {
     assert_eq!(
         result.expect_err("unrepresentable input").kind(),
         ErrorKind::InvalidInput

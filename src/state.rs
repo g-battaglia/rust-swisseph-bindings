@@ -10,7 +10,7 @@
 //! configuration plus all dependent computation — while holding one private
 //! process-wide mutex. Free `set_*` + `calc_*` pairs are each individually
 //! serialized but remain two acquisitions: callers needing atomic
-//! config-plus-computation must use [`crate::Session`], which holds this
+//! config-plus-computation must use [`crate::native::Session`], which holds this
 //! same lock across its whole apply-then-compute sequence. Two Rust threads
 //! can never interleave conflicting configurations mid-sequence. A lock on
 //! a single Rust handle would not be sufficient because the sharing happens
@@ -24,13 +24,13 @@
 //!
 //! Same-thread reentry is rejected without hanging: the underlying mutex
 //! is not reentrant, so a nested `with_native_access` on the thread that
-//! already holds native access returns [`ErrorKind::InvalidInput`](crate::ErrorKind)
+//! already holds native access returns [`ErrorKind::InvalidInput`](crate::native::ErrorKind)
 //! instead of deadlocking. Cross-thread contention still blocks on the
 //! mutex. No user callbacks run under the lock: the closure must be a
 //! bounded native sequence built from already-locked helpers.
 //!
 //! No `Send`/`Sync` unsafe implementations are added here. The public API
-//! consists of free functions plus [`crate::Session`], which are callable
+//! consists of free functions plus [`crate::native::Session`], which are callable
 //! from any thread precisely because each native sequence serializes
 //! through this boundary.
 
@@ -89,14 +89,26 @@ mod tests {
     use super::*;
     use crate::error::ErrorKind;
 
-    // NOTE: this test deliberately poisons the process-wide `NATIVE_LOCK`,
-    // so it must remain the only unit test in the library test binary:
-    // every `#[cfg(test)]` module in this crate shares one process, and a
-    // poisoned static mutex stays poisoned for the rest of that process.
-    // Integration tests and doctests run in separate processes and are
-    // unaffected.
+    // A deliberate permanent poison must not affect other library tests.
     #[test]
     fn poisoned_lock_is_reported_as_classified_error() {
+        if std::env::var_os("SWISSEPH_NATIVE_POISON_CHILD").is_none() {
+            let output = std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "state::tests::poisoned_lock_is_reported_as_classified_error",
+                    "--test-threads=1",
+                ])
+                .env("SWISSEPH_NATIVE_POISON_CHILD", "1")
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "isolated native poison control failed"
+            );
+            return;
+        }
+
         // Reentry is refused before taking the non-reentrant lock, without
         // changing the outer depth or running the nested operation.
         with_native_access(|| {

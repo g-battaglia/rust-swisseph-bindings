@@ -1,0 +1,2409 @@
+{
+  "schema_version": 1,
+  "status": "interface-defined; implementation and qualification pending",
+  "namespace": "primary",
+  "constants": [
+    "ACRONYCHAL_RISING",
+    "ACRONYCHAL_SETTING",
+    "ADMETOS",
+    "APOLLON",
+    "ARMC",
+    "ASC",
+    "ASTNAMFILE",
+    "AST_OFFSET",
+    "AUNIT_TO_KM",
+    "AUNIT_TO_LIGHTYEAR",
+    "AUNIT_TO_PARSEC",
+    "BIT_ASTRO_TWILIGHT",
+    "BIT_CIVIL_TWILIGHT",
+    "BIT_DISC_BOTTOM",
+    "BIT_DISC_CENTER",
+    "BIT_FIXED_DISC_SIZE",
+    "BIT_FORCE_SLOW_METHOD",
+    "BIT_GEOCTR_NO_ECL_LAT",
+    "BIT_HINDU_RISING",
+    "BIT_NAUTIC_TWILIGHT",
+    "BIT_NO_REFRACTION",
+    "CALC_ITRANSIT",
+    "CALC_MTRANSIT",
+    "CALC_RISE",
+    "CALC_SET",
+    "CERES",
+    "CHIRON",
+    "COASC1",
+    "COASC2",
+    "COMET_OFFSET",
+    "COSMICAL_SETTING",
+    "CUPIDO",
+    "DE_NUMBER",
+    "EARTH",
+    "ECL_1ST_VISIBLE",
+    "ECL_2ND_VISIBLE",
+    "ECL_3RD_VISIBLE",
+    "ECL_4TH_VISIBLE",
+    "ECL_ALLTYPES_LUNAR",
+    "ECL_ALLTYPES_SOLAR",
+    "ECL_ANNULAR",
+    "ECL_ANNULAR_TOTAL",
+    "ECL_CENTRAL",
+    "ECL_HYBRID",
+    "ECL_MAX_VISIBLE",
+    "ECL_NONCENTRAL",
+    "ECL_NUT",
+    "ECL_OCC_BEG_DAYLIGHT",
+    "ECL_OCC_END_DAYLIGHT",
+    "ECL_ONE_TRY",
+    "ECL_PARTBEG_VISIBLE",
+    "ECL_PARTEND_VISIBLE",
+    "ECL_PARTIAL",
+    "ECL_PENUMBBEG_VISIBLE",
+    "ECL_PENUMBEND_VISIBLE",
+    "ECL_PENUMBRAL",
+    "ECL_TOTAL",
+    "ECL_TOTBEG_VISIBLE",
+    "ECL_TOTEND_VISIBLE",
+    "ECL_VISIBLE",
+    "EQUASC",
+    "EVENING_FIRST",
+    "EVENING_LAST",
+    "FICTFILE",
+    "FICT_MAX",
+    "FICT_OFFSET",
+    "FICT_OFFSET_1",
+    "FIXSTAR",
+    "FLG_ASTROMETRIC",
+    "FLG_BARYCTR",
+    "FLG_CENTER_BODY",
+    "FLG_DEFAULTEPH",
+    "FLG_EQUATORIAL",
+    "FLG_HELCTR",
+    "FLG_ICRS",
+    "FLG_J2000",
+    "FLG_JPLEPH",
+    "FLG_MOSEPH",
+    "FLG_NOABERR",
+    "FLG_NOGDEFL",
+    "FLG_NONUT",
+    "FLG_RADIANS",
+    "FLG_SIDEREAL",
+    "FLG_SPEED",
+    "FLG_SPEED3",
+    "FLG_SWIEPH",
+    "FLG_TOPOCTR",
+    "FLG_TRUEPOS",
+    "FLG_XYZ",
+    "GREG_CAL",
+    "HADES",
+    "HARRINGTON",
+    "HELFLAG_AV",
+    "HELFLAG_AVKIND",
+    "HELFLAG_AVKIND_MIN7",
+    "HELFLAG_AVKIND_MIN9",
+    "HELFLAG_AVKIND_PTO",
+    "HELFLAG_AVKIND_VR",
+    "HELFLAG_BELOW_HORIZON",
+    "HELFLAG_HIGH_PRECISION",
+    "HELFLAG_LONG_SEARCH",
+    "HELFLAG_MIXED",
+    "HELFLAG_NO_DETAILS",
+    "HELFLAG_OPTICAL_PARAMS",
+    "HELFLAG_PHOTOPIC",
+    "HELFLAG_SCOTOPIC",
+    "HELFLAG_SEARCH_1_PERIOD",
+    "HELFLAG_VISLIM_DARK",
+    "HELFLAG_VISLIM_NOMOON",
+    "HELFLAG_VISLIM_PHOTOPIC",
+    "HELFLAG_VISLIM_SCOTOPIC",
+    "HELIACAL_RISING",
+    "HELIACAL_SETTING",
+    "INTP_APOG",
+    "INTP_PERG",
+    "ISIS",
+    "JUL_CAL",
+    "JUNO",
+    "JUPITER",
+    "KRONOS",
+    "MARS",
+    "MC",
+    "MEAN_APOG",
+    "MEAN_NODE",
+    "MERCURY",
+    "MIXEDOPIC_FLAG",
+    "MOON",
+    "MORNING_FIRST",
+    "MORNING_LAST",
+    "NEPTUNE",
+    "NEPTUNE_ADAMS",
+    "NEPTUNE_LEVERRIER",
+    "NIBIRU",
+    "NODBIT_FOPOINT",
+    "NODBIT_MEAN",
+    "NODBIT_OSCU",
+    "NODBIT_OSCU_BAR",
+    "NPLANETS",
+    "OSCU_APOG",
+    "PALLAS",
+    "PHOLUS",
+    "PHOTOPIC_FLAG",
+    "PLMOON_OFFSET",
+    "PLUTO",
+    "PLUTO_LOWELL",
+    "PLUTO_PICKERING",
+    "POSEIDON",
+    "PROSERPINA",
+    "SATURN",
+    "SCOTOPIC_FLAG",
+    "SIDM_ALDEBARAN_15TAU",
+    "SIDM_ARYABHATA",
+    "SIDM_ARYABHATA_522",
+    "SIDM_ARYABHATA_MSUN",
+    "SIDM_B1950",
+    "SIDM_BABYL_BRITTON",
+    "SIDM_BABYL_ETPSC",
+    "SIDM_BABYL_HUBER",
+    "SIDM_BABYL_KUGLER1",
+    "SIDM_BABYL_KUGLER2",
+    "SIDM_BABYL_KUGLER3",
+    "SIDM_DELUCE",
+    "SIDM_DJWHAL_KHUL",
+    "SIDM_FAGAN_BRADLEY",
+    "SIDM_GALALIGN_MARDYKS",
+    "SIDM_GALCENT_0SAG",
+    "SIDM_GALCENT_COCHRANE",
+    "SIDM_GALCENT_MULA_WILHELM",
+    "SIDM_GALCENT_RGILBRAND",
+    "SIDM_GALEQU_FIORENZA",
+    "SIDM_GALEQU_IAU1958",
+    "SIDM_GALEQU_MULA",
+    "SIDM_GALEQU_TRUE",
+    "SIDM_HIPPARCHOS",
+    "SIDM_J1900",
+    "SIDM_J2000",
+    "SIDM_JN_BHASIN",
+    "SIDM_KRISHNAMURTI",
+    "SIDM_KRISHNAMURTI_VP291",
+    "SIDM_LAHIRI",
+    "SIDM_LAHIRI_1940",
+    "SIDM_LAHIRI_ICRC",
+    "SIDM_LAHIRI_VP285",
+    "SIDM_RAMAN",
+    "SIDM_SASSANIAN",
+    "SIDM_SS_CITRA",
+    "SIDM_SS_REVATI",
+    "SIDM_SURYASIDDHANTA",
+    "SIDM_SURYASIDDHANTA_MSUN",
+    "SIDM_TRUE_CITRA",
+    "SIDM_TRUE_MULA",
+    "SIDM_TRUE_PUSHYA",
+    "SIDM_TRUE_REVATI",
+    "SIDM_TRUE_SHEORAN",
+    "SIDM_USER",
+    "SIDM_USHASHASHI",
+    "SIDM_VALENS_MOON",
+    "SIDM_YUKTESHWAR",
+    "SPLIT_DEG_KEEP_DEG",
+    "SPLIT_DEG_KEEP_SIGN",
+    "SPLIT_DEG_NAKSHATRA",
+    "SPLIT_DEG_ROUND_DEG",
+    "SPLIT_DEG_ROUND_MIN",
+    "SPLIT_DEG_ROUND_SEC",
+    "SPLIT_DEG_ZODIACAL",
+    "SUN",
+    "TJD_INVALID",
+    "TRUE_NODE",
+    "URANUS",
+    "VARUNA",
+    "VENUS",
+    "VERTEX",
+    "VESTA",
+    "VULCAN",
+    "VULKANUS",
+    "WALDEMATH",
+    "WHITE_MOON",
+    "ZEUS"
+  ],
+  "records": {
+    "Angle": {
+      "value": "f64"
+    },
+    "Integer": {
+      "value": "i64"
+    },
+    "Text": {
+      "value": "String"
+    },
+    "Spherical": {
+      "values": "[f64; 3]"
+    },
+    "SphericalState": {
+      "position": "[f64; 3]",
+      "velocity": "[f64; 3]"
+    },
+    "SplitDeg": {
+      "degrees": "i64",
+      "minutes": "i64",
+      "seconds": "i64",
+      "fraction": "f64",
+      "sign": "i64"
+    },
+    "JulianDay": {
+      "value": "f64"
+    },
+    "CalendarDate": {
+      "year": "i32",
+      "month": "i32",
+      "day": "i32",
+      "hour": "f64"
+    },
+    "DateConversion": {
+      "valid": "bool",
+      "julian_day": "f64",
+      "date": "CalendarDate",
+      "status": "Option<i32>",
+      "diagnostic": "Option<String>"
+    },
+    "Weekday": {
+      "index": "i32"
+    },
+    "UtcDateTime": {
+      "year": "i32",
+      "month": "i32",
+      "day": "i32",
+      "hour": "i32",
+      "minute": "i32",
+      "second": "f64"
+    },
+    "JulDays": {
+      "tt": "f64",
+      "ut1": "f64"
+    },
+    "Position": {
+      "values": "[f64; 6]",
+      "returned_flags": "i32",
+      "diagnostic": "String",
+      "warnings": "Vec<Advisory>",
+      "messages": "Vec<String>"
+    },
+    "Advisory": {
+      "detail": "AdvisoryDetail",
+      "message": "String"
+    },
+    "Houses": {
+      "cusps": "[f64; 12]",
+      "angles": "[f64; 8]",
+      "status": "Option<i32>",
+      "diagnostic": "Option<String>"
+    },
+    "HousesWithSpeeds": {
+      "cusps": "[f64; 12]",
+      "angles": "[f64; 8]",
+      "cusp_speeds": "[f64; 12]",
+      "angle_speeds": "[f64; 8]",
+      "status": "Option<i32>",
+      "diagnostic": "Option<String>"
+    },
+    "GauquelinSectors": {
+      "sectors": "[f64; 36]",
+      "angles": "[f64; 8]",
+      "sector_speeds": "[f64; 36]",
+      "angle_speeds": "[f64; 8]",
+      "status": "Option<i32>",
+      "diagnostic": "Option<String>"
+    },
+    "Ayanamsha": {
+      "value": "f64",
+      "returned_flags": "i32",
+      "diagnostic": "String"
+    },
+    "HousePosition": {
+      "value": "f64",
+      "diagnostic": "Option<String>"
+    },
+    "GauquelinSector": {
+      "value": "f64",
+      "status": "Option<i32>",
+      "diagnostic": "Option<String>"
+    },
+    "StarPosition": {
+      "values": "[f64; 6]",
+      "canonical_name": "String",
+      "returned_flags": "i32",
+      "diagnostic": "Option<String>"
+    },
+    "StarMagnitude": {
+      "magnitude": "f64",
+      "canonical_name": "Option<String>",
+      "diagnostic": "Option<String>"
+    },
+    "Phenomena": {
+      "values": "[f64; 20]",
+      "returned_flags": "i32",
+      "diagnostic": "String"
+    },
+    "NodesApsides": {
+      "ascending": "[f64; 6]",
+      "descending": "[f64; 6]",
+      "perihelion": "[f64; 6]",
+      "aphelion": "[f64; 6]",
+      "status": "Option<i32>",
+      "diagnostic": "Option<String>"
+    },
+    "OrbitalElements": {
+      "values": "[f64; 50]",
+      "status": "Option<i32>",
+      "diagnostic": "Option<String>"
+    },
+    "DistanceExtremes": {
+      "maximum": "f64",
+      "minimum": "f64",
+      "current": "f64",
+      "status": "Option<i32>",
+      "diagnostic": "Option<String>"
+    },
+    "Horizontal": {
+      "azimuth": "f64",
+      "true_altitude": "f64",
+      "apparent_altitude": "f64"
+    },
+    "Celestial": {
+      "longitude_or_ra": "f64",
+      "latitude_or_dec": "f64"
+    },
+    "Refraction": {
+      "value": "f64",
+      "details": "[f64; 4]",
+      "diagnostic": "Option<String>"
+    },
+    "DeltaT": {
+      "days": "f64",
+      "diagnostic": "Option<String>"
+    },
+    "EquationOfTime": {
+      "days": "f64",
+      "status": "Option<i32>",
+      "diagnostic": "Option<String>"
+    },
+    "LocalTime": {
+      "julian_day": "f64",
+      "status": "Option<i32>",
+      "diagnostic": "Option<String>"
+    },
+    "SiderealTime": {
+      "hours": "f64",
+      "diagnostic": "Option<String>"
+    },
+    "LongitudeCrossing": {
+      "time": "f64",
+      "diagnostic": "String"
+    },
+    "NodeCrossing": {
+      "time": "f64",
+      "longitude": "f64",
+      "latitude": "f64",
+      "diagnostic": "String"
+    },
+    "GlobalSolarEclipse": {
+      "status": "i32",
+      "times": "[f64; 10]",
+      "diagnostic": "Option<String>"
+    },
+    "GlobalLunarEclipse": {
+      "status": "i32",
+      "times": "[f64; 10]",
+      "diagnostic": "Option<String>"
+    },
+    "SolarEclipseGeometry": {
+      "status": "i32",
+      "geography": "[f64; 10]",
+      "attributes": "[f64; 20]",
+      "diagnostic": "Option<String>"
+    },
+    "SolarEclipseCircumstances": {
+      "status": "i32",
+      "attributes": "[f64; 20]",
+      "diagnostic": "Option<String>"
+    },
+    "LunarEclipseCircumstances": {
+      "status": "i32",
+      "attributes": "[f64; 20]",
+      "diagnostic": "Option<String>"
+    },
+    "LocalSolarEclipse": {
+      "status": "i32",
+      "times": "LocalSolarTimes",
+      "attributes": "[f64; 20]",
+      "maximum": "Option<f64>",
+      "first_contact": "Option<f64>",
+      "second_contact": "Option<f64>",
+      "third_contact": "Option<f64>",
+      "fourth_contact": "Option<f64>",
+      "sunrise": "Option<f64>",
+      "sunset": "Option<f64>",
+      "diagnostic": "Option<String>"
+    },
+    "LocalLunarEclipse": {
+      "status": "i32",
+      "times": "[f64; 10]",
+      "attributes": "[f64; 20]",
+      "diagnostic": "Option<String>"
+    },
+    "GlobalOccultation": {
+      "status": "i32",
+      "times": "[f64; 10]",
+      "diagnostic": "Option<String>"
+    },
+    "LocalOccultation": {
+      "status": "i32",
+      "times": "[f64; 10]",
+      "attributes": "[f64; 20]",
+      "diagnostic": "Option<String>"
+    },
+    "OccultationGeometry": {
+      "status": "i32",
+      "geography": "[f64; 10]",
+      "attributes": "[f64; 20]",
+      "diagnostic": "Option<String>"
+    },
+    "RiseTransit": {
+      "status": "i32",
+      "time": "Option<f64>",
+      "times": "RiseTransitTimes",
+      "diagnostic": "Option<String>"
+    },
+    "HeliacalEvent": {
+      "values": "Vec<f64>",
+      "status": "Option<i32>",
+      "diagnostic": "Option<String>"
+    },
+    "HeliacalPhenomena": {
+      "values": "[f64; 50]",
+      "status": "Option<i32>",
+      "diagnostic": "Option<String>"
+    },
+    "Visibility": {
+      "scalar": "Option<f64>",
+      "status": "Option<i32>",
+      "values": "[f64; 10]",
+      "diagnostic": "Option<String>"
+    },
+    "ArmcHouses": {
+      "cusps": "Vec<f64>",
+      "angles": "[f64; 8]",
+      "status": "Option<i32>",
+      "diagnostic": "Option<String>"
+    },
+    "ArmcHousesWithSpeeds": {
+      "cusps": "Vec<f64>",
+      "angles": "[f64; 8]",
+      "cusp_speeds": "Vec<f64>",
+      "angle_speeds": "[f64; 8]",
+      "status": "Option<i32>",
+      "diagnostic": "Option<String>"
+    }
+  },
+  "enums": {
+    "Calendar": {
+      "Julian": null,
+      "Gregorian": null
+    },
+    "Target": {
+      "Body": "i32",
+      "Star": "String"
+    },
+    "LocalSolarTimes": {
+      "Seven": "[f64; 7]",
+      "Ten": "[f64; 10]"
+    },
+    "RiseTransitTimes": {
+      "One": "[f64; 1]",
+      "Ten": "[f64; 10]",
+      "Absent": null
+    },
+    "ErrorKind": {
+      "InvalidInput": null,
+      "MissingData": null,
+      "OutOfRange": null,
+      "Calculation": null,
+      "Configuration": null,
+      "Unsupported": null,
+      "Unavailable": null
+    },
+    "AdvisoryDetail": {
+      "LunarPolynomial": {
+        "centuries_from_j2000": "f64",
+        "outside_valid_range": "bool"
+      },
+      "UnknownSiderealMode": {
+        "mode": "i32"
+      },
+      "UnsupportedSiderealProjection": {
+        "bits": "i32"
+      },
+      "MalformedConfiguration": {
+        "path": "String",
+        "detail": "String"
+      },
+      "SelfInteractionExcluded": {
+        "perturber": "String"
+      }
+    }
+  },
+  "functions": [
+    {
+      "name": "julday",
+      "arguments": [
+        {
+          "name": "year",
+          "type": "i32"
+        },
+        {
+          "name": "month",
+          "type": "i32"
+        },
+        {
+          "name": "day",
+          "type": "i32"
+        },
+        {
+          "name": "hour",
+          "type": "f64"
+        },
+        {
+          "name": "calendar",
+          "type": "Calendar"
+        }
+      ],
+      "result": "JulianDay"
+    },
+    {
+      "name": "revjul",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "calendar",
+          "type": "Calendar"
+        }
+      ],
+      "result": "CalendarDate"
+    },
+    {
+      "name": "date_conversion",
+      "arguments": [
+        {
+          "name": "year",
+          "type": "i32"
+        },
+        {
+          "name": "month",
+          "type": "i32"
+        },
+        {
+          "name": "day",
+          "type": "i32"
+        },
+        {
+          "name": "hour",
+          "type": "f64"
+        },
+        {
+          "name": "calendar",
+          "type": "Calendar"
+        }
+      ],
+      "result": "DateConversion"
+    },
+    {
+      "name": "day_of_week",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        }
+      ],
+      "result": "Weekday"
+    },
+    {
+      "name": "utc_time_zone",
+      "arguments": [
+        {
+          "name": "year",
+          "type": "i32"
+        },
+        {
+          "name": "month",
+          "type": "i32"
+        },
+        {
+          "name": "day",
+          "type": "i32"
+        },
+        {
+          "name": "hour",
+          "type": "i32"
+        },
+        {
+          "name": "minute",
+          "type": "i32"
+        },
+        {
+          "name": "second",
+          "type": "f64"
+        },
+        {
+          "name": "offset",
+          "type": "f64"
+        }
+      ],
+      "result": "UtcDateTime"
+    },
+    {
+      "name": "degnorm",
+      "arguments": [
+        {
+          "name": "value",
+          "type": "f64"
+        }
+      ],
+      "result": "Angle"
+    },
+    {
+      "name": "radnorm",
+      "arguments": [
+        {
+          "name": "value",
+          "type": "f64"
+        }
+      ],
+      "result": "Angle"
+    },
+    {
+      "name": "difdegn",
+      "arguments": [
+        {
+          "name": "first",
+          "type": "f64"
+        },
+        {
+          "name": "second",
+          "type": "f64"
+        }
+      ],
+      "result": "Angle"
+    },
+    {
+      "name": "difdeg2n",
+      "arguments": [
+        {
+          "name": "first",
+          "type": "f64"
+        },
+        {
+          "name": "second",
+          "type": "f64"
+        }
+      ],
+      "result": "Angle"
+    },
+    {
+      "name": "difrad2n",
+      "arguments": [
+        {
+          "name": "first",
+          "type": "f64"
+        },
+        {
+          "name": "second",
+          "type": "f64"
+        }
+      ],
+      "result": "Angle"
+    },
+    {
+      "name": "deg_midp",
+      "arguments": [
+        {
+          "name": "first",
+          "type": "f64"
+        },
+        {
+          "name": "second",
+          "type": "f64"
+        }
+      ],
+      "result": "Angle"
+    },
+    {
+      "name": "rad_midp",
+      "arguments": [
+        {
+          "name": "first",
+          "type": "f64"
+        },
+        {
+          "name": "second",
+          "type": "f64"
+        }
+      ],
+      "result": "Angle"
+    },
+    {
+      "name": "d2l",
+      "arguments": [
+        {
+          "name": "value",
+          "type": "f64"
+        }
+      ],
+      "result": "Integer"
+    },
+    {
+      "name": "csnorm",
+      "arguments": [
+        {
+          "name": "value",
+          "type": "i64"
+        }
+      ],
+      "result": "Integer"
+    },
+    {
+      "name": "csroundsec",
+      "arguments": [
+        {
+          "name": "value",
+          "type": "i64"
+        }
+      ],
+      "result": "Integer"
+    },
+    {
+      "name": "difcsn",
+      "arguments": [
+        {
+          "name": "first",
+          "type": "i64"
+        },
+        {
+          "name": "second",
+          "type": "i64"
+        }
+      ],
+      "result": "Integer"
+    },
+    {
+      "name": "difcs2n",
+      "arguments": [
+        {
+          "name": "first",
+          "type": "i64"
+        },
+        {
+          "name": "second",
+          "type": "i64"
+        }
+      ],
+      "result": "Integer"
+    },
+    {
+      "name": "cs2degstr",
+      "arguments": [
+        {
+          "name": "value",
+          "type": "i64"
+        }
+      ],
+      "result": "Text"
+    },
+    {
+      "name": "cs2lonlatstr",
+      "arguments": [
+        {
+          "name": "value",
+          "type": "i64"
+        },
+        {
+          "name": "plus",
+          "type": "&str"
+        },
+        {
+          "name": "minus",
+          "type": "&str"
+        }
+      ],
+      "result": "Text"
+    },
+    {
+      "name": "cs2timestr",
+      "arguments": [
+        {
+          "name": "value",
+          "type": "i64"
+        },
+        {
+          "name": "separator",
+          "type": "&str"
+        },
+        {
+          "name": "suppress_zero",
+          "type": "bool"
+        }
+      ],
+      "result": "Text"
+    },
+    {
+      "name": "split_deg",
+      "arguments": [
+        {
+          "name": "value",
+          "type": "f64"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        }
+      ],
+      "result": "SplitDeg"
+    },
+    {
+      "name": "cotrans",
+      "arguments": [
+        {
+          "name": "longitude",
+          "type": "f64"
+        },
+        {
+          "name": "latitude",
+          "type": "f64"
+        },
+        {
+          "name": "distance",
+          "type": "f64"
+        },
+        {
+          "name": "obliquity",
+          "type": "f64"
+        }
+      ],
+      "result": "Spherical"
+    },
+    {
+      "name": "cotrans_sp",
+      "arguments": [
+        {
+          "name": "longitude",
+          "type": "f64"
+        },
+        {
+          "name": "latitude",
+          "type": "f64"
+        },
+        {
+          "name": "distance",
+          "type": "f64"
+        },
+        {
+          "name": "longitude_speed",
+          "type": "f64"
+        },
+        {
+          "name": "latitude_speed",
+          "type": "f64"
+        },
+        {
+          "name": "distance_speed",
+          "type": "f64"
+        },
+        {
+          "name": "obliquity",
+          "type": "f64"
+        }
+      ],
+      "result": "SphericalState"
+    },
+    {
+      "name": "house_name",
+      "arguments": [
+        {
+          "name": "system",
+          "type": "u8"
+        }
+      ],
+      "result": "Text"
+    },
+    {
+      "name": "get_ayanamsa_name",
+      "arguments": [
+        {
+          "name": "mode",
+          "type": "i32"
+        }
+      ],
+      "result": "Text"
+    }
+  ],
+  "session_methods": [
+    {
+      "name": "calc",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "body",
+          "type": "i32"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        }
+      ],
+      "result": "Position"
+    },
+    {
+      "name": "calc_ut",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "body",
+          "type": "i32"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        }
+      ],
+      "result": "Position"
+    },
+    {
+      "name": "pheno",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "body",
+          "type": "i32"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        }
+      ],
+      "result": "Phenomena"
+    },
+    {
+      "name": "pheno_ut",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "body",
+          "type": "i32"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        }
+      ],
+      "result": "Phenomena"
+    },
+    {
+      "name": "nod_aps",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "body",
+          "type": "i32"
+        },
+        {
+          "name": "method",
+          "type": "i32"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        }
+      ],
+      "result": "NodesApsides"
+    },
+    {
+      "name": "nod_aps_ut",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "body",
+          "type": "i32"
+        },
+        {
+          "name": "method",
+          "type": "i32"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        }
+      ],
+      "result": "NodesApsides"
+    },
+    {
+      "name": "get_orbital_elements",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "body",
+          "type": "i32"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        }
+      ],
+      "result": "OrbitalElements"
+    },
+    {
+      "name": "orbit_max_min_true_distance",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "body",
+          "type": "i32"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        }
+      ],
+      "result": "DistanceExtremes"
+    },
+    {
+      "name": "calc_pctr",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "body",
+          "type": "i32"
+        },
+        {
+          "name": "center",
+          "type": "i32"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        }
+      ],
+      "result": "Position"
+    },
+    {
+      "name": "get_planet_name",
+      "arguments": [
+        {
+          "name": "body",
+          "type": "i32"
+        }
+      ],
+      "result": "Text"
+    },
+    {
+      "name": "fixstar",
+      "arguments": [
+        {
+          "name": "key",
+          "type": "&str"
+        },
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        }
+      ],
+      "result": "StarPosition"
+    },
+    {
+      "name": "fixstar_ut",
+      "arguments": [
+        {
+          "name": "key",
+          "type": "&str"
+        },
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        }
+      ],
+      "result": "StarPosition"
+    },
+    {
+      "name": "fixstar2",
+      "arguments": [
+        {
+          "name": "key",
+          "type": "&str"
+        },
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        }
+      ],
+      "result": "StarPosition"
+    },
+    {
+      "name": "fixstar2_ut",
+      "arguments": [
+        {
+          "name": "key",
+          "type": "&str"
+        },
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        }
+      ],
+      "result": "StarPosition"
+    },
+    {
+      "name": "fixstar_mag",
+      "arguments": [
+        {
+          "name": "key",
+          "type": "&str"
+        }
+      ],
+      "result": "StarMagnitude"
+    },
+    {
+      "name": "fixstar2_mag",
+      "arguments": [
+        {
+          "name": "key",
+          "type": "&str"
+        }
+      ],
+      "result": "StarMagnitude"
+    },
+    {
+      "name": "houses",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "latitude",
+          "type": "f64"
+        },
+        {
+          "name": "longitude",
+          "type": "f64"
+        },
+        {
+          "name": "system",
+          "type": "u8"
+        }
+      ],
+      "result": "Houses"
+    },
+    {
+      "name": "houses_ex",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        },
+        {
+          "name": "latitude",
+          "type": "f64"
+        },
+        {
+          "name": "longitude",
+          "type": "f64"
+        },
+        {
+          "name": "system",
+          "type": "u8"
+        }
+      ],
+      "result": "Houses"
+    },
+    {
+      "name": "houses_ex2",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        },
+        {
+          "name": "latitude",
+          "type": "f64"
+        },
+        {
+          "name": "longitude",
+          "type": "f64"
+        },
+        {
+          "name": "system",
+          "type": "u8"
+        }
+      ],
+      "result": "HousesWithSpeeds"
+    },
+    {
+      "name": "houses_gauquelin",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        },
+        {
+          "name": "latitude",
+          "type": "f64"
+        },
+        {
+          "name": "longitude",
+          "type": "f64"
+        }
+      ],
+      "result": "GauquelinSectors"
+    },
+    {
+      "name": "houses_armc",
+      "arguments": [
+        {
+          "name": "armc",
+          "type": "f64"
+        },
+        {
+          "name": "latitude",
+          "type": "f64"
+        },
+        {
+          "name": "obliquity",
+          "type": "f64"
+        },
+        {
+          "name": "system",
+          "type": "u8"
+        }
+      ],
+      "result": "ArmcHouses"
+    },
+    {
+      "name": "houses_armc_ex2",
+      "arguments": [
+        {
+          "name": "armc",
+          "type": "f64"
+        },
+        {
+          "name": "latitude",
+          "type": "f64"
+        },
+        {
+          "name": "obliquity",
+          "type": "f64"
+        },
+        {
+          "name": "system",
+          "type": "u8"
+        },
+        {
+          "name": "sun_declination",
+          "type": "f64"
+        }
+      ],
+      "result": "ArmcHousesWithSpeeds"
+    },
+    {
+      "name": "house_pos",
+      "arguments": [
+        {
+          "name": "armc",
+          "type": "f64"
+        },
+        {
+          "name": "latitude",
+          "type": "f64"
+        },
+        {
+          "name": "obliquity",
+          "type": "f64"
+        },
+        {
+          "name": "system",
+          "type": "u8"
+        },
+        {
+          "name": "longitude",
+          "type": "f64"
+        },
+        {
+          "name": "body_latitude",
+          "type": "f64"
+        }
+      ],
+      "result": "HousePosition"
+    },
+    {
+      "name": "gauquelin_sector",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "target",
+          "type": "&Target"
+        },
+        {
+          "name": "method",
+          "type": "i32"
+        },
+        {
+          "name": "site",
+          "type": "[f64; 3]"
+        },
+        {
+          "name": "pressure",
+          "type": "f64"
+        },
+        {
+          "name": "temperature",
+          "type": "f64"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        }
+      ],
+      "result": "GauquelinSector"
+    },
+    {
+      "name": "get_ayanamsa",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        }
+      ],
+      "result": "Angle"
+    },
+    {
+      "name": "get_ayanamsa_ut",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        }
+      ],
+      "result": "Angle"
+    },
+    {
+      "name": "get_ayanamsa_ex",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        }
+      ],
+      "result": "Ayanamsha"
+    },
+    {
+      "name": "get_ayanamsa_ex_ut",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        }
+      ],
+      "result": "Ayanamsha"
+    },
+    {
+      "name": "utc_to_jd",
+      "arguments": [
+        {
+          "name": "year",
+          "type": "i32"
+        },
+        {
+          "name": "month",
+          "type": "i32"
+        },
+        {
+          "name": "day",
+          "type": "i32"
+        },
+        {
+          "name": "hour",
+          "type": "i32"
+        },
+        {
+          "name": "minute",
+          "type": "i32"
+        },
+        {
+          "name": "second",
+          "type": "f64"
+        },
+        {
+          "name": "calendar",
+          "type": "Calendar"
+        }
+      ],
+      "result": "JulDays"
+    },
+    {
+      "name": "jdet_to_utc",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "calendar",
+          "type": "Calendar"
+        }
+      ],
+      "result": "UtcDateTime"
+    },
+    {
+      "name": "jdut1_to_utc",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "calendar",
+          "type": "Calendar"
+        }
+      ],
+      "result": "UtcDateTime"
+    },
+    {
+      "name": "deltat",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        }
+      ],
+      "result": "DeltaT"
+    },
+    {
+      "name": "deltat_ex",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        }
+      ],
+      "result": "DeltaT"
+    },
+    {
+      "name": "time_equ",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        }
+      ],
+      "result": "EquationOfTime"
+    },
+    {
+      "name": "lat_to_lmt",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "longitude",
+          "type": "f64"
+        }
+      ],
+      "result": "LocalTime"
+    },
+    {
+      "name": "lmt_to_lat",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "longitude",
+          "type": "f64"
+        }
+      ],
+      "result": "LocalTime"
+    },
+    {
+      "name": "sidtime",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        }
+      ],
+      "result": "SiderealTime"
+    },
+    {
+      "name": "sidtime0",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "obliquity",
+          "type": "f64"
+        },
+        {
+          "name": "nutation",
+          "type": "f64"
+        }
+      ],
+      "result": "SiderealTime"
+    },
+    {
+      "name": "solcross",
+      "arguments": [
+        {
+          "name": "longitude",
+          "type": "f64"
+        },
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        }
+      ],
+      "result": "LongitudeCrossing"
+    },
+    {
+      "name": "solcross_ut",
+      "arguments": [
+        {
+          "name": "longitude",
+          "type": "f64"
+        },
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        }
+      ],
+      "result": "LongitudeCrossing"
+    },
+    {
+      "name": "mooncross",
+      "arguments": [
+        {
+          "name": "longitude",
+          "type": "f64"
+        },
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        }
+      ],
+      "result": "LongitudeCrossing"
+    },
+    {
+      "name": "mooncross_ut",
+      "arguments": [
+        {
+          "name": "longitude",
+          "type": "f64"
+        },
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        }
+      ],
+      "result": "LongitudeCrossing"
+    },
+    {
+      "name": "mooncross_node",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        }
+      ],
+      "result": "NodeCrossing"
+    },
+    {
+      "name": "mooncross_node_ut",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        }
+      ],
+      "result": "NodeCrossing"
+    },
+    {
+      "name": "helio_cross",
+      "arguments": [
+        {
+          "name": "body",
+          "type": "i32"
+        },
+        {
+          "name": "longitude",
+          "type": "f64"
+        },
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        },
+        {
+          "name": "direction",
+          "type": "i32"
+        }
+      ],
+      "result": "LongitudeCrossing"
+    },
+    {
+      "name": "helio_cross_ut",
+      "arguments": [
+        {
+          "name": "body",
+          "type": "i32"
+        },
+        {
+          "name": "longitude",
+          "type": "f64"
+        },
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        },
+        {
+          "name": "direction",
+          "type": "i32"
+        }
+      ],
+      "result": "LongitudeCrossing"
+    },
+    {
+      "name": "rise_trans",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "target",
+          "type": "&Target"
+        },
+        {
+          "name": "event",
+          "type": "i32"
+        },
+        {
+          "name": "site",
+          "type": "[f64; 3]"
+        },
+        {
+          "name": "pressure",
+          "type": "f64"
+        },
+        {
+          "name": "temperature",
+          "type": "f64"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        }
+      ],
+      "result": "RiseTransit"
+    },
+    {
+      "name": "rise_trans_true_hor",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "target",
+          "type": "&Target"
+        },
+        {
+          "name": "event",
+          "type": "i32"
+        },
+        {
+          "name": "site",
+          "type": "[f64; 3]"
+        },
+        {
+          "name": "pressure",
+          "type": "f64"
+        },
+        {
+          "name": "temperature",
+          "type": "f64"
+        },
+        {
+          "name": "horizon",
+          "type": "f64"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        }
+      ],
+      "result": "RiseTransit"
+    },
+    {
+      "name": "azalt",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "flag",
+          "type": "i32"
+        },
+        {
+          "name": "site",
+          "type": "[f64; 3]"
+        },
+        {
+          "name": "pressure",
+          "type": "f64"
+        },
+        {
+          "name": "temperature",
+          "type": "f64"
+        },
+        {
+          "name": "longitude",
+          "type": "f64"
+        },
+        {
+          "name": "latitude",
+          "type": "f64"
+        }
+      ],
+      "result": "Horizontal"
+    },
+    {
+      "name": "azalt_rev",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "flag",
+          "type": "i32"
+        },
+        {
+          "name": "site",
+          "type": "[f64; 3]"
+        },
+        {
+          "name": "azimuth",
+          "type": "f64"
+        },
+        {
+          "name": "altitude",
+          "type": "f64"
+        }
+      ],
+      "result": "Celestial"
+    },
+    {
+      "name": "refrac",
+      "arguments": [
+        {
+          "name": "altitude",
+          "type": "f64"
+        },
+        {
+          "name": "pressure",
+          "type": "f64"
+        },
+        {
+          "name": "temperature",
+          "type": "f64"
+        },
+        {
+          "name": "flag",
+          "type": "i32"
+        }
+      ],
+      "result": "Angle"
+    },
+    {
+      "name": "refrac_extended",
+      "arguments": [
+        {
+          "name": "altitude",
+          "type": "f64"
+        },
+        {
+          "name": "height",
+          "type": "f64"
+        },
+        {
+          "name": "pressure",
+          "type": "f64"
+        },
+        {
+          "name": "temperature",
+          "type": "f64"
+        },
+        {
+          "name": "lapse_rate",
+          "type": "f64"
+        },
+        {
+          "name": "flag",
+          "type": "i32"
+        }
+      ],
+      "result": "Refraction"
+    },
+    {
+      "name": "sol_eclipse_when_glob",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        },
+        {
+          "name": "eclipse_type",
+          "type": "i32"
+        },
+        {
+          "name": "backwards",
+          "type": "bool"
+        }
+      ],
+      "result": "GlobalSolarEclipse"
+    },
+    {
+      "name": "lun_eclipse_when",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        },
+        {
+          "name": "eclipse_type",
+          "type": "i32"
+        },
+        {
+          "name": "backwards",
+          "type": "bool"
+        }
+      ],
+      "result": "GlobalLunarEclipse"
+    },
+    {
+      "name": "sol_eclipse_where",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        }
+      ],
+      "result": "SolarEclipseGeometry"
+    },
+    {
+      "name": "sol_eclipse_how",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "site",
+          "type": "[f64; 3]"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        }
+      ],
+      "result": "SolarEclipseCircumstances"
+    },
+    {
+      "name": "lun_eclipse_how",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "site",
+          "type": "[f64; 3]"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        }
+      ],
+      "result": "LunarEclipseCircumstances"
+    },
+    {
+      "name": "sol_eclipse_when_loc",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "site",
+          "type": "[f64; 3]"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        },
+        {
+          "name": "backwards",
+          "type": "bool"
+        }
+      ],
+      "result": "LocalSolarEclipse"
+    },
+    {
+      "name": "lun_eclipse_when_loc",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "site",
+          "type": "[f64; 3]"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        },
+        {
+          "name": "backwards",
+          "type": "bool"
+        }
+      ],
+      "result": "LocalLunarEclipse"
+    },
+    {
+      "name": "lun_occult_where",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "target",
+          "type": "&Target"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        }
+      ],
+      "result": "OccultationGeometry"
+    },
+    {
+      "name": "lun_occult_when_glob",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "target",
+          "type": "&Target"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        },
+        {
+          "name": "eclipse_type",
+          "type": "i32"
+        },
+        {
+          "name": "backwards",
+          "type": "i32"
+        }
+      ],
+      "result": "GlobalOccultation"
+    },
+    {
+      "name": "lun_occult_when_loc",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "target",
+          "type": "&Target"
+        },
+        {
+          "name": "site",
+          "type": "[f64; 3]"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        },
+        {
+          "name": "backwards",
+          "type": "i32"
+        }
+      ],
+      "result": "LocalOccultation"
+    },
+    {
+      "name": "heliacal_ut",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "site",
+          "type": "[f64; 3]"
+        },
+        {
+          "name": "atmosphere",
+          "type": "[f64; 4]"
+        },
+        {
+          "name": "observer",
+          "type": "[f64; 6]"
+        },
+        {
+          "name": "object",
+          "type": "&str"
+        },
+        {
+          "name": "event",
+          "type": "i32"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        }
+      ],
+      "result": "HeliacalEvent"
+    },
+    {
+      "name": "heliacal_pheno_ut",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "site",
+          "type": "[f64; 3]"
+        },
+        {
+          "name": "atmosphere",
+          "type": "[f64; 4]"
+        },
+        {
+          "name": "observer",
+          "type": "[f64; 6]"
+        },
+        {
+          "name": "object",
+          "type": "&str"
+        },
+        {
+          "name": "event",
+          "type": "i32"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        }
+      ],
+      "result": "HeliacalPhenomena"
+    },
+    {
+      "name": "vis_limit_mag",
+      "arguments": [
+        {
+          "name": "jd",
+          "type": "f64"
+        },
+        {
+          "name": "site",
+          "type": "[f64; 3]"
+        },
+        {
+          "name": "atmosphere",
+          "type": "[f64; 4]"
+        },
+        {
+          "name": "observer",
+          "type": "[f64; 6]"
+        },
+        {
+          "name": "object",
+          "type": "&str"
+        },
+        {
+          "name": "flags",
+          "type": "i32"
+        }
+      ],
+      "result": "Visibility"
+    }
+  ],
+  "builder_methods": [
+    {
+      "name": "topo",
+      "arguments": [
+        {
+          "name": "longitude",
+          "type": "f64"
+        },
+        {
+          "name": "latitude",
+          "type": "f64"
+        },
+        {
+          "name": "height",
+          "type": "f64"
+        }
+      ]
+    },
+    {
+      "name": "sid_mode",
+      "arguments": [
+        {
+          "name": "mode",
+          "type": "i32"
+        },
+        {
+          "name": "epoch",
+          "type": "f64"
+        },
+        {
+          "name": "offset",
+          "type": "f64"
+        }
+      ]
+    },
+    {
+      "name": "tid_acc",
+      "arguments": [
+        {
+          "name": "value",
+          "type": "f64"
+        }
+      ]
+    },
+    {
+      "name": "delta_t_override",
+      "arguments": [
+        {
+          "name": "days",
+          "type": "f64"
+        }
+      ]
+    },
+    {
+      "name": "clear_delta_t_override",
+      "arguments": []
+    },
+    {
+      "name": "lapse_rate",
+      "arguments": [
+        {
+          "name": "value",
+          "type": "f64"
+        }
+      ]
+    }
+  ],
+  "error_interface": {
+    "constructor": "new(kind: ErrorKind, operation: Option<String>, native_status: Option<i32>, native_scalar: Option<f64>, diagnostic: Option<String>) -> Self",
+    "getters": {
+      "kind": "ErrorKind",
+      "operation": "Option<&str>",
+      "native_status": "Option<i32>",
+      "native_scalar": "Option<f64>",
+      "diagnostic": "Option<&str>"
+    },
+    "traits": [
+      "Clone",
+      "Send",
+      "Sync",
+      "Debug",
+      "Display",
+      "std::error::Error"
+    ]
+  },
+  "notes": [
+    "Every operation returns Result<its declared record, Error>. Configured methods borrow &Session.",
+    "Opaque Session and Builder own independent implementation data; data setup is outside this namespace.",
+    "Calendar::from_flag -> Result<Calendar,Error>; Calendar::flag -> i32.",
+    "LocalSolarTimes retains real seven/ten producer arrays; RiseTransitTimes retains actual one/ten or absent transport.",
+    "Visibility scalar is Some only for an actual scalar producer channel, never a converted integer status.",
+    "Metadata fields are populated only from real native channels; absence is None. No shared numerical implementation."
+  ],
+  "record_derives": [
+    "Clone",
+    "Debug",
+    "PartialEq"
+  ],
+  "enum_derives": {
+    "Calendar": [
+      "Clone",
+      "Debug",
+      "PartialEq",
+      "Copy",
+      "Eq"
+    ],
+    "Target": [
+      "Clone",
+      "Debug",
+      "PartialEq"
+    ],
+    "LocalSolarTimes": [
+      "Clone",
+      "Debug",
+      "PartialEq"
+    ],
+    "RiseTransitTimes": [
+      "Clone",
+      "Debug",
+      "PartialEq"
+    ],
+    "ErrorKind": [
+      "Clone",
+      "Debug",
+      "PartialEq",
+      "Copy",
+      "Eq"
+    ],
+    "AdvisoryDetail": [
+      "Clone",
+      "Debug",
+      "PartialEq"
+    ]
+  }
+}

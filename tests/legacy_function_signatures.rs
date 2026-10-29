@@ -1,11 +1,11 @@
 //! Freeze the 1.x function argument order before extension relocation.
 //! Retarget only function paths to global/native when those modules land;
 //! never derive new parameter order from primary Session methods.
+use swisseph_bindings::native::*;
 use swisseph_bindings::native::{
     CurrentFileData, HeliacalPhenomenaFull, NodesApsides, OccultSearchOptions,
     OccultationGeometryFull, SolarEclipseGeometryFull, VisibilityFull,
 };
-use swisseph_bindings::*;
 
 // Every function pointer names its extension destination explicitly; a missing
 // export cannot fall back to a same-named transitional root function.

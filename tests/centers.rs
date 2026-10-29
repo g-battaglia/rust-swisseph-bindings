@@ -9,7 +9,7 @@
 //! structural (ranges, flag provenance, error classification, same-engine
 //! consistency), never stored reference vectors.
 
-use swisseph_bindings::{
+use swisseph_bindings::native::{
     Calendar, ErrorKind, FLG_ASTROMETRIC, FLG_BARYCTR, FLG_EQUATORIAL, FLG_HELCTR, FLG_J2000,
     FLG_JPLEPH, FLG_MOSEPH, FLG_NOABERR, FLG_NOGDEFL, FLG_NONUT, FLG_RADIANS, FLG_SPEED,
     FLG_SPEED3, FLG_SWIEPH, FLG_TRUEPOS, FLG_XYZ, MARS, MOON, SE_TIDAL_AUTOMATIC, SE_TIDAL_DE421,

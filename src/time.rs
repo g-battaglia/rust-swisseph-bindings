@@ -34,13 +34,13 @@ pub enum Calendar {
 impl Calendar {
     /// Select a proleptic calendar from its exact integer flag.
     ///
-    /// Only [`crate::JUL_CAL`] (zero) and [`crate::GREG_CAL`] (one) are
+    /// Only [`crate::constants::JUL_CAL`] (zero) and [`crate::constants::GREG_CAL`] (one) are
     /// accepted. Other values return `InvalidInput`; no calendar is guessed
     /// and no native call or mutable configuration is involved.
     pub fn from_flag(flag: i32) -> Result<Self, Error> {
         match flag {
-            crate::JUL_CAL => Ok(Self::Julian),
-            crate::GREG_CAL => Ok(Self::Gregorian),
+            crate::constants::JUL_CAL => Ok(Self::Julian),
+            crate::constants::GREG_CAL => Ok(Self::Gregorian),
             _ => Err(Error::invalid_input(format!(
                 "invalid calendar flag {flag}"
             ))),
@@ -94,7 +94,7 @@ pub struct CalendarDate {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{Calendar, native::julday};
+/// use swisseph_bindings::native::{native::Calendar, native::julday};
 ///
 /// // J2000.0: 1 January 2000, 12:00.
 /// assert_eq!(julday(2000, 1, 1, 12.0, Calendar::Gregorian), 2451545.0);
@@ -274,7 +274,7 @@ fn check_utc_et_locked(operation: &str, jd_et: f64, cal: Calendar) -> Result<(),
 ///
 /// Non-finite inputs and magnitudes beyond the `i32`-representable
 /// calendar range are rejected with
-/// [`ErrorKind::InvalidInput`](crate::ErrorKind) before any native call:
+/// [`ErrorKind::InvalidInput`](crate::native::ErrorKind) before any native call:
 /// the native decomposition performs floating-to-integer conversions with
 /// no range check. The admissible domain runs from midnight on January 1
 /// of year `i32::MIN` through year `i32::MAX`, ending at the following
@@ -284,13 +284,13 @@ fn check_utc_et_locked(operation: &str, jd_et: f64, cal: Calendar) -> Result<(),
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{Calendar, native::revjul};
+/// use swisseph_bindings::native::{native::Calendar, native::revjul};
 ///
 /// let date = revjul(2451545.0, Calendar::Gregorian)?;
 /// assert_eq!((date.year, date.month, date.day, date.hour), (2000, 1, 1, 12.0));
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
-pub fn revjul(jd: f64, cal: Calendar) -> Result<CalendarDate, crate::Error> {
+pub fn revjul(jd: f64, cal: Calendar) -> Result<CalendarDate, crate::legacy::Error> {
     check_calendar_jd("revjul", jd, cal)?;
     with_native_access(|| revjul_locked(jd, cal))
 }
@@ -354,13 +354,13 @@ pub struct DeltaT {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{Calendar, global::utc_to_jd};
+/// use swisseph_bindings::native::{native::Calendar, global::utc_to_jd};
 ///
 /// // J2000.0 midday UTC: TT runs about a minute ahead of UT1.
 /// let days = utc_to_jd(2000, 1, 1, 12, 0, 0.0, Calendar::Gregorian)?;
 /// assert!((days.jd_ut - 2451545.0).abs() < 0.001);
 /// assert!(days.jd_et > days.jd_ut);
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 pub fn utc_to_jd(
     year: i32,
@@ -376,7 +376,27 @@ pub fn utc_to_jd(
             "utc_to_jd: second must be finite and in 0.0..61.0 ({second})"
         )));
     }
-    with_native_access(|| {
+    with_native_access(|| utc_to_jd_locked(year, month, day, hour, minute, second, cal))
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn utc_to_jd_locked(
+    year: i32,
+    month: i32,
+    day: i32,
+    hour: i32,
+    minute: i32,
+    second: f64,
+    cal: Calendar,
+) -> Result<JulDays, Error> {
+    if !second.is_finite() || !(0.0..61.0).contains(&second) {
+        return Err(Error::invalid_input(format!(
+            "utc_to_jd: second must be finite and in 0.0..61.0 ({second})"
+        )));
+    }
+    {
         let date_jd = julday(year, month, day, 0.0, cal);
         check_calendar_jd("utc_to_jd", date_jd, cal)?;
         if date_jd >= julday(1972, 1, 1, 0.0, Calendar::Gregorian) {
@@ -415,14 +435,15 @@ pub fn utc_to_jd(
                 )
             } else {
                 format!("utc_to_jd: {diagnostic}")
-            }))
+            })
+            .with_native_channels("utc_to_jd", Some(ret), None, Some(&diagnostic)))
         } else {
             Ok(JulDays {
                 jd_et: dret[0],
                 jd_ut: dret[1],
             })
         }
-    })
+    }
 }
 
 /// Split an Ephemeris/Terrestrial Time Julian Day into UTC calendar fields.
@@ -441,15 +462,22 @@ pub fn utc_to_jd(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{Calendar, global::jdet_to_utc, global::utc_to_jd};
+/// use swisseph_bindings::native::{native::Calendar, global::jdet_to_utc, global::utc_to_jd};
 ///
 /// let days = utc_to_jd(2000, 1, 1, 12, 0, 0.0, Calendar::Gregorian)?;
 /// let back = jdet_to_utc(days.jd_et, Calendar::Gregorian)?;
 /// assert_eq!((back.year, back.month, back.day, back.hour, back.minute), (2000, 1, 1, 12, 0));
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 pub fn jdet_to_utc(jd_et: f64, cal: Calendar) -> Result<UtcDateTime, Error> {
-    with_native_access(|| {
+    with_native_access(|| jdet_to_utc_locked(jd_et, cal))
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn jdet_to_utc_locked(jd_et: f64, cal: Calendar) -> Result<UtcDateTime, Error> {
+    {
         check_utc_et_locked("jdet_to_utc", jd_et, cal)?;
         let mut fields = [0i32; 5];
         let mut second = 0.0;
@@ -477,7 +505,7 @@ pub fn jdet_to_utc(jd_et: f64, cal: Calendar) -> Result<UtcDateTime, Error> {
             minute: fields[4],
             second,
         })
-    })
+    }
 }
 
 /// Split a Universal Time Julian Day into UTC calendar fields.
@@ -486,7 +514,14 @@ pub fn jdet_to_utc(jd_et: f64, cal: Calendar) -> Result<UtcDateTime, Error> {
 /// Round-tripping [`utc_to_jd`] through this function recovers the input
 /// clock fields exactly, including a `60.x` leap second.
 pub fn jdut1_to_utc(jd_ut: f64, cal: Calendar) -> Result<UtcDateTime, Error> {
-    with_native_access(|| {
+    with_native_access(|| jdut1_to_utc_locked(jd_ut, cal))
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn jdut1_to_utc_locked(jd_ut: f64, cal: Calendar) -> Result<UtcDateTime, Error> {
+    {
         let jd_et = jd_ut + utc_delta_t_locked(jd_ut)?;
         check_utc_et_locked("jdut1_to_utc", jd_et, cal)?;
         let mut fields = [0i32; 5];
@@ -512,7 +547,7 @@ pub fn jdut1_to_utc(jd_ut: f64, cal: Calendar) -> Result<UtcDateTime, Error> {
             minute: fields[4],
             second,
         })
-    })
+    }
 }
 
 /// Shift a UTC calendar instant by a time-zone offset.
@@ -609,10 +644,10 @@ pub fn utc_time_zone(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{Calendar, native::date_conversion};
+/// use swisseph_bindings::native::{native::Calendar, native::date_conversion};
 ///
 /// assert_eq!(date_conversion(2000, 1, 1, 12.0, Calendar::Gregorian)?, 2451545.0);
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 pub fn date_conversion(
     year: i32,
@@ -652,7 +687,7 @@ pub fn date_conversion(
 ///
 /// Non-finite inputs and days whose native offset cannot fit `i32`
 /// are rejected with
-/// [`ErrorKind::InvalidInput`](crate::ErrorKind) before any native call:
+/// [`ErrorKind::InvalidInput`](crate::native::ErrorKind) before any native call:
 /// the native weekday step performs floating-to-integer conversions with
 /// no range check. Specifically, `floor(jd - 2433282.0 - 1.5)` must fit
 /// `i32`, with the native subtraction order preserved.
@@ -664,7 +699,7 @@ pub fn date_conversion(
 /// use swisseph_bindings::native::day_of_week;
 ///
 /// assert_eq!(day_of_week(2451545.0)?, 5);
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 pub fn day_of_week(jd: f64) -> Result<i32, Error> {
     // The pinned native ABI utility casts this offset before taking % 7.
@@ -706,7 +741,7 @@ pub(crate) fn deltat_locked(jd_ut: f64) -> f64 {
 ///
 /// let dt = deltat(2451545.0)?;
 /// assert!(dt > 0.0005 && dt < 0.001);
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 pub fn deltat(jd_ut: f64) -> Result<f64, Error> {
     if !jd_ut.is_finite() {
@@ -730,7 +765,19 @@ pub fn deltat_ex(jd_ut: f64, flags: i32) -> Result<DeltaT, Error> {
             "deltat_ex: Julian Day must be finite ({jd_ut})"
         )));
     }
-    with_native_access(|| {
+    with_native_access(|| deltat_ex_locked(jd_ut, flags))
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn deltat_ex_locked(jd_ut: f64, flags: i32) -> Result<DeltaT, Error> {
+    if !jd_ut.is_finite() {
+        return Err(Error::invalid_input(format!(
+            "deltat_ex: Julian Day must be finite ({jd_ut})"
+        )));
+    }
+    {
         let mut serr = [0 as c_char; SERR_LEN];
         // SAFETY: `serr` owns SERR_LEN writable bytes and outlives the
         // call; the lock excludes every other native access.
@@ -739,7 +786,7 @@ pub fn deltat_ex(jd_ut: f64, flags: i32) -> Result<DeltaT, Error> {
         // bounded by SERR_LEN (see `read_native_text`).
         let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
         Ok(DeltaT { value, diagnostic })
-    })
+    }
 }
 
 /// Equation of time with its native diagnostic text.
@@ -794,6 +841,15 @@ pub fn time_equ(jd_ut: f64) -> Result<EquationOfTime, Error> {
 /// apply no configuration, fallback or alternate numerical method. Errors
 /// follow the public operation. Caller owns the lock for validation and C read.
 pub(crate) fn time_equ_locked(jd_ut: f64) -> Result<EquationOfTime, Error> {
+    time_equ_complete_locked(jd_ut).map(|(value, _, _)| value)
+}
+
+/// Preserve the actual native integer and diagnostic channels in one call.
+/// Caller holds native access; the legacy SDK projects only its original record.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn time_equ_complete_locked(
+    jd_ut: f64,
+) -> Result<(EquationOfTime, i32, Option<String>), Error> {
     if !jd_ut.is_finite() {
         return Err(Error::invalid_input(format!(
             "time_equ: Julian Day must be finite ({jd_ut})"
@@ -813,12 +869,17 @@ pub(crate) fn time_equ_locked(jd_ut: f64) -> Result<EquationOfTime, Error> {
             format!("time_equ: native computation failed (jd={jd_ut})")
         } else {
             format!("time_equ: {diagnostic} (jd={jd_ut})")
-        }))
-    } else {
-        Ok(EquationOfTime {
-            value: te,
-            diagnostic,
         })
+        .with_native_channels("time_equ", Some(ret), None, Some(&diagnostic)))
+    } else {
+        Ok((
+            EquationOfTime {
+                value: te,
+                diagnostic,
+            },
+            ret,
+            None,
+        ))
     }
 }
 
@@ -840,7 +901,29 @@ pub fn lmt_to_lat(jd_lmt: f64, longitude: f64) -> Result<LocalTime, Error> {
             "lmt_to_lat: Julian Day and longitude must be finite",
         ));
     }
-    with_native_access(|| {
+    with_native_access(|| lmt_to_lat_locked(jd_lmt, longitude))
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn lmt_to_lat_locked(jd_lmt: f64, longitude: f64) -> Result<LocalTime, Error> {
+    lmt_to_lat_complete_locked(jd_lmt, longitude).map(|(value, _, _)| value)
+}
+
+/// Preserve the actual native integer and diagnostic channels in one call.
+/// Caller holds native access; the legacy SDK projects only its original record.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn lmt_to_lat_complete_locked(
+    jd_lmt: f64,
+    longitude: f64,
+) -> Result<(LocalTime, i32, Option<String>), Error> {
+    if !jd_lmt.is_finite() || !longitude.is_finite() {
+        return Err(Error::invalid_input(
+            "lmt_to_lat: Julian Day and longitude must be finite",
+        ));
+    }
+    {
         crate::domain::check_ut_locked("lmt_to_lat", jd_lmt - longitude / 360.0, -1)?;
         let mut out = 0.0;
         let mut serr = [0 as c_char; SERR_LEN];
@@ -855,14 +938,19 @@ pub fn lmt_to_lat(jd_lmt: f64, longitude: f64) -> Result<LocalTime, Error> {
                 format!("lmt_to_lat: native conversion failed (jd={jd_lmt}, lon={longitude})")
             } else {
                 format!("lmt_to_lat: {diagnostic} (jd={jd_lmt}, lon={longitude})")
-            }))
-        } else {
-            Ok(LocalTime {
-                jd: out,
-                diagnostic,
             })
+            .with_native_channels("lmt_to_lat", Some(ret), None, Some(&diagnostic)))
+        } else {
+            Ok((
+                LocalTime {
+                    jd: out,
+                    diagnostic,
+                },
+                ret,
+                None,
+            ))
         }
-    })
+    }
 }
 
 /// Converse of [`lmt_to_lat`]: local apparent time to local mean time.
@@ -879,7 +967,29 @@ pub fn lat_to_lmt(jd_lat: f64, longitude: f64) -> Result<LocalTime, Error> {
             "lat_to_lmt: Julian Day and longitude must be finite",
         ));
     }
-    with_native_access(|| {
+    with_native_access(|| lat_to_lmt_locked(jd_lat, longitude))
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn lat_to_lmt_locked(jd_lat: f64, longitude: f64) -> Result<LocalTime, Error> {
+    lat_to_lmt_complete_locked(jd_lat, longitude).map(|(value, _, _)| value)
+}
+
+/// Preserve the actual native integer and diagnostic channels in one call.
+/// Caller holds native access; the legacy SDK projects only its original record.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn lat_to_lmt_complete_locked(
+    jd_lat: f64,
+    longitude: f64,
+) -> Result<(LocalTime, i32, Option<String>), Error> {
+    if !jd_lat.is_finite() || !longitude.is_finite() {
+        return Err(Error::invalid_input(
+            "lat_to_lmt: Julian Day and longitude must be finite",
+        ));
+    }
+    {
         crate::domain::check_ut_locked("lat_to_lmt", jd_lat - longitude / 360.0, -1)?;
         let mut out = 0.0;
         let mut serr = [0 as c_char; SERR_LEN];
@@ -892,14 +1002,19 @@ pub fn lat_to_lmt(jd_lat: f64, longitude: f64) -> Result<LocalTime, Error> {
                 format!("lat_to_lmt: native conversion failed (jd={jd_lat}, lon={longitude})")
             } else {
                 format!("lat_to_lmt: {diagnostic} (jd={jd_lat}, lon={longitude})")
-            }))
-        } else {
-            Ok(LocalTime {
-                jd: out,
-                diagnostic,
             })
+            .with_native_channels("lat_to_lmt", Some(ret), None, Some(&diagnostic)))
+        } else {
+            Ok((
+                LocalTime {
+                    jd: out,
+                    diagnostic,
+                },
+                ret,
+                None,
+            ))
         }
-    })
+    }
 }
 
 /// Mean sidereal time at Greenwich in hours (0-24) for a UT Julian Day.
@@ -913,7 +1028,7 @@ pub fn lat_to_lmt(jd_lat: f64, longitude: f64) -> Result<LocalTime, Error> {
 ///
 /// let st = sidtime(2451545.0)?;
 /// assert!((0.0..24.0).contains(&st));
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -926,12 +1041,24 @@ pub fn sidtime(jd_ut: f64) -> Result<f64, Error> {
             "sidtime: Julian Day must be finite ({jd_ut})"
         )));
     }
-    with_native_access(|| {
+    with_native_access(|| sidtime_locked(jd_ut))
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn sidtime_locked(jd_ut: f64) -> Result<f64, Error> {
+    if !jd_ut.is_finite() {
+        return Err(Error::invalid_input(format!(
+            "sidtime: Julian Day must be finite ({jd_ut})"
+        )));
+    }
+    {
         crate::domain::check_ut_locked("sidtime", jd_ut, -1)?;
         // SAFETY: pure value call reading shared Delta T state; the lock
         // pairs the state read with the computation.
         Ok(unsafe { ffi::swe_sidtime(jd_ut) })
-    })
+    }
 }
 
 /// Sidereal time in hours for explicit obliquity and nutation.
@@ -950,10 +1077,26 @@ pub fn sidtime0(jd_ut: f64, obliquity_eps: f64, nutation_lon: f64) -> Result<f64
             "sidtime0: Julian Day, obliquity and nutation must be finite",
         ));
     }
-    with_native_access(|| {
+    with_native_access(|| sidtime0_locked(jd_ut, obliquity_eps, nutation_lon))
+}
+
+/// Execute the original operation with native access already held.
+/// The caller owns the lock through validation, native computation and copying.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn sidtime0_locked(
+    jd_ut: f64,
+    obliquity_eps: f64,
+    nutation_lon: f64,
+) -> Result<f64, Error> {
+    if !jd_ut.is_finite() || !obliquity_eps.is_finite() || !nutation_lon.is_finite() {
+        return Err(Error::invalid_input(
+            "sidtime0: Julian Day, obliquity and nutation must be finite",
+        ));
+    }
+    {
         crate::domain::check_ut_locked("sidtime0", jd_ut, -1)?;
         // SAFETY: pure value call; serialized for uniformity with
         // [`sidtime`], which reads shared Delta T state.
         Ok(unsafe { ffi::swe_sidtime0(jd_ut, obliquity_eps, nutation_lon) })
-    })
+    }
 }

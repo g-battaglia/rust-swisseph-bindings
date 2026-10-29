@@ -1,7 +1,7 @@
 //! Session metadata must describe its computation, survive other callers
 //! and never reset native files. Comparisons are in memory only.
 
-use swisseph_bindings::{
+use swisseph_bindings::native::{
     CALC_RISE, Calendar, FLG_MOSEPH, FLG_SWIEPH, MARS, MOON, SUN, SessionBuilder, global::calc_ut,
     global::close, global::get_current_file_data, native::julday, native::require_source_flags,
 };

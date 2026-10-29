@@ -5,7 +5,7 @@
 //! either, recipes report BLOCKED (no cases) unless `--require-jpl` hard-fails.
 use super::cases::{Case, Expectation, Step, step};
 use super::registry::Op;
-use swisseph_bindings::*;
+use swisseph_bindings::native::*;
 
 /// JPL archive selected for genuine `FLG_JPLEPH` coverage. DE440 is the
 /// selected MD5-verified file with modern coverage.

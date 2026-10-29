@@ -34,7 +34,7 @@ pub struct StarPosition {
     /// Flag set returned by the native call.
     ///
     /// This names the ephemeris source actually used, exactly as in
-    /// [`crate::Position::returned_flags`].
+    /// [`crate::native::Position::returned_flags`].
     pub returned_flags: i32,
     /// Native diagnostic text (`serr`).
     ///
@@ -189,7 +189,7 @@ fn is_native_builtin_position_query(star: &str) -> bool {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{global::fixstar_ut, global::set_ephe_path};
+/// use swisseph_bindings::native::{global::fixstar_ut, global::set_ephe_path};
 ///
 /// // Catalog lookups use the shipped data (doctests run with the package
 /// // root as the working directory).
@@ -206,7 +206,7 @@ fn is_native_builtin_position_query(star: &str) -> bool {
 /// let sirius = fixstar_ut("Sirius", 2451545.0, 0)?;
 /// assert!(sirius.resolved_name.contains("Sirius"));
 /// assert!((0.0..360.0).contains(&sirius.longitude()));
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -261,7 +261,8 @@ pub(crate) fn fixstar_locked(star: &str, jd_et: f64, flags: i32) -> Result<StarP
             jd_et,
             flags,
             &diagnostic,
-        )))
+        ))
+        .with_native_channels("fixstar", Some(ret), None, None))
     } else {
         Ok(StarPosition {
             values: xx,
@@ -323,7 +324,8 @@ pub(crate) fn fixstar_ut_locked(star: &str, jd_ut: f64, flags: i32) -> Result<St
             jd_ut,
             flags,
             &diagnostic,
-        )))
+        ))
+        .with_native_channels("fixstar_ut", Some(ret), None, None))
     } else {
         Ok(StarPosition {
             values: xx,
@@ -397,7 +399,8 @@ pub(crate) fn fixstar2_locked(star: &str, jd_et: f64, flags: i32) -> Result<Star
             jd_et,
             flags,
             &diagnostic,
-        )))
+        ))
+        .with_native_channels("fixstar2", Some(ret), None, None))
     } else {
         Ok(StarPosition {
             values: xx,
@@ -416,7 +419,7 @@ pub(crate) fn fixstar2_locked(star: &str, jd_et: f64, flags: i32) -> Result<Star
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{global::fixstar2_ut, global::set_ephe_path};
+/// use swisseph_bindings::native::{global::fixstar2_ut, global::set_ephe_path};
 ///
 /// // The nomenclature lookup resolves to the same catalog entry as the
 /// // traditional name (doctests run with the package root as the
@@ -434,7 +437,7 @@ pub(crate) fn fixstar2_locked(star: &str, jd_et: f64, flags: i32) -> Result<Star
 /// let by_name = fixstar2_ut("Sirius", 2451545.0, 0)?;
 /// let by_nomenclature = fixstar2_ut(",alCMa", 2451545.0, 0)?;
 /// assert_eq!(by_name.resolved_name, by_nomenclature.resolved_name);
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 ///
 /// Native date arithmetic requires finite input and effective dates with
@@ -494,7 +497,8 @@ pub(crate) fn fixstar2_ut_locked(
             jd_ut,
             flags,
             &diagnostic,
-        )))
+        ))
+        .with_native_channels("fixstar2_ut", Some(ret), None, None))
     } else {
         Ok(StarPosition {
             values: xx,
@@ -516,7 +520,7 @@ pub(crate) fn fixstar2_ut_locked(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{global::fixstar_mag, global::set_ephe_path};
+/// use swisseph_bindings::native::{global::fixstar_mag, global::set_ephe_path};
 ///
 /// // Doctests run with the package root as the working directory.
 /// // Ephemeris data comes from an explicit external directory when set,
@@ -532,7 +536,7 @@ pub(crate) fn fixstar2_ut_locked(
 /// let sirius = fixstar_mag("Sirius")?;
 /// assert!((sirius.magnitude - (-1.46)).abs() < 0.01);
 /// assert!(sirius.resolved_name.contains("Sirius"));
-/// # Ok::<(), swisseph_bindings::Error>(())
+/// # Ok::<(), swisseph_bindings::native::Error>(())
 /// ```
 pub fn fixstar_mag(star: &str) -> Result<StarMagnitude, Error> {
     check_star_name("fixstar_mag", star)?;
@@ -566,7 +570,8 @@ pub(crate) fn fixstar_mag_locked(star: &str) -> Result<StarMagnitude, Error> {
             format!("fixstar_mag: native computation failed (star={star:?})")
         } else {
             format!("fixstar_mag: {diagnostic} (star={star:?})")
-        }))
+        })
+        .with_native_channels("fixstar_mag", Some(ret), None, None))
     } else {
         Ok(StarMagnitude {
             magnitude: mag,
@@ -654,7 +659,7 @@ pub(crate) fn fixed_star_catalog_locked() -> Result<Vec<StarMagnitude>, Error> {
     for index in 1..=i32::MAX {
         match fixstar2_mag_catalog_checked_locked(&index.to_string()) {
             Ok(star) => stars.push(star),
-            Err(error) if index > 1 && error.kind() == crate::ErrorKind::Native
+            Err(error) if index > 1 && error.kind() == crate::legacy::ErrorKind::Native
                 && error.message().contains(&format!(
                     "error, swe_fixstar(): sequential fixed star number {index} is not available"
                 )) => return Ok(stars),

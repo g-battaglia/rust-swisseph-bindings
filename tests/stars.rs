@@ -8,7 +8,7 @@
 //! classification, same-engine consistency), never stored reference
 //! vectors.
 
-use swisseph_bindings::{
+use swisseph_bindings::native::{
     ErrorKind, FLG_MOSEPH, FLG_SPEED, FLG_SWIEPH, MARS, global::fixstar, global::fixstar_mag,
     global::fixstar_ut, global::fixstar2, global::fixstar2_mag, global::fixstar2_ut,
     global::gauquelin_sector, global::set_ephe_path,

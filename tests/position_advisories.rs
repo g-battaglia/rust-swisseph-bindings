@@ -4,7 +4,6 @@ use swisseph_bindings::{Advisory, FLG_MOSEPH, FLG_SPEED, MOON, Position, Session
 #[test]
 fn successful_native_positions_do_not_invent_structured_advisories() {
     let session = SessionBuilder::new()
-        .default_ephe_path()
         .build()
         .expect("native session configuration");
     let position = session
