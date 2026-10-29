@@ -3,7 +3,7 @@ use swisseph_bindings as eph;
 // COMMON_API_CONTRACT_BEGIN
 // P0 structural bootstrap, NOT the complete 2.0/4.0 contract. The mapping lists
 // unresolved signatures/schemas explicitly; final acceptance forbids pending
-// entries. These checks do not call either engine, load data, or infer sources.
+// entries. These checks perform no astronomy, load no data, and infer no sources.
 
 use std::fmt::Debug;
 
@@ -13,6 +13,10 @@ fn owned<T: Clone + Send + Sync + Debug>() {}
 fn retained_value_and_session_traits() {
     owned::<eph::Calendar>();
     owned::<eph::CalendarDate>();
+    owned::<eph::JulianDay>();
+    owned::<eph::DateConversion>();
+    owned::<eph::Weekday>();
+    owned::<eph::UtcDateTime>();
     owned::<eph::Houses>();
     owned::<eph::HousesWithSpeeds>();
     owned::<eph::GauquelinSectors>();
@@ -28,6 +32,72 @@ fn retained_value_and_session_traits() {
     owned::<eph::Error>();
     owned::<eph::Session>();
     owned::<eph::SessionBuilder>();
+}
+
+#[test]
+#[expect(
+    clippy::type_complexity,
+    reason = "pin every timezone argument without hiding its signature behind an alias"
+)]
+fn pure_calendar_signatures() {
+    let _: fn(i32) -> Result<eph::Calendar, eph::Error> = eph::Calendar::from_flag;
+    let _: fn(eph::Calendar) -> i32 = eph::Calendar::flag;
+    let _: fn(i32, i32, i32, f64, eph::Calendar) -> Result<eph::JulianDay, eph::Error> =
+        eph::julday;
+    let _: fn(f64, eph::Calendar) -> Result<eph::CalendarDate, eph::Error> = eph::revjul;
+    let _: fn(i32, i32, i32, f64, eph::Calendar) -> Result<eph::DateConversion, eph::Error> =
+        eph::date_conversion;
+    let _: fn(f64) -> Result<eph::Weekday, eph::Error> = eph::day_of_week;
+    let _: fn(i32, i32, i32, i32, i32, f64, f64) -> Result<eph::UtcDateTime, eph::Error> =
+        eph::utc_time_zone;
+}
+
+#[test]
+fn calendar_flag_helpers_are_closed() {
+    for (flag, calendar) in [
+        (eph::JUL_CAL, eph::Calendar::Julian),
+        (eph::GREG_CAL, eph::Calendar::Gregorian),
+    ] {
+        assert_eq!(eph::Calendar::from_flag(flag).unwrap(), calendar);
+        assert_eq!(calendar.flag(), flag);
+    }
+    for flag in [i32::MIN, -1, 2, i32::MAX] {
+        assert!(eph::Calendar::from_flag(flag).is_err());
+    }
+}
+
+#[allow(dead_code)]
+fn pure_calendar_schemas(
+    julian: eph::JulianDay,
+    checked: eph::DateConversion,
+    weekday: eph::Weekday,
+    utc: eph::UtcDateTime,
+) {
+    let eph::JulianDay { value } = julian;
+    let _: f64 = value;
+    let eph::DateConversion {
+        valid,
+        julian_day,
+        date,
+        status,
+        diagnostic,
+    } = checked;
+    let _: bool = valid;
+    let _: f64 = julian_day;
+    let _: eph::CalendarDate = date;
+    let _: Option<i32> = status;
+    let _: Option<String> = diagnostic;
+    let eph::Weekday { index } = weekday;
+    let _: i32 = index;
+    let eph::UtcDateTime {
+        year,
+        month,
+        day,
+        hour,
+        minute,
+        second,
+    } = utc;
+    let _: (i32, i32, i32, i32, i32, f64) = (year, month, day, hour, minute, second);
 }
 
 #[test]

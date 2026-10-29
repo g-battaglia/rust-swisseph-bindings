@@ -42,13 +42,18 @@ Set `CC` to select the C compiler executable.
 
 ## Quick start
 
+This development branch prepares the unpublished 2.0 API; the example below
+uses its typed calendar result. For unchanged 1.x scalar signatures on this
+branch, use the explicit `native` extension paths. The complete 2.0 migration
+is still in progress; see [the checkpoint](validation/primary-api.md).
+
 Compute the Sun's position and speed using Moshier, without external data files:
 
 ```rust
-use swisseph_bindings::{Calendar, FLG_MOSEPH, FLG_SPEED, SUN, SessionBuilder, native::julday};
+use swisseph_bindings::{Calendar, FLG_MOSEPH, FLG_SPEED, SUN, SessionBuilder, julday};
 
 fn main() -> Result<(), swisseph_bindings::Error> {
-    let jd_ut = julday(2000, 1, 1, 12.0, Calendar::Gregorian);
+    let jd_ut = julday(2000, 1, 1, 12.0, Calendar::Gregorian)?.value;
     let session = SessionBuilder::new().default_ephe_path().build()?;
     let position = session.calc_ut(jd_ut, SUN, FLG_MOSEPH | FLG_SPEED)?;
     // Degrees, degrees, AU; then degrees/day, degrees/day, AU/day.

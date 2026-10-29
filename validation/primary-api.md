@@ -43,6 +43,61 @@ parsing native diagnostic text: the position ABI supplies no structured events,
 so its advisory and separate-message vectors are empty. Original diagnostics
 remain untouched.
 
+## Typed pure calendar interface
+
+Five primary pure operations now have explicit record signatures:
+
+- `julday(year, month, day, hour, calendar) -> Result<JulianDay, Error>`;
+  `JulianDay.value` retains the actual day number without assigning UTC/UT1/TT.
+- `revjul(jd, calendar) -> Result<CalendarDate, Error>` retains the original
+  year/month/day/fractional-hour record and native safe inverse domain.
+- `date_conversion(year, month, day, hour, calendar)` returns `DateConversion`
+  with `valid`, `julian_day`, `date`, `status` and `diagnostic`. An impossible
+  civil date is a retained invalid outcome, not a dropped numerical result.
+  `status` is the actual C return, including zero; `diagnostic` is `None`
+  because the native entry has no text channel. The normalized date comes
+  from native inverse calendar conversion, not Rust calendar arithmetic.
+- `day_of_week(jd) -> Result<Weekday, Error>` retains the actual Monday-based
+  `index` and existing native offset admission domain.
+- `utc_time_zone(year, month, day, hour, minute, second, offset)` retains
+  `UtcDateTime` with all six original calendar/clock fields. Offset is hours
+  east of UTC; this is a pure label shift, not UTC/UT1/TT clock conversion.
+
+The raw scalar `native::julday` still propagates non-finite hours. Primary
+`julday` rejects them explicitly; finite numerical results are not changed.
+`native::date_conversion` retains its original scalar/error contract, including
+invalid-date errors. All 111 legacy signatures remain independent of the new
+root results. No parallel scalar/report pair is introduced at the root.
+
+The replicated test pins all five signatures, exhaustive new record fields,
+`Calendar::from_flag`/`Calendar::flag` and ownership traits. The manifest declares these paths but intentionally remains
+incomplete: angle/format results, errors, configured families and the final
+closed inventory still require implementation. This is not whole-API acceptance.
+
+### Executed pure-calendar qualification
+
+Starting from `67be3b4`, the reviewed calendar diff adds only result transport,
+finite-hour primary admission and pure calendar flag conversion. Native
+2.10.03/source pin and data identity remain unchanged. A separately compiled
+public-header C caller supplies actual forward/validated Julian days, integer
+validation status, normalized calendar fields and weekday index for **5,184
+input combinations**. The primary methods retain every numerical word and the
+actual status exactly. Inputs include both calendars, BCE/year zero/reform and
+leap-century dates, invalid month/day labels, fractional hours, signed zero and
+hour rollover. Raw outputs stay in the caller's pipe/test memory, not fixtures.
+Additional tests preserve non-finite legacy propagation, primary rejection,
+invalid-date outcomes and safe inverse-calendar bounds.
+
+The complete current default suite passes **188 ordinary Rust tests and 88
+doctests**. Nine replicated structural tests and all 111 exact legacy fn pointers
+pass. Formatting, strict all-target Clippy, strict private rustdoc and the 20
+audit/codemod tests pass. The selected-data full profile remains green at 35,302
+cases with unchanged counts and explicit JPL-success exclusion as recorded below.
+The compiler-resolved calendar fragment has 68 matching paths including explicit
+derived traits; the approved root/default/Python-feature fragments agree. This
+is a scoped surface comparison, not acceptance of the whole primary inventory.
+No angle/format, configured-session or final error contract is implied.
+
 ## Contract checks
 
 `tests/common_api_contract.rs` has a single initial engine binding and exactly

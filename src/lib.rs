@@ -44,6 +44,7 @@ mod houses;
 mod node_result;
 mod observer;
 mod positions;
+mod pure_calendar;
 mod session;
 mod stars;
 mod state;
@@ -122,11 +123,12 @@ pub use observer::{
     RiseTransitOutcome,
 };
 pub use positions::Position;
+pub use pure_calendar::{DateConversion, JulianDay, Weekday, date_conversion, day_of_week, julday};
 pub use session::{Session, SessionBuilder};
 pub use stars::{StarMagnitude, StarPosition};
 pub use time::{
-    Calendar, CalendarDate, DeltaT, EquationOfTime, JulDays, LocalTime, UtcDateTime,
-    date_conversion, day_of_week, julday, revjul, utc_time_zone,
+    Calendar, CalendarDate, DeltaT, EquationOfTime, JulDays, LocalTime, UtcDateTime, revjul,
+    utc_time_zone,
 };
 
 // Private aliases keep the locked Session implementation independent of the

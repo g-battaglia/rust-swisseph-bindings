@@ -32,8 +32,24 @@ pub enum Calendar {
 }
 
 impl Calendar {
-    /// Native flag value for this calendar system.
-    fn flag(self) -> c_int {
+    /// Select a proleptic calendar from its exact integer flag.
+    ///
+    /// Only [`crate::JUL_CAL`] (zero) and [`crate::GREG_CAL`] (one) are
+    /// accepted. Other values return `InvalidInput`; no calendar is guessed
+    /// and no native call or mutable configuration is involved.
+    pub fn from_flag(flag: i32) -> Result<Self, Error> {
+        match flag {
+            crate::JUL_CAL => Ok(Self::Julian),
+            crate::GREG_CAL => Ok(Self::Gregorian),
+            _ => Err(Error::invalid_input(format!(
+                "invalid calendar flag {flag}"
+            ))),
+        }
+    }
+
+    /// Integer calendar flag: Julian zero or proleptic Gregorian one.
+    /// Pure conversion with no native call, configuration or failure channel.
+    pub fn flag(self) -> c_int {
         match self {
             Calendar::Julian => 0,
             Calendar::Gregorian => 1,
