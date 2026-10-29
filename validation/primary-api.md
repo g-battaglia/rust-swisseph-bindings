@@ -3,9 +3,10 @@
 ## Scope and delivery
 
 This branch prepares the 2.0.0 primary API contract. **It is not yet a complete
-2.0.0 implementation or release candidate.** The current root exports and
-inherited Session settings have not yet been migrated. The contract test is an
-explicit structural bootstrap; passing it does not qualify omitted operations.
+2.0.0 implementation or release candidate.** The legacy extension namespaces
+exist, but transitional root exports and inherited Session settings have not
+yet been removed. The contract test is an explicit structural bootstrap;
+passing it does not qualify omitted operations.
 
 The target is one primary API at the crate root: constants, pure utilities,
 SessionBuilder/Session, complete result records and Error/ErrorKind. Stateful
@@ -22,9 +23,12 @@ Only primary Session methods adopt the new parameter order. Do not reorder
 legacy extension functions to make them resemble Session methods.
 
 `global-signatures-v1.json` records all 111 original owned function declarations
-and their planned extension paths. It is input to migration review, not a claim
-that those modules already exist. No current root alias is removed in this
-checkpoint. The final primary inventory must reject all undeclared root exports.
+and their extension paths. All 74 global and 37 native paths now exist as direct
+re-exports of the original definitions, with no argument adapters. Fully
+qualified paths in the frozen-signature test prevent fallback to a root
+function if an extension export disappears. The root aliases remain transitional during this
+incomplete migration; they must be removed before final acceptance. The final
+primary inventory must reject all undeclared root exports.
 
 Explicit native-only destinations include `_full` operations,
 `ensure_ephe_path`, `require_source_flags`, `set_jpl_file`, `library_path`,
@@ -71,9 +75,9 @@ python3 validation/check-common-contract.py inventory \
 not a package/toolchain requirement for consumers or an environment default.
 The checker tests rejected extra exports, hidden Session methods, alias members,
 missing private information and invalid contract markers. A manifest with pending
-mappings cannot pass the `check` command. Once extension nodes exist, inventory
-may exclude exactly `--extension global --extension native`, never arbitrary
-members or root aliases. No remote CI is introduced.
+mappings cannot pass the `check` command. The implemented extension nodes
+permit inventory to exclude exactly `--extension global --extension native`,
+never arbitrary members or root aliases. No remote CI is introduced.
 
 ## Existing differential-runner blocker
 
@@ -116,10 +120,33 @@ unimplemented deterministic Session/primary-export migration. No version/tag or
 package publication is performed in this checkpoint. Remote Actions was found
 enabled and disabled before any branch push; no workflow was added or started.
 
+## Executed extension-namespace slice
+
+Starting from advisory revision `ec7f81b`, this slice adds direct re-exports in
+`src/global.rs` (74 legacy functions) and `src/native.rs` (37), plus native buffer
+and metadata types. It does not adapt arguments or change operation bodies.
+All 111 frozen fn-pointer expressions retain exactly the same types after
+normalizing only their destination paths. Fully qualified function paths make
+an absent extension export a compile error, with no root-name fallback.
+
+Twenty-six focused tests pass: six raw-angle tests, eleven time tests, six
+structural bootstrap tests, one 111-signature test and two independent-C error
+metadata tests. Those two tests retain eight exact negative C status/diagnostic
+pairs, plus preflight and Session equivalence checks. Assertions and tolerances
+are unchanged; only their Rust imports now target the extension namespaces.
+
+Strict all-target Clippy, formatting, strict private rustdoc and the regenerated
+compiler-resolved root inventory (excluding exactly global/native traversal)
+pass. Fourteen local audit tests and the unchanged common-contract suffix pass.
+Native pin remains `9083a12d59e98034fb2337061481ac8800c16e64` (2.10.03);
+no C body, build setting or dataset changed. The default differential matrix
+remains blocked as documented above. Legacy root aliases are still pending
+removal; namespace availability alone does not close the primary API gate.
+
 ## Work remaining
 
 - Finish compiler-resolved mapping and the full closed primary inventory.
-- Implement the primary vertical slice and relocate global/native exports.
+- Finish the primary vertical slice and remove transitional root legacy exports.
 - Make Session configuration fully deterministic and complete its operations.
 - Add final typed errors, full records and optional seven/ten event layouts.
 - Preserve all native values/status/diagnostics and run same-engine C parity.

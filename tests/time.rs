@@ -7,11 +7,12 @@
 #[path = "support/isolated.rs"]
 mod isolated;
 
-use swisseph_bindings::{
-    Calendar, ErrorKind, FLG_MOSEPH, FLG_SWIEPH, date_conversion, day_of_week, deltat, deltat_ex,
-    jdet_to_utc, jdut1_to_utc, lat_to_lmt, lmt_to_lat, set_ephe_path, sidtime, sidtime0, time_equ,
-    utc_time_zone, utc_to_jd,
+use swisseph_bindings::global::{
+    deltat, deltat_ex, jdet_to_utc, jdut1_to_utc, lat_to_lmt, lmt_to_lat, set_ephe_path, sidtime,
+    sidtime0, time_equ, utc_to_jd,
 };
+use swisseph_bindings::native::{date_conversion, day_of_week, utc_time_zone};
+use swisseph_bindings::{Calendar, ErrorKind, FLG_MOSEPH, FLG_SWIEPH};
 
 /// J2000.0 in Universal Time.
 const J2000_UT: f64 = 2451545.0;

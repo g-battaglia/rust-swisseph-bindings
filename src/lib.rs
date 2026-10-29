@@ -7,10 +7,13 @@
 //!
 //! # Public API style
 //!
-//! The API consists of free functions with canonical operation names
-//! (`calc_ut`, `julday`, `houses`, ...) and explicit arguments. Every
-//! parameter — including the calendar system and the ephemeris flags — is
-//! passed explicitly at each call site.
+//! The primary API uses [`SessionBuilder`]/[`Session`] for configured
+//! calculations. [`global`] preserves legacy process-global operations;
+//! [`native`] preserves native-only extensions and raw 1.x pure signatures.
+//! Legacy extension arguments retain C ordering and scalar observer values.
+//!
+//! This branch is staging the 2.0 migration: legacy root re-exports below are
+//! still being removed and are not part of the final closed primary contract.
 //!
 //! Native configuration (data path, observer, sidereal mode) is
 //! process-global inside the C library. Each function holds one private
@@ -45,6 +48,9 @@ mod stars;
 mod state;
 mod time;
 mod version;
+
+pub mod global;
+pub mod native;
 
 pub use advisory::{Advisory, AdvisoryDetail};
 pub use angles::{

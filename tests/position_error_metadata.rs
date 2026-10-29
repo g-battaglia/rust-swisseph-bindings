@@ -2,6 +2,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Mutex;
+use swisseph_bindings::global::{calc, calc_pctr, calc_ut, set_ephe_path};
 use swisseph_bindings::*;
 
 static ORACLE_LOCK: Mutex<()> = Mutex::new(());

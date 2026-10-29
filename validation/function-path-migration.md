@@ -1,9 +1,14 @@
-# 1.x function path migration (target, not yet applied)
+# 1.x function path migration (extensions implemented; root cleanup pending)
 
 Extension signatures retain the 1.x parameter types, C ordering and scalar
 arguments. Primary Session operations use the separately specified ordering
 and complete records. Raw pure-return helpers remain native extensions when
 the primary pure operation adopts a typed result.
+
+All 111 extension destinations below now exist as direct re-exports, without
+wrappers or reordered arguments. The frozen-signature test names each exact
+extension path explicitly. Existing root names are transitional in this draft
+branch and must be removed before the closed primary API can be accepted.
 
 | Old root path | Extension destination |
 |---|---|

@@ -8,9 +8,9 @@
 //! reference vectors beyond exact small integers.
 
 use std::f64::consts::PI;
-use swisseph_bindings::{
-    ErrorKind, cotrans, cotrans_sp, d2l, deg_midp, degnorm, difdeg2n, difdegn, difrad2n, rad_midp,
-    radnorm,
+use swisseph_bindings::ErrorKind;
+use swisseph_bindings::native::{
+    cotrans, cotrans_sp, d2l, deg_midp, degnorm, difdeg2n, difdegn, difrad2n, rad_midp, radnorm,
 };
 
 #[test]
