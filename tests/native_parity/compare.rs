@@ -412,7 +412,11 @@ fn same_fields(c: &Record, rust: &Record, policy: FloatContract) -> Result<usize
     }
     for (index, (a, b)) in c.texts.iter().zip(&rust.texts).enumerate() {
         if String::from_utf8_lossy(a).as_bytes() != b {
-            return Err(format!("text[{index}]"));
+            return Err(format!(
+                "text[{index}] lengths native={} rust={}",
+                a.len(),
+                b.len()
+            ));
         }
     }
     Ok(1 + c.ints.len() + c.floats.len() + c.texts.len())

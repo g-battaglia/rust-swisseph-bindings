@@ -112,6 +112,43 @@ and the 1,347-case native smoke profile. The smoke profile covers 104/105 public
 operations and 98/101 native symbols; it is not the separate selected-data,
 sanitizer or extracted-package qualification.
 
+## Selected-data path replay correction
+
+On revision `714a808` plus the diagnostic-only comparison change, the complete
+selected-data profile failed at `SOURCE_planet_only_calc_0`: the C diagnostic
+had 184 bytes and the Rust diagnostic was empty. The isolated case and the
+60-case source family passed, demonstrating that those narrower runs did not
+reproduce the preceding configuration history.
+
+The C oracle used a bare `swe_set_ephe_path`, whereas the existing owned setter
+closes retained catalogue state on a real path change and reinstalls explicitly
+owned sidereal, Delta-T and observer inputs. The oracle now executes that same
+public-ABI setter sequence. Its additional storage contains only requested
+configuration, never predicted results, computed file metadata or reference
+vectors. Repeated paths still execute the free setter without a new close.
+Explicit close clears the tracked input history. The worker has a fixed cwd and
+an unset `SE_EPHE_PATH`; this model does not claim to cover external mutation of
+those inputs during a worker run.
+
+No engine or Rust runtime body changed. Exact diagnostic comparison is retained;
+its failure now also reports both lengths. Smoke still passes 1,347 cases. The
+complete selected-data profile passes **35,302 cases**, all **105/105 public
+operations** and **101/101 native symbols**, with 742,596 compared/rejection
+fields plus 243 constant/status fields (273,578 successes, 7,233 native errors,
+16 absences and 44 rejections). The complete run also passes Session contention
+(630 results, 196 rejections, 8,178 fields), persistent history (48 computations,
+17 builders, 36 rejections, three native errors, one absence, 4,102 fields) and
+four cold/reset scripts (332 fields).
+
+Build identity remains native 2.10.03, source pin
+`9083a12d59e98034fb2337061481ac8800c16e64`, with archive SHA-256
+`abf6c53b617b6fc6938224ffed35499386f1fef59bc675cd20056bb655d17105`.
+The run uses the identified existing `swisseph/ephe` inputs, including the
+planet-only and Moon-only copies made by the runner; input fingerprints are
+reported by the profile. JPL-success is explicitly **BLOCKED**, not passed:
+no identified JPL archive was selected. Sanitizer and extracted-package checks
+remain separate gates; the primary API migration itself remains incomplete.
+
 ## Executed advisory/schema slice
 
 The new contract-local Advisory/AdvisoryDetail declarations match the approved
@@ -131,7 +168,7 @@ Checks on this slice:
 - Fourteen local audit/negative-control tests pass, including field/method name
   collisions, hidden helpers, alias members and explicit Deref leakage.
 
-This does not qualify the blocked default differential matrix or the still
+This earlier slice alone did not qualify the differential matrix or the still
 unimplemented deterministic Session/primary-export migration. No version/tag or
 package publication is performed in this checkpoint. Remote Actions was found
 enabled and disabled before any branch push; no workflow was added or started.
@@ -156,8 +193,8 @@ compiler-resolved root inventory (excluding exactly global/native traversal)
 pass. Fourteen local audit tests and the unchanged common-contract suffix pass.
 Native pin remains `9083a12d59e98034fb2337061481ac8800c16e64` (2.10.03);
 no C body, build setting or dataset changed. The default differential matrix
-remains blocked as documented above. At that earlier checkpoint root aliases were still present. The subsequent
-root-boundary slice removes configured free exports; complete primary schemas
+was still blocked and root aliases were still present at that earlier checkpoint.
+The subsequent root-boundary slice removes configured free exports; complete primary schemas
 and deterministic configuration remain separate gates.
 
 ## Root boundary and node/apse records

@@ -26,8 +26,38 @@ static void check_guards(const unsigned char *before, const unsigned char *after
  * initialize defaults before a first tidal/Delta-T write, not on every call.
  * swe_close and explicit sidereal writes update this worker-local history. */
 static int initialized_settings = 0;
+static int have_sidereal = 0, sidereal_mode = 0, have_topo = 0, have_delta = 0;
+static double sidereal_epoch = 0, sidereal_offset = 0, topo[3] = {0}, delta = 0;
+static int have_path = 0, path_null = 1;
+static char installed_path[4096] = {0};
 static void initialize_settings(void) {
-    if (!initialized_settings) { swe_set_sid_mode(SE_SIDM_FAGAN_BRADLEY, 0, 0); initialized_settings = 1; }
+    if (!initialized_settings) {
+        swe_set_sid_mode(SE_SIDM_FAGAN_BRADLEY, 0, 0);
+        initialized_settings = have_sidereal = 1;
+        sidereal_mode = SE_SIDM_FAGAN_BRADLEY;
+        sidereal_epoch = sidereal_offset = 0;
+    }
+}
+
+/* The owned path contract clears the retained catalogue on a real path change.
+ * Reproduce that public-ABI configuration sequence, not any Rust calculation.
+ * Child cwd is fixed and SE_EPHE_PATH is unset by process supervision. */
+static void install_owned_path(const char *path) {
+    int changed = !have_path || path_null != (path == NULL)
+        || (path && strcmp(installed_path, path) != 0);
+    if (path) require(strlen(path) < sizeof(installed_path), "owned path capacity");
+    if (changed) swe_close();
+    swe_set_ephe_path(path);
+    if (changed) {
+        if (have_sidereal) {
+            swe_set_sid_mode(sidereal_mode, sidereal_epoch, sidereal_offset);
+            if (have_delta) swe_set_delta_t_userdef(delta);
+        }
+        if (have_topo) swe_set_topo(topo[0], topo[1], topo[2]);
+    }
+    have_path = 1;
+    path_null = path == NULL;
+    if (path) memcpy(installed_path, path, strlen(path) + 1);
 }
 
 /* Copy an explicitly validated UTF-8 query into writable caller storage.
@@ -104,15 +134,15 @@ static Result dispatch(const Request *request) {
         else { SHAPE(2, 1, 0); result.code = swe_calc(F(0), I(0), I(1), out.v, diagnostic.v); }
         DOUBLES(out); TEXT(diagnostic); break;
     }
-    case OP_SET_EPHE_PATH: { SHAPE(0, 0, 1); swe_set_ephe_path(T(0)); break; }
+    case OP_SET_EPHE_PATH: { SHAPE(0, 0, 1); install_owned_path(T(0)); break; }
     case OP_SET_JPL_FILE: { SHAPE(0, 0, 1); require(T(0) != NULL, "null JPL name"); swe_set_jpl_file(T(0)); break; }
-    case OP_SET_TOPO: { SHAPE(0, 3, 0); swe_set_topo(F(0), F(1), F(2)); break; }
-    case OP_SET_SID_MODE: { SHAPE(1, 2, 0); swe_set_sid_mode(I(0), F(0), F(1)); initialized_settings = 1; break; }
+    case OP_SET_TOPO: { SHAPE(0, 3, 0); swe_set_topo(F(0), F(1), F(2)); have_topo = 1; topo[0] = F(0); topo[1] = F(1); topo[2] = F(2); break; }
+    case OP_SET_SID_MODE: { SHAPE(1, 2, 0); swe_set_sid_mode(I(0), F(0), F(1)); initialized_settings = have_sidereal = 1; sidereal_mode = I(0); sidereal_epoch = F(0); sidereal_offset = F(1); break; }
     case OP_SET_TID_ACC: { SHAPE(0, 1, 0); initialize_settings(); swe_set_tid_acc(F(0)); break; }
     case OP_GET_TID_ACC: { SHAPE(0, 0, 0); add_float(&result, swe_get_tid_acc()); break; }
-    case OP_SET_DELTA_T_USERDEF: { SHAPE(1, 1, 0); initialize_settings(); swe_set_delta_t_userdef(I(0) ? F(0) : SE_DELTAT_AUTOMATIC); break; }
+    case OP_SET_DELTA_T_USERDEF: { SHAPE(1, 1, 0); initialize_settings(); swe_set_delta_t_userdef(I(0) ? F(0) : SE_DELTAT_AUTOMATIC); have_delta = I(0) && F(0) != SE_DELTAT_AUTOMATIC; delta = F(0); break; }
     case OP_SET_LAPSE_RATE: { SHAPE(0, 1, 0); swe_set_lapse_rate(F(0)); break; }
-    case OP_CLOSE: { SHAPE(0, 0, 0); swe_close(); initialized_settings = 0; break; }
+    case OP_CLOSE: { SHAPE(0, 0, 0); swe_close(); initialized_settings = have_sidereal = have_topo = have_delta = have_path = 0; break; }
     case OP_GET_AYANAMSA: { SHAPE(0, 1, 0); add_float(&result, swe_get_ayanamsa(F(0))); break; }
     case OP_GET_AYANAMSA_UT: { SHAPE(0, 1, 0); add_float(&result, swe_get_ayanamsa_ut(F(0))); break; }
     case OP_GET_AYANAMSA_EX: case OP_GET_AYANAMSA_EX_UT: {
