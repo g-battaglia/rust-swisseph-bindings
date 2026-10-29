@@ -18,10 +18,11 @@
 pub use crate::angles::{
     SplitDeg, cotrans, cotrans_sp, cs2degstr, cs2lonlatstr, cs2timestr, csnorm, csroundsec, d2l,
     deg_midp, degnorm, difcs2n, difcsn, difdeg2n, difdegn, difrad2n, rad_midp, radnorm, split_deg,
+    split_deg_2_10_03,
 };
 pub use crate::config::{
-    CurrentFileData, MAX_EPHE_PATH_LEN, MAX_JPL_FILE_LEN, ensure_ephe_path, get_ayanamsa_name,
-    set_jpl_file,
+    CurrentFileData, MAX_EPHE_PATH_LEN, MAX_JPL_FILE_LEN, close_preserving_path, ensure_ephe_path,
+    get_ayanamsa_name, set_jpl_file,
 };
 pub use crate::events::{
     HeliacalPhenomenaFull, OccultSearchOptions, OccultationGeometryFull, SolarEclipseGeometryFull,

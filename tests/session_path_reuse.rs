@@ -4,7 +4,7 @@
 #![cfg(unix)]
 
 use swisseph_bindings::{
-    FLG_SWIEPH, MARS, MOON, SessionBuilder, global::calc_ut, global::close,
+    CHIRON, FLG_SWIEPH, MARS, MOON, SessionBuilder, global::calc_ut, global::close,
     global::get_current_file_data, global::get_tid_acc, global::set_ephe_path, global::set_tid_acc,
     native::require_source_flags,
 };
@@ -25,6 +25,130 @@ unsafe extern "C" {
         values: *mut f64,
         diagnostic: *mut std::ffi::c_char,
     ) -> i32;
+    fn swe_deltat(jd: f64) -> f64;
+}
+
+#[test]
+fn default_path_snapshot_matches_native_reuse_and_explicit_reload() {
+    if !isolated::without_ephe_override(
+        "default_path_snapshot_matches_native_reuse_and_explicit_reload",
+    ) {
+        return;
+    }
+    let data = test_data::ephemeris_dir().expect("complete external ephemeris data");
+    let directory = std::env::temp_dir().join(format!(
+        "swisseph-default-path-history-{}",
+        std::process::id()
+    ));
+    std::fs::create_dir(&directory).unwrap();
+    for name in ["sepl_18.se1", "semo_18.se1", "seas_18.se1"] {
+        std::os::unix::fs::symlink(std::path::Path::new(&data).join(name), directory.join(name))
+            .unwrap();
+    }
+    let previous_directory = std::env::current_dir().unwrap();
+    std::env::set_current_dir(&directory).unwrap();
+    let history =
+        || std::array::from_fn::<_, 5, _>(|slot| get_current_file_data(slot as i32).unwrap());
+    let mut values = [0.0; 6];
+    let mut diagnostic = [0 as std::ffi::c_char; 256];
+    // SAFETY: isolated single-thread child, public C ABI, complete initialized
+    // output buffers. NULL selects the compiled path, whose first entry is cwd.
+    let native_status = unsafe {
+        swe_set_ephe_path(std::ptr::null());
+        swe_calc_ut(
+            JD,
+            CHIRON,
+            FLG_SWIEPH,
+            values.as_mut_ptr(),
+            diagnostic.as_mut_ptr(),
+        )
+    };
+    assert!(native_status & FLG_SWIEPH != 0, "native Swiss source");
+    // SAFETY: scalar public C call in the same isolated native sequence.
+    let expected = unsafe { swe_deltat(JD) };
+    let retained = history();
+    assert!(
+        retained[2].is_some(),
+        "native asteroid file must be present"
+    );
+    // SAFETY: explicit public C path write intentionally closes open files.
+    unsafe { swe_set_ephe_path(std::ptr::null()) };
+    let reloaded = history();
+    assert!(
+        retained != reloaded,
+        "explicit setter changes native history"
+    );
+
+    // Repeat the same setup through public safe APIs. A default-path Session
+    // does not imply a fresh explicit path write before every computation.
+    close().unwrap();
+    set_ephe_path(None).unwrap();
+    let seeded = calc_ut(JD, CHIRON, FLG_SWIEPH).unwrap();
+    require_source_flags(&seeded, FLG_SWIEPH).unwrap();
+    let session = SessionBuilder::new().default_ephe_path().build().unwrap();
+    assert_eq!(session.deltat(JD).unwrap().to_bits(), expected.to_bits());
+    for (slot, expected) in retained.iter().enumerate() {
+        assert_eq!(
+            session.get_current_file_data(slot as i32).unwrap(),
+            *expected
+        );
+    }
+    set_ephe_path(None).unwrap();
+    assert_eq!(history(), reloaded);
+    session.deltat(JD).unwrap();
+    for (slot, expected) in reloaded.iter().enumerate() {
+        assert_eq!(
+            session.get_current_file_data(slot as i32).unwrap(),
+            *expected
+        );
+    }
+    close().unwrap();
+    std::env::set_current_dir(previous_directory).unwrap();
+    std::fs::remove_dir_all(directory).unwrap();
+}
+
+#[test]
+fn one_session_reinstalls_its_data_path_across_distinct_threads() {
+    if !isolated::without_ephe_override(
+        "one_session_reinstalls_its_data_path_across_distinct_threads",
+    ) {
+        return;
+    }
+    let data = test_data::ephemeris_dir().expect("complete external ephemeris data");
+    let session = SessionBuilder::new().ephe_path(&data).build().unwrap();
+    let flags = FLG_SWIEPH | swisseph_bindings::FLG_SPEED;
+    let expected = session.calc_ut(JD, MARS, flags).unwrap();
+    require_source_flags(&expected, FLG_SWIEPH).unwrap();
+    let parent = std::thread::current().id();
+    let mut identities = std::collections::HashSet::new();
+    for _ in 0..4 {
+        let worker_session = session.clone();
+        let worker_expected = expected.clone();
+        let directory = data.clone();
+        let identity = std::thread::spawn(move || {
+            for _ in 0..3 {
+                let actual = worker_session.calc_ut(JD, MARS, flags).unwrap();
+                assert!(
+                    actual == worker_expected,
+                    "thread migration changed the native result"
+                );
+                let file = get_current_file_data(0).unwrap().unwrap();
+                assert!(
+                    file.path.starts_with(&directory),
+                    "native data path differs"
+                );
+            }
+            std::thread::current().id()
+        })
+        .join()
+        .expect("native worker succeeds");
+        assert_ne!(identity, parent);
+        assert!(
+            identities.insert(identity),
+            "worker identities must remain distinct"
+        );
+        assert!(session.calc_ut(JD, MARS, flags).unwrap() == expected);
+    }
 }
 
 #[test]

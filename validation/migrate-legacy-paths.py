@@ -21,7 +21,7 @@ DESTINATIONS.update({
     name: f"native::{name}" for name in (
         "CurrentFileData", "MAX_EPHE_PATH_LEN", "MAX_JPL_FILE_LEN",
         "HeliacalPhenomenaFull", "OccultationGeometryFull", "SolarEclipseGeometryFull",
-        "VisibilityFull", "OccultSearchOptions",
+        "VisibilityFull", "OccultSearchOptions", "close_preserving_path", "split_deg_2_10_03",
     )
 })
 # Ignore prose/literals when deciding which formerly glob-imported names need

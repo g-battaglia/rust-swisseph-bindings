@@ -12,7 +12,8 @@ publish = ["crates-io"]
 links = "swisseph"
 
 # Package policy: ship only the nine compiled C units
-# (the upstream `SWEOBJ` set in `swisseph/Makefile`), the headers they
+# (the upstream `SWEOBJ` set in `swisseph/Makefile`), the versioned split utility
+# under src/native/, the headers they
 # actually include (the `build.rs` HEADERS union, re-verified with
 # `cc -MM`), license/notices, and the owned Rust/build/test/doc files.
 # Ephemeris data payloads (`ephe/`), upstream test oracles (`setest/`),
@@ -27,6 +28,7 @@ include = [
     "LICENSE",
     "README.md",
     "build.rs",
+    "build_support/**",
     "rust-toolchain.toml",
     "src/**",
     "tests/**",

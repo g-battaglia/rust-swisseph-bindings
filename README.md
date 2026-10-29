@@ -50,7 +50,7 @@ is still in progress; see [the checkpoint](validation/primary-api.md).
 Compute the Sun's position and speed using Moshier, without external data files:
 
 ```rust
-use swisseph_bindings::{Calendar, FLG_MOSEPH, FLG_SPEED, SUN, SessionBuilder, julday};
+use swisseph_bindings::{Calendar, FLG_MOSEPH, FLG_SPEED, SUN, SessionBuilder, native::julday};
 
 fn main() -> Result<(), swisseph_bindings::Error> {
     let jd_ut = julday(2000, 1, 1, 12.0, Calendar::Gregorian)?.value;
@@ -75,6 +75,13 @@ Free functions share process-global native configuration. Each call is
 serialized, but a free setter followed by a calculation can interleave with
 another caller. Use `SessionBuilder` and fully specify settings that must remain
 consistent for a computation. Unset session settings inherit global state.
+Configured paths check `SE_EPHE_PATH` on every computation by default. Select
+`refresh_ephe_path_environment(false)` to sample it only when installing a path,
+following the native setter lifecycle. Explicit setters always sample again;
+path, close, thread, relative-directory and tidal invalidations still reinstall.
+Independently, `reinstall_ephe_path_on_directory_change(false)` retains C's
+installed relative path and open files when cwd changes; later native file opens
+use the current directory. The default remains relative-directory tracking.
 
 Swiss and JPL data files are external to the Cargo package. Configure the data
 path through `set_ephe_path` or the session builder. `SWISSEPH_EPHE_DIR` selects
@@ -102,6 +109,93 @@ For an existing clone, initialize the pinned dependency with
 The build compiles native sources into Cargo's output directory. It does not
 download ephemeris data. The upstream pin and runtime version are recorded in
 [source-pins.json](validation/source-pins.json).
+
+The dependency checkout remains unmodified. A declared build overlay replaces
+the v1 fixed-star reader's repeated ASCII-space deletion with a single in-place
+pass on the already truncated name. The generated `OUT_DIR/sweph.c` includes
+the owned helper; the build requires exactly one matching pinned fragment and
+records the overlay in `native-inputs.txt`. File scanning, matching order,
+locale handling, diagnostics, session lifecycle and every astronomical statement
+remain unchanged. No catalog or calculated positions are cached by this change.
+
+The read-only file overlay replaces only `swi_fopen`'s open call in the same
+generated source. POSIX uses `open(O_RDONLY)` followed by `fdopen` with the
+original `BFILE_R_ACCESS` mode, rejecting absent paths before allocating a
+`FILE`. A successful `fdopen` owns the descriptor; failure closes it once.
+Other platforms retain ordinary `fopen`. Filename construction, search order,
+path limits, complete diagnostics and stream read/seek/close behavior remain
+unchanged. Every call observes the current filesystem. Complete source,
+consumer, preceding-overlay and helper fingerprints bind this substitution.
+Errno, cancellation and resource-error precedence are outside this helper's
+returned-stream contract.
+
+The Moshier overlay generates `OUT_DIR/swemplan.c`, `OUT_DIR/swemptab.h` and
+private Moshier coefficient/evaluator headers from the pinned tables. A
+fail-closed decoder checks signed-byte structure, planet order, harmonic bounds,
+sentinels and complete coefficient consumption. Original longitude/latitude
+coefficient tokens are paired without parsing or rounding their values; radius retains its
+native stream. Nine private evaluators use constant term, degree and harmonic
+offsets. Each prepares the native harmonics in ascending index order with the
+original angle expressions and `sscc` recurrence, using validated constant
+bounds. Even a single requested harmonic retains that helper's second-harmonic
+write. One shared entry retains time scaling and final projection.
+Each channel preserves its Horner recurrence, rounded-product/FMA stages and
+term-ordered accumulation, without horizontal reductions or CPU-specific source
+or flags. Larger compiled bodies and stack use replace runtime control decoding;
+coefficient arrays are not duplicated. Complete consumer, emitter and table
+fingerprints bind the ownership proof for disconnecting just eighteen
+unused longitude/latitude pointers in the generated native table header. All
+other header bytes remain intact, including coefficients and notices; the C
+compiler can discard the redundant original arrays. New pointer reads or escapes
+require review. Generated content identities are recorded in `native-inputs.txt`.
+No time-dependent data or calculated results are cached.
+
+The lunar perturbation overlay generates `OUT_DIR/swemmoon.c`. Four private
+copies retain the exact native `chewm` body with its already literal kind made
+constant; each original call keeps its arguments and order. Tables, macro
+branches, floating expressions, first-angle/sign handling and the radius
+low-word guard stay unchanged. Complete source identity and an inverse byte
+proof reject unreviewed consumers or call sites. This changes only kind control,
+without coefficient conversion, recurrence changes or calculated-result caching.
+The generated source has its own identity in `native-inputs.txt`.
+
+The nutation table overlay changes only four static element declarations in
+`OUT_DIR/swenut2000a.h` from integer to double. Its original consumer expressions
+remain intact. Every original use already promotes those exactly representable
+integers before arithmetic; a consumer fingerprint binds that assumption to the
+reviewed expressions. Literal tokens, comments, term order and all model branches
+remain intact. This trades 47,784 bytes of integer tables for 158,592 bytes of
+read-only doubles to avoid repeated conversions; it changes no precision or
+calculated result.
+
+The periodic precession overlay pairs the original C coefficient tokens for
+two independent coordinates, replacing the two original tables without adding
+coefficient copies. Only local arithmetic uses generic two-double compiler
+vectors when supported; other compilers retain the scalar body. Parameters,
+return values and stored records keep their scalar C types and alignment.
+Each coordinate retains a separately rounded sine product, the native
+contracted cosine contribution and a separate ordered total addition. Period
+division, trigonometric calls, polynomial terms and projection stay unchanged.
+Complete source/helper identities and an inverse source/token proof reject
+unreviewed changes. Independent controls cover the default and scalar paths,
+traced stages, signed zeros, cancellation, models and all four rounding modes.
+No CPU-specific flags, horizontal reduction or calculated-result cache is used.
+
+The angle normalizer overlay replaces only the remainder calls in
+`swe_degnorm` and `swe_radnorm` in `OUT_DIR/swephlib.c`. For their positive
+periods, 360 degrees and TWOPI radians, an upward reciprocal product supplies
+the truncated quotient; one fused residual computes the exact binary64
+remainder when the magnitude is at most period times 2^50. The build derives
+each constant by integer nearest-even rounding followed by its exact successor,
+and admits the actual C period macros with compile-only assertions. It never
+executes a target program or parses an assumed `M_PI` spelling. Larger and
+nonfinite inputs retain libc `fmod`. Signed zero,
+the native 1e-13 zero threshold and wrapping remain intact. Complete source and
+helper fingerprints bind the transformation to the reviewed two consumers;
+the native ABI probe requires binary64 precision, radix and exponent range.
+The returned values retain their exact bits in all IEEE rounding directions.
+Libc errno, floating-environment and trap side effects are outside this helper's
+contract: quotient multiplication may additionally raise `FE_INEXACT`.
 
 Run the example or generate local documentation:
 
@@ -148,3 +242,17 @@ A missing extended catalog retains the original negative status and diagnostic
 of the safe legacy `fixstar_mag` preflight. `native_operation()` identifies the
 actual preflight rather than implying that the withheld extended query ran.
 Extended magnitude failures after admission retain their own actual C metadata.
+
+### Versioned degree splitting
+
+`split_deg` returns the pinned native engine's current output. Applications
+that require the original Swiss Ephemeris 2.10.03 field layout can explicitly
+use `split_deg_2_10_03`: rounding retains the lower minute/second fields and
+returns rounded whole seconds in `secfr`. Its separately attributed upstream
+C utility is included under `src/native/`; the engine submodule is unchanged.
+Both entries use the same finite input capacity, native lock and sidereal
+state. No ephemeris data or positional approximation is involved.
+
+`Session::copy_captured_file_path_into` projects an already-owned file-path
+snapshot without acquiring native C access. It preserves owned bytes and
+reuses caller storage; calculations still refresh every native file slot.

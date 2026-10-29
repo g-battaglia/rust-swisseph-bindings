@@ -16,6 +16,19 @@ use crate::state::with_native_access;
 /// Native `SE_SIDBIT_USER_UT`, verified in the pinned public header.
 const USER_UT_BIT: i32 = 1024;
 
+thread_local! {
+    /// Immutable identity of this thread, independent of native settings.
+    static CONFIGURATION_THREAD: std::thread::ThreadId = std::thread::current().id();
+}
+
+/// Read the thread identity used to track native path installation.
+/// Thread IDs remain fixed throughout their thread's lifetime and are never
+/// reused; copying the ID avoids acquiring an owning thread handle per read.
+/// This retains no native configuration, computation or result.
+fn configuration_thread_id() -> std::thread::ThreadId {
+    CONFIGURATION_THREAD.with(|identity| *identity)
+}
+
 /// Working-directory identity needed only by a relative native search entry.
 #[derive(Default, PartialEq, Eq)]
 enum EphemerisDirectory {
@@ -51,6 +64,9 @@ struct ValidationSettings {
     /// Last binding-owned observer and full sidereal setting, for cache reset.
     topo: Option<(f64, f64, f64)>,
     sidereal_mode: Option<(i32, f64, f64)>,
+    /// Thread whose native sidereal setting and precession model are current.
+    /// Path/JPL setters can reset the model without changing the stored mode.
+    sidereal_thread: Option<std::thread::ThreadId>,
 }
 
 /// Fresh native defaults; explicit close resets both settings (ABI probe).
@@ -64,6 +80,7 @@ static VALIDATION_SETTINGS: Mutex<ValidationSettings> = Mutex::new(ValidationSet
     ephe_path_automatic_tidal: false,
     topo: None,
     sidereal_mode: None,
+    sidereal_thread: None,
 });
 
 /// Initialize native defaults before writes that native first use would
@@ -83,6 +100,7 @@ fn initialize_sidereal_locked() -> Result<(), Error> {
         unsafe { ffi::swe_set_sid_mode(crate::SIDM_FAGAN_BRADLEY, 0.0, 0.0) };
         settings.sidereal_initialized = true;
         settings.sidereal_mode = Some((crate::SIDM_FAGAN_BRADLEY, 0.0, 0.0));
+        settings.sidereal_thread = Some(configuration_thread_id());
     }
     Ok(())
 }
@@ -223,7 +241,7 @@ fn ephe_path_directory(
 pub(crate) fn apply_ephe_path_locked(path: Option<&CString>) -> Result<(), Error> {
     let key = (path.cloned(), std::env::var_os("SE_EPHE_PATH"));
     let directory = ephe_path_directory(path, key.1.as_deref());
-    let thread = std::thread::current().id();
+    let thread = configuration_thread_id();
     let mut settings = VALIDATION_SETTINGS
         .lock()
         .map_err(|_| Error::lock_poisoned())?;
@@ -232,6 +250,10 @@ pub(crate) fn apply_ephe_path_locked(path: Option<&CString>) -> Result<(), Error
         || settings.ephe_path_directory != directory
         || settings.ephe_path_thread != Some(thread);
     let pointer = path.map_or(std::ptr::null(), |owned| owned.as_ptr());
+    // Even an equal forced path write clears native astronomical models.
+    // A changed path replays the remembered mode below; an unchanged write
+    // leaves it for the next configured Session to install explicitly.
+    settings.sidereal_thread = None;
     // SAFETY: native access is held; strings remain alive and are copied by C.
     // C's path setter retains the extended catalog. A real path change therefore
     // requires public close before path installation. Replay binding-owned
@@ -244,6 +266,7 @@ pub(crate) fn apply_ephe_path_locked(path: Option<&CString>) -> Result<(), Error
         if changed {
             if let Some((mode, t0, ayan)) = settings.sidereal_mode {
                 ffi::swe_set_sid_mode(mode, t0, ayan);
+                settings.sidereal_thread = Some(thread);
                 if let Some(dt) = settings.delta_t {
                     ffi::swe_set_delta_t_userdef(dt);
                 }
@@ -268,8 +291,18 @@ pub(crate) fn apply_ephe_path_locked(path: Option<&CString>) -> Result<(), Error
 /// their forced-reload behavior. Manual tidal writes disable reuse because
 /// path installation restores automatic selection, even for an equal value.
 pub(crate) fn ensure_ephe_path_locked(path: Option<&CString>) -> Result<(), Error> {
-    let environment = std::env::var_os("SE_EPHE_PATH");
-    let working_directory = ephe_path_directory(path, environment.as_deref());
+    ensure_ephe_path_with_environment_locked(path, true, true)
+}
+
+/// Reuse installed path metadata under native access. When refresh is disabled,
+/// only an actual installation samples the environment, as the C setter does.
+/// Directory and thread checks use the last globally installed selection.
+pub(crate) fn ensure_ephe_path_with_environment_locked(
+    path: Option<&CString>,
+    refresh_environment: bool,
+    reinstall_on_directory_change: bool,
+) -> Result<(), Error> {
+    let environment = refresh_environment.then(|| std::env::var_os("SE_EPHE_PATH"));
     let reusable = {
         let settings = VALIDATION_SETTINGS
             .lock()
@@ -278,15 +311,30 @@ pub(crate) fn ensure_ephe_path_locked(path: Option<&CString>) -> Result<(), Erro
             .ephe_path
             .as_ref()
             .is_some_and(|(saved, saved_environment)| {
-                saved.as_ref() == path && *saved_environment == environment
+                if saved.as_ref() != path
+                    || environment
+                        .as_ref()
+                        .is_some_and(|current| current != saved_environment)
+                {
+                    return false;
+                }
+                // The saved environment describes what C actually installed, even
+                // when a different session last wrote it. The default policy
+                // observes cwd changes; native-relative lifecycle keeps C's
+                // current path and open files without another setter.
+                let directory_reusable = !reinstall_on_directory_change
+                    || settings.ephe_path_directory == EphemerisDirectory::Independent
+                    || {
+                        let directory = ephe_path_directory(path, saved_environment.as_deref());
+                        directory != EphemerisDirectory::Unavailable
+                            && directory == settings.ephe_path_directory
+                    };
+                directory_reusable
+                && settings.ephe_path_thread == Some(configuration_thread_id())
+                // Explicit manual tidal writes require the setter's automatic
+                // selection effect, even if the numeric value was unchanged.
+                && settings.ephe_path_automatic_tidal
             })
-            && working_directory != EphemerisDirectory::Unavailable
-            && working_directory == settings.ephe_path_directory
-            && settings.ephe_path_thread == Some(std::thread::current().id())
-            // Binding-owned manual tidal writes clear this marker. Automatic
-            // selection changes during calculations are part of native state,
-            // not a path change: replaying the setter would reset its caches.
-            && settings.ephe_path_automatic_tidal
     };
     if reusable {
         Ok(())
@@ -332,20 +380,55 @@ pub(crate) fn apply_sid_mode_locked(mode: i32, t0: f64, ayan_t0: f64) -> Result<
         (mode & 255 == crate::SIDM_USER && mode & USER_UT_BIT != 0).then_some(t0);
     settings.sidereal_initialized = true;
     settings.sidereal_mode = Some((mode, t0, ayan_t0));
+    settings.sidereal_thread = Some(configuration_thread_id());
     Ok(())
+}
+
+/// Retain an identical Session sidereal configuration on its native thread.
+///
+/// The caller holds native access. `t0` is a Julian Day and `ayan_t0` an angle
+/// in degrees; exact bits distinguish every finite admitted request. Explicit
+/// public setters still force the C write. This retains only configuration
+/// identity; every requested computation still enters C. A poisoned metadata
+/// mutex is an error. Unsynchronized external C writes are not tracked.
+pub(crate) fn ensure_sid_mode_locked(mode: i32, t0: f64, ayan_t0: f64) -> Result<(), Error> {
+    let reusable = {
+        let settings = VALIDATION_SETTINGS
+            .lock()
+            .map_err(|_| Error::lock_poisoned())?;
+        settings.sidereal_thread == Some(configuration_thread_id())
+            && settings
+                .sidereal_mode
+                .is_some_and(|(saved_mode, saved_t0, saved_ayan)| {
+                    saved_mode == mode
+                        && saved_t0.to_bits() == t0.to_bits()
+                        && saved_ayan.to_bits() == ayan_t0.to_bits()
+                })
+    };
+    if reusable {
+        Ok(())
+    } else {
+        apply_sid_mode_locked(mode, t0, ayan_t0)
+    }
 }
 
 /// Apply a JPL file selection while native access is already held.
 ///
 /// Caller must hold the native lock; the setter copies the name and
 /// closes cached file data.
-pub(crate) fn apply_jpl_file_locked(native_name: &CString) {
+pub(crate) fn apply_jpl_file_locked(native_name: &CString) -> Result<(), Error> {
+    let mut settings = VALIDATION_SETTINGS
+        .lock()
+        .map_err(|_| Error::lock_poisoned())?;
     // SAFETY: `native_name` is a live `CString`, hence non-null and
     // NUL-terminated as the native setter requires. The setter copies the
     // name, so no reference outlives this scope.
     unsafe {
         ffi::swe_set_jpl_file(native_name.as_ptr());
     }
+    // The C setter clears precession models while retaining the mode fields.
+    settings.sidereal_thread = None;
+    Ok(())
 }
 
 /// Apply a tidal acceleration while native access is already held.
@@ -596,10 +679,7 @@ pub fn set_jpl_file(fname: &str) -> Result<(), Error> {
     let native_name = CString::new(fname).map_err(|_| {
         Error::invalid_input("set_jpl_file: file name contains an interior NUL byte")
     })?;
-    with_native_access(|| {
-        apply_jpl_file_locked(&native_name);
-        Ok(())
-    })
+    with_native_access(|| apply_jpl_file_locked(&native_name))
 }
 
 /// Set the tidal acceleration of the Moon used in Delta-T calculations.
@@ -996,11 +1076,11 @@ pub fn get_ayanamsa_name(mode: i32) -> Result<String, Error> {
 ///
 /// This is process-wide and explicit: cached data is dropped for every
 /// subsequent computation, which then lazily re-initializes on next use.
-/// The pinned native close also resets the sidereal mode and Delta-T override;
-/// their private validation metadata is cleared under the same native lock.
-/// It is the only reset operation; in particular, dropping a Rust value
-/// never closes anything, so one consumer cannot invalidate another's
-/// data or configuration.
+/// The pinned native close resets sidereal and observer state, but retains
+/// the search path and explicit Delta-T override. This API clears all private
+/// validation metadata, requiring path installation at the next configured
+/// read. Use [`close_preserving_path`] to retain native path reuse instead.
+/// Dropping a Rust value never closes anything.
 pub fn close() -> Result<(), Error> {
     with_native_access(|| {
         let mut settings = VALIDATION_SETTINGS
@@ -1012,6 +1092,39 @@ pub fn close() -> Result<(), Error> {
             ffi::swe_close();
         }
         *settings = ValidationSettings::default();
+        Ok(())
+    })
+}
+
+/// Close native files and reset calculation state while retaining path reuse.
+///
+/// Run the same native close as [`close`], without re-installing an unchanged
+/// search path at the next configured read. Native close retains that path;
+/// re-installing it would eagerly read the modern Moon file and can change
+/// automatic Delta-T selection for a subsequent date outside that file.
+/// No file or calculated result is retained. Other path owners, environment,
+/// relevant working-directory and native-thread changes still require ordinary
+/// path installation. Native sidereal, observer and tidal state is reset;
+/// the explicit Delta-T override is retained, matching the C operation.
+///
+/// This process-wide operation has no physical input or output units. Native
+/// lock failures propagate without retry. Raw C writes outside the binding's
+/// locking contract are not tracked. The existing [`close`] policy is unchanged.
+pub fn close_preserving_path() -> Result<(), Error> {
+    with_native_access(|| {
+        let mut settings = VALIDATION_SETTINGS
+            .lock()
+            .map_err(|_| Error::lock_poisoned())?;
+        // SAFETY: native access is held; the no-argument C operation drops
+        // files/caches and resets mode/site/tidal state, retaining path and
+        // the explicit Delta-T override. No caller pointer is exposed.
+        unsafe { ffi::swe_close() };
+        let previous = std::mem::take(&mut *settings);
+        settings.delta_t = previous.delta_t;
+        settings.ephe_path = previous.ephe_path;
+        settings.ephe_path_directory = previous.ephe_path_directory;
+        settings.ephe_path_thread = previous.ephe_path_thread;
+        settings.ephe_path_automatic_tidal = settings.ephe_path.is_some();
         Ok(())
     })
 }

@@ -15,8 +15,16 @@ use swisseph_bindings::{
 // expectations. Their internally spawned contention threads remain concurrent.
 static EXPECTATION_SCRIPT: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
+#[path = "support/isolated.rs"]
+mod isolated;
+
 #[test]
 fn complete_session_operations_remain_configured_under_contention() {
+    if !isolated::without_ephe_override(
+        "complete_session_operations_remain_configured_under_contention",
+    ) {
+        return;
+    }
     let _script = EXPECTATION_SCRIPT.lock().unwrap();
     let data = std::env::var("SWISSEPH_EPHE_DIR").expect("select identified data");
     let mut records = Vec::new();
@@ -102,6 +110,11 @@ fn complete_session_operations_remain_configured_under_contention() {
 
 #[test]
 fn additional_native_session_routes_keep_complete_results_and_errors() {
+    if !isolated::without_ephe_override(
+        "additional_native_session_routes_keep_complete_results_and_errors",
+    ) {
+        return;
+    }
     let _script = EXPECTATION_SCRIPT.lock().unwrap();
     let data = std::env::var("SWISSEPH_EPHE_DIR").expect("select identified data");
     set_ephe_path(Some(&data)).unwrap();

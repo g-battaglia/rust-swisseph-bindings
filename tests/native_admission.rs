@@ -7,6 +7,9 @@ use swisseph_bindings::{
     global::set_ephe_path, native::fixed_star_catalog, native::lun_occult_where_full,
 };
 
+#[path = "support/isolated.rs"]
+mod isolated;
+
 /// Build the public-header reference against this target's C archive.
 fn oracle() -> PathBuf {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -16,7 +19,9 @@ fn oracle() -> PathBuf {
         .lines()
         .find_map(|s| s.strip_prefix("compiler: "))
         .unwrap();
-    let bin = out.join("admission-oracle");
+    // Each isolated test owns its executable; concurrent compilers must never
+    // replace a sibling test's file while that test is trying to launch it.
+    let bin = out.join(format!("admission-oracle-{}", std::process::id()));
     assert!(
         Command::new(compiler)
             .args(["-O2", "-I"])
@@ -63,6 +68,11 @@ fn reference(bin: &Path, op: &str, input: &str, flags: i32) -> (i32, Vec<u64>, S
 
 #[test]
 fn built_in_positions_and_fixed_instant_moon_geometry_match_c() {
+    if !isolated::without_ephe_override(
+        "built_in_positions_and_fixed_instant_moon_geometry_match_c",
+    ) {
+        return;
+    }
     let bin = oracle();
     set_ephe_path(Some("/tmp/swiss-admission-missing-data")).unwrap();
     let mut cases = 0;
@@ -103,7 +113,7 @@ fn built_in_positions_and_fixed_instant_moon_geometry_match_c() {
         for flags in [FLG_SWIEPH, FLG_MOSEPH] {
             let (status, bits, diagnostic, _) = reference(&bin, "where", &jd.to_string(), flags);
             let value =
-                lun_occult_where_full(jd, MOON, None, flags).expect("finite C geometry refused");
+                lun_occult_where_full(jd, SUN, None, flags).expect("finite C geometry refused");
             assert_eq!(value.occult_type, status);
             assert!(
                 value
@@ -115,6 +125,14 @@ fn built_in_positions_and_fixed_instant_moon_geometry_match_c() {
                 "where inputJD{jd} flags{flags} values differ"
             );
             assert_eq!(value.diagnostic, diagnostic);
+            // The Moon cannot occult itself. Its native geography buffer is
+            // undefined, so test the safe rejection without dispatching to C.
+            assert_eq!(
+                lun_occult_where_full(jd, MOON, None, flags)
+                    .unwrap_err()
+                    .kind(),
+                ErrorKind::InvalidInput
+            );
             cases += 1;
         }
     }
@@ -127,6 +145,9 @@ fn built_in_positions_and_fixed_instant_moon_geometry_match_c() {
 
 #[test]
 fn crossing_failure_retains_original_empty_diagnostic() {
+    if !isolated::without_ephe_override("crossing_failure_retains_original_empty_diagnostic") {
+        return;
+    }
     let bin = oracle();
     set_ephe_path(Some("/tmp/swiss-admission-missing-data")).unwrap();
     let (_, bits, diagnostic, _) = reference(&bin, "mooncross_ut", "90", FLG_SWIEPH | FLG_HELCTR);
@@ -146,6 +167,9 @@ fn crossing_failure_retains_original_empty_diagnostic() {
 
 #[test]
 fn unavailable_catalog_retains_actual_preflight_metadata() {
+    if !isolated::without_ephe_override("unavailable_catalog_retains_actual_preflight_metadata") {
+        return;
+    }
     let bin = oracle();
     set_ephe_path(Some("/tmp/swiss-admission-missing-data")).unwrap();
     let (status, _, diagnostic, _) = reference(&bin, "catalog-preflight", "1", 0);

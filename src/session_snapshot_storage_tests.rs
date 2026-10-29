@@ -1,11 +1,10 @@
 //! Warm snapshot storage reuses capacity while every native read stays fresh.
 
 use super::*;
+use crate::test_data;
 
 #[path = "../tests/support/isolated.rs"]
 mod isolated;
-#[path = "../tests/data_dir.rs"]
-mod test_data;
 
 fn snapshot_storage(session: &Session) -> [Option<(usize, usize)>; 5] {
     with_native_access(|| {
@@ -226,4 +225,38 @@ fn copied_file_paths_preserve_target_on_reentry_and_poisoned_locks() {
         ),
         storage
     );
+}
+
+#[test]
+fn owned_snapshot_projection_does_not_reenter_native_access() {
+    if !isolated::without_ephe_override(
+        "session::snapshot_storage_tests::owned_snapshot_projection_does_not_reenter_native_access",
+    ) {
+        return;
+    }
+    let session = SessionBuilder::new().build().unwrap();
+    session.file_data.lock().unwrap()[0] = Some(crate::CurrentFileData {
+        path: String::from("owned-snapshot.se1"),
+        tfstart: 0.0,
+        tfend: 1.0,
+        denum: 0,
+    });
+    let mut target = Some(String::from("caller-owned-storage"));
+    with_native_access(|| {
+        session.copy_captured_file_path_into(0, &mut target)?;
+        assert_eq!(target.as_deref(), Some("owned-snapshot.se1"));
+        session.copy_captured_file_path_into(1, &mut target)?;
+        assert!(target.is_none());
+        target = Some(String::from("unchanged-on-error"));
+        assert_eq!(
+            session
+                .copy_captured_file_path_into(5, &mut target)
+                .unwrap_err()
+                .kind(),
+            crate::ErrorKind::InvalidInput,
+        );
+        assert_eq!(target.as_deref(), Some("unchanged-on-error"));
+        Ok(())
+    })
+    .unwrap();
 }

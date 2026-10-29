@@ -1437,6 +1437,20 @@ unsafe extern "C" {
         isgn: *mut i32,
     );
 
+    /// Versioned 2.10.03 split utility, compiled from the separately attributed
+    /// upstream C implementation. Pointer and native-lock requirements are
+    /// identical to `swe_split_deg`; rounded lower fields retain that release's
+    /// original values. Nakshatra splitting observes the same sidereal state.
+    pub(crate) fn swe_split_deg_2_10_03(
+        ddeg: c_double,
+        roundflag: i32,
+        ideg: *mut i32,
+        imin: *mut i32,
+        isec: *mut i32,
+        dsecfr: *mut c_double,
+        isgn: *mut i32,
+    );
+
     /// `const char *swe_get_current_file_data(int ifno, double *tfstart,
     /// double *tfend, int *denum)` — identity of the ephemeris file
     /// backing file slot `ifno` (0 = planet file, 1 = Moon file). All

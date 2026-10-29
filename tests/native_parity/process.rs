@@ -298,7 +298,7 @@ pub fn compile_oracle(
     inputs.extend(
         manifest
             .lines()
-            .filter(|line| line.starts_with("swisseph/"))
+            .filter(|line| line.starts_with("swisseph/") || line.starts_with("src/native/"))
             .map(|line| root.join(line)),
     );
     // Caller headers/includes and the compiled Rust peer are real inputs too.

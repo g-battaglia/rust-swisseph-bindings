@@ -56,6 +56,13 @@ pub(crate) fn check_ut_date_locked(function: &str, jd: f64, flags: i32) -> Resul
     let swiss = (flags & !(FLG_SWIEPH | FLG_JPLEPH | FLG_MOSEPH)) | FLG_SWIEPH;
     let mut result = Ok(());
     for source in [swiss, fallback] {
+        // Only the first Swiss probe can immediately repeat the exact source
+        // and effective date already checked above. No configuration changed
+        // between them. Keep Moshier and the final requested-source restore:
+        // those selections can change automatic tidal acceleration.
+        if source == swiss && flags == swiss {
+            continue;
+        }
         // SAFETY: calendar-bounded finite input; null diagnostics are
         // supported. The caller holds native access through computation.
         let dt = unsafe { crate::ffi::swe_deltat_ex(jd, source, std::ptr::null_mut()) };
@@ -79,3 +86,6 @@ pub(crate) fn check_ut_locked(function: &str, jd: f64, flags: i32) -> Result<(),
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests;

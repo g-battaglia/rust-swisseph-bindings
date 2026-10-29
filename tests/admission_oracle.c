@@ -16,7 +16,7 @@ int main(int argc, char **argv) {
       ? swe_fixstar2(name, 2451545.0, flags, values, diagnostic)
       : swe_fixstar2_ut(name, 2451545.0, flags, values, diagnostic);
   } else if (!strcmp(argv[1], "where")) {
-    status = swe_lun_occult_where(strtod(argv[2], NULL), SE_MOON, NULL,
+    status = swe_lun_occult_where(strtod(argv[2], NULL), SE_SUN, NULL,
                                  flags, values, values + 10, diagnostic);
     count = 30;
   } else if (!strcmp(argv[1], "catalog-preflight")) {

@@ -30,6 +30,11 @@
 //! close, or a tidal-state change that
 //! requires its automatic-selection side effect. The public path setter remains
 //! a forced reload, including when the same path is supplied again.
+//! By default each computation samples `SE_EPHE_PATH`; callers that require
+//! the C setter's environment lifecycle can select installation-only sampling
+//! with [`SessionBuilder::refresh_ephe_path_environment`].
+//! Relative paths normally track directory changes; native open-file behavior
+//! is available with [`SessionBuilder::reinstall_ephe_path_on_directory_change`].
 //!
 //! # Reset semantics
 //!
@@ -81,8 +86,9 @@ use std::sync::{Arc, Mutex};
 
 use crate::config::{
     MAX_EPHE_PATH_LEN, MAX_JPL_FILE_LEN, apply_delta_t_locked, apply_jpl_file_locked,
-    apply_sid_mode_locked, apply_tid_acc_locked, apply_topo_locked, check_sidereal_request_locked,
-    ensure_ephe_path_locked, get_ayanamsa_ut_locked, get_current_file_data_locked,
+    apply_tid_acc_locked, apply_topo_locked, check_sidereal_request_locked,
+    ensure_ephe_path_with_environment_locked, ensure_sid_mode_locked, get_ayanamsa_ut_locked,
+    get_current_file_data_locked,
 };
 use crate::error::Error;
 use crate::ffi::{HELIACAL_ATM_LEN, HELIACAL_OBS_LEN};
@@ -115,12 +121,77 @@ pub struct SessionBuilder {
     tid_acc: Option<f64>,
     delta_t: Option<Option<f64>>,
     lapse_rate: Option<f64>,
+    excluded_file_data_slots: [bool; 5],
+    ephe_path_environment_on_installation: bool,
+    keep_relative_ephe_path: bool,
 }
 
 impl SessionBuilder {
     /// Start a session builder with every knob unset (fully inherited).
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Choose when a configured path observes `SE_EPHE_PATH`.
+    ///
+    /// Enabled by default: every computation checks for an environment change.
+    /// With `false`, an unchanged installed path retains its effective native
+    /// environment until a path installation is otherwise required, matching
+    /// the C setter's sampling lifecycle. Explicit path setters always sample
+    /// the current environment, even for the same path spelling. Close, path,
+    /// native thread, relative working-directory and manual tidal changes can
+    /// require installation and therefore also sample the current environment.
+    /// The last globally installed selection is authoritative across sessions.
+    /// Unset paths inherit native state and are unaffected by this policy.
+    /// This changes no input validation, computation or file-snapshot policy.
+    pub fn refresh_ephe_path_environment(&mut self, enabled: bool) -> &mut Self {
+        self.ephe_path_environment_on_installation = !enabled;
+        self
+    }
+
+    /// Choose whether a cwd change reinstalls a configured relative path.
+    ///
+    /// Enabled by default: relative path sessions restore their configuration
+    /// after a directory change. With `false`, retain the installed native path
+    /// and its open files, following the C library's relative-path lifecycle.
+    /// Later native file opens resolve relative entries from the then-current
+    /// directory; already open native files retain C's ordinary behavior.
+    /// Explicit setters, other path selections, close, thread and manual tidal
+    /// invalidations still reinstall. This policy does not change environment
+    /// sampling; select [`Self::refresh_ephe_path_environment`] independently.
+    /// It performs no computation and changes no values, flags or diagnostics
+    /// produced by the C operation under its selected installed state.
+    pub fn reinstall_ephe_path_on_directory_change(&mut self, enabled: bool) -> &mut Self {
+        self.keep_relative_ephe_path = !enabled;
+        self
+    }
+
+    /// Enable or disable owned file-metadata snapshots after computations.
+    ///
+    /// Enabled by default. Disabling avoids observing and copying the five
+    /// native file slots; it does not change configuration, calculations,
+    /// returned flags or diagnostics. Metadata getters on the built session
+    /// and its clones then return `None`, meaning no snapshot was requested,
+    /// without claiming that the computation used no files. Independent
+    /// sessions and the process-global metadata getters remain unaffected.
+    /// This replaces any selection made by [`Self::capture_file_slots`].
+    pub fn capture_file_data(&mut self, enabled: bool) -> &mut Self {
+        self.excluded_file_data_slots = [!enabled; 5];
+        self
+    }
+
+    /// Select which native file slots receive owned metadata snapshots.
+    ///
+    /// The five booleans correspond to native slot indices 0 through 4. All
+    /// slots are enabled by default; `false` omits only that slot's observation
+    /// and copy. Configuration, native computations, returned flags and
+    /// diagnostics are unchanged. An omitted slot returns `None` from this
+    /// session's metadata getters, without asserting that no file was used.
+    /// Clones share the selected history; independent sessions and global
+    /// metadata getters remain unaffected. The last capture-policy setter wins.
+    pub fn capture_file_slots(&mut self, enabled: [bool; 5]) -> &mut Self {
+        self.excluded_file_data_slots = enabled.map(|enabled| !enabled);
+        self
     }
 
     /// Select the ephemeris data directory for the session.
@@ -299,6 +370,7 @@ impl SessionBuilder {
                 )
             })?;
         }
+        let capture_file_slots = self.excluded_file_data_slots.map(|excluded| !excluded);
         Ok(Session {
             ephe_path,
             jpl_file,
@@ -307,6 +379,10 @@ impl SessionBuilder {
             tid_acc: self.tid_acc,
             delta_t: self.delta_t,
             lapse_rate: self.lapse_rate,
+            ephe_path_environment_on_installation: self.ephe_path_environment_on_installation,
+            keep_relative_ephe_path: self.keep_relative_ephe_path,
+            capture_file_data: capture_file_slots.iter().any(|enabled| *enabled),
+            capture_file_slots,
             file_data: Arc::new(Mutex::new(std::array::from_fn(|_| None))),
         })
     }
@@ -322,9 +398,12 @@ impl SessionBuilder {
 /// may leave applied settings installed globally; no transactional rollback is
 /// promised. See the module documentation for inheritance, reset and observer
 /// side-effect semantics.
-/// File metadata is captured before releasing native access and can be
+/// Selected file metadata is captured before releasing native access and can be
 /// queried later without changing native state. Clones share this history;
-/// separately built sessions have independent histories.
+/// separately built sessions have independent histories. Snapshot capture can
+/// be disabled with [`SessionBuilder::capture_file_data`] or restricted with
+/// [`SessionBuilder::capture_file_slots`]. Omitted slots have no history even
+/// when computations use native data files.
 #[derive(Debug, Clone)]
 pub struct Session {
     ephe_path: Option<Option<CString>>,
@@ -334,6 +413,14 @@ pub struct Session {
     tid_acc: Option<f64>,
     delta_t: Option<Option<f64>>,
     lapse_rate: Option<f64>,
+    /// Sample the native path environment only when installation is required.
+    ephe_path_environment_on_installation: bool,
+    /// Keep the installed relative C path and its open files after cwd changes.
+    keep_relative_ephe_path: bool,
+    /// Whether computations publish an owned snapshot of the native file slots.
+    capture_file_data: bool,
+    /// Native file slots selected for owned observation after computations.
+    capture_file_slots: [bool; 5],
     /// Owned copies of slots 0..=4, the range accepted by the pinned
     /// `swe_get_current_file_data`. Only accessed under the native lock;
     /// the inner mutex provides safe interior mutability for `&self`.
@@ -341,10 +428,19 @@ pub struct Session {
 }
 
 impl Session {
-    /// Apply configuration, compute and capture native file slots under
+    /// Apply configuration, compute and optionally capture native file slots under
     /// one acquisition. No user-provided callback reaches this helper.
     /// Lock order is always native access, then the metadata mutex.
+    #[inline(always)]
     fn compute<R>(&self, operation: impl FnOnce() -> Result<R, Error>) -> Result<R, Error> {
+        // With no requested snapshot, forward the operation result directly;
+        // it need not remain live across the snapshot-policy/error branches.
+        if !self.capture_file_data {
+            return with_native_access(|| {
+                self.apply_locked()?;
+                operation()
+            });
+        }
         with_native_access(|| {
             self.apply_locked()?;
             let result = operation();
@@ -357,17 +453,22 @@ impl Session {
             match self.file_data.lock() {
                 Ok(mut files) => {
                     // The native lock also serializes public snapshot readers.
-                    // Refresh every slot before publishing the complete snapshot,
+                    // Refresh selected slots before publishing the snapshot,
                     // reusing only the owned strings' allocation capacity.
                     for (slot, file) in files.iter_mut().enumerate() {
-                        crate::config::capture_current_file_data_locked(slot as i32, file);
+                        if self.capture_file_slots[slot] {
+                            crate::config::capture_current_file_data_locked(slot as i32, file);
+                        }
                     }
                 }
                 Err(_) => {
-                    // Keep the same five observations before the existing lock
+                    // Keep the same selected observations before the existing lock
                     // failure, including when the computation already failed.
-                    let _files: [Option<crate::CurrentFileData>; 5] =
-                        std::array::from_fn(|slot| get_current_file_data_locked(slot as i32));
+                    let _files: [Option<crate::CurrentFileData>; 5] = std::array::from_fn(|slot| {
+                        self.capture_file_slots[slot]
+                            .then(|| get_current_file_data_locked(slot as i32))
+                            .flatten()
+                    });
                     return Err(Error::lock_poisoned());
                 }
             }
@@ -380,7 +481,11 @@ impl Session {
     /// the computation and the metadata snapshot).
     fn apply_locked(&self) -> Result<(), Error> {
         if let Some(path) = &self.ephe_path {
-            ensure_ephe_path_locked(path.as_ref())?;
+            ensure_ephe_path_with_environment_locked(
+                path.as_ref(),
+                !self.ephe_path_environment_on_installation,
+                !self.keep_relative_ephe_path,
+            )?;
         }
         if let Some(jpl) = &self.jpl_file {
             match jpl {
@@ -388,13 +493,13 @@ impl Session {
                 // SAFETY: an empty `CString` is a valid empty C string;
                 // the native setter treats it as "close the JPL file".
                 None => apply_jpl_file_locked(&CString::new("").unwrap_or_default()),
-            }
+            }?;
         }
         if let Some((lon, lat, alt)) = self.topo {
             apply_topo_locked(lon, lat, alt)?;
         }
         if let Some((mode, t0, ayan_t0)) = self.sid_mode {
-            apply_sid_mode_locked(mode, t0, ayan_t0)?;
+            ensure_sid_mode_locked(mode, t0, ayan_t0)?;
         }
         if let Some(acc) = self.tid_acc {
             apply_tid_acc_locked(acc)?;
@@ -552,6 +657,7 @@ impl Session {
     /// output, real flags/status/diagnostic where provided; preserve native,
     /// input and poisoned-lock errors. No callback, inferred value, alternate
     /// engine or isolation against external raw-C clients is introduced.
+    #[inline(always)]
     pub fn houses_ex2(
         &self,
         jd_ut: f64,
@@ -841,21 +947,40 @@ impl Session {
         ifno: i32,
         target: &mut Option<String>,
     ) -> Result<(), Error> {
-        with_native_access(|| {
-            let files = self.file_data.lock().map_err(|_| Error::lock_poisoned())?;
-            let file = usize::try_from(ifno)
-                .ok()
-                .and_then(|slot| files.get(slot))
-                .ok_or_else(|| Error::invalid_input("file slot must be in 0..=4"))?;
-            match file {
-                Some(file) => match target {
-                    Some(path) => path.clone_from(&file.path),
-                    None => *target = Some(file.path.clone()),
-                },
-                None => *target = None,
-            }
-            Ok(())
-        })
+        with_native_access(|| self.copy_captured_file_path_into(ifno, target))
+    }
+
+    /// Copy an already-owned session snapshot path without acquiring native C.
+    ///
+    /// `ifno` is a file slot in `0..=4`. Output bytes, capacity reuse and empty
+    /// snapshots follow [`Self::get_current_file_path_into`]. This operation
+    /// locks only the owned snapshot: it neither applies configuration nor
+    /// reads native state. It is suitable for projecting metadata immediately
+    /// after a calculation, and concurrent calculations publish a complete
+    /// snapshot before readers can acquire it. No native pointer escapes.
+    ///
+    /// Invalid slots return [`crate::ErrorKind::InvalidInput`], and a poisoned
+    /// snapshot mutex returns [`crate::ErrorKind::LockPoisoned`]. Errors leave
+    /// `target` unchanged. Unlike the native-access query, an unrelated native
+    /// lock failure does not prevent reading this independently owned data.
+    pub fn copy_captured_file_path_into(
+        &self,
+        ifno: i32,
+        target: &mut Option<String>,
+    ) -> Result<(), Error> {
+        let files = self.file_data.lock().map_err(|_| Error::lock_poisoned())?;
+        let file = usize::try_from(ifno)
+            .ok()
+            .and_then(|slot| files.get(slot))
+            .ok_or_else(|| Error::invalid_input("file slot must be in 0..=4"))?;
+        match file {
+            Some(file) => match target {
+                Some(path) => path.clone_from(&file.path),
+                None => *target = Some(file.path.clone()),
+            },
+            None => *target = None,
+        }
+        Ok(())
     }
 
     /// Report a native file slot captured after this session's last
@@ -870,9 +995,9 @@ impl Session {
     /// before native access leave it untouched.
     ///
     /// Slots and fields follow [`crate::global::get_current_file_data`]. Returns
-    /// `None` before the first computation, for an empty slot, or for an
-    /// ID outside `0..=4`. The report describes native slots at the end of
-    /// the operation, not a complete list of sources used by the result;
+    /// `None` when capture is disabled for that slot, before the first computation, for an
+    /// empty slot, or for an ID outside `0..=4`. The report describes native
+    /// slots at the end of the operation, not a complete list of sources used by the result;
     /// use returned source flags to detect fallback.
     pub fn get_current_file_data(
         &self,

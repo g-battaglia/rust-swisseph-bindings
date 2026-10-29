@@ -26,6 +26,39 @@ pub struct Summary {
     pub absences: usize,
     /// Every compared computation/snapshot/status/rejection field.
     pub fields: usize,
+    /// Unchanged Session paths retained by the independent C baseline.
+    pub path_reuses: usize,
+}
+
+/// Input history for the C baseline's documented Session path lifecycle.
+/// Workers keep one cwd, environment and thread throughout this serial script.
+/// No calculated value or observed file metadata decides whether to reload.
+#[derive(Default)]
+enum InstalledPath {
+    /// No eligible installation, including after close or a manual tidal write.
+    #[default]
+    Unknown,
+    /// Explicit path, or the compiled default when the native pointer is NULL.
+    Selected(Option<String>),
+}
+
+impl InstalledPath {
+    /// A Session retains an unchanged path until close or a manual tidal write.
+    /// Explicit free setters still run every time, including identical paths.
+    fn reusable(&self, request: &Request) -> bool {
+        matches!(self, Self::Selected(saved) if saved.as_deref() == request.optional_text(0))
+    }
+
+    /// Track successful public writes, not lazy native calculation internals.
+    fn observe(&mut self, request: &Request) {
+        match Op::from_wire(request.op) {
+            Some(Op::SetEphePath) => {
+                *self = Self::Selected(request.optional_text(0).map(str::to_owned));
+            }
+            Some(Op::SetTidAcc | Op::Close) => *self = Self::Unknown,
+            _ => (),
+        }
+    }
 }
 
 /// Owned script state and bounded worker references; no raw FFI is reachable.
@@ -40,6 +73,8 @@ struct Script<'a> {
     key: &'static str,
     /// Requested ephemeris flags (actual returned sources are compared).
     source: i32,
+    /// C setter inputs eligible for the Session's open-file reuse contract.
+    installed_path: InstalledPath,
     /// Successful execution accounting, never expected numerical output.
     summary: Summary,
     /// C path setter state follows input requests, never observed results.
@@ -142,6 +177,7 @@ impl Script<'_> {
             .map_err(|e| self.context(op.entry().name, e))?;
         self.summary.fields += super::compare::operation(op, &request, Some(&native), &rust)
             .map_err(|e| self.context(op.entry().name, e))?;
+        self.installed_path.observe(&request);
         Ok(native)
     }
     /// Track only the setter sequence relevant to guarded path installation.
@@ -168,13 +204,12 @@ impl Script<'_> {
             if both {
                 self.both(request)?;
             } else {
-                // The configured Rust path avoids a repeated native setter.
-                // Replaying a forced C setter here would deliberately discard
-                // caches/file metadata on only one side before the same query.
-                if request.op == Op::SetEphePath as u32
-                    && self.c_automatic_tidal
-                    && self.c_path.as_ref() == Some(&request.texts[0])
-                {
+                // Repeating swe_set_ephe_path would close all C file slots.
+                // A Session intentionally keeps an unchanged path installed;
+                // compare against the same public native lifecycle, rather
+                // than clearing only the oracle's observable file history.
+                if request.op == Op::SetEphePath as u32 && self.installed_path.reusable(&request) {
+                    self.summary.path_reuses += 1;
                     continue;
                 }
                 let request = self.identified(request);
@@ -187,6 +222,7 @@ impl Script<'_> {
                 {
                     return Err(self.context("C configuration", "setter result shape".into()));
                 }
+                self.installed_path.observe(&request);
             }
         }
         Ok(())
@@ -321,9 +357,9 @@ impl Script<'_> {
         }
         self.history(slot, &history).map_err(|error| {
             format!(
-                "{error}; after={} recipe_mask={:?}",
+                "{error}; computation={} mask={}",
                 op.entry().name,
-                recipe.map(|r| r.mask)
+                recipe.map_or(0, |recipe| recipe.mask)
             )
         })?;
         Ok(history)
@@ -346,6 +382,7 @@ pub fn run(
         id: 100000,
         key: "SESSION_INHERITS_AT_CALL_TIME",
         source,
+        installed_path: InstalledPath::default(),
         summary: Summary::default(),
         c_path: None,
         c_automatic_tidal: false,

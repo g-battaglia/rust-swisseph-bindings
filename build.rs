@@ -1,4 +1,4 @@
-//! Build script: compile the pinned, unmodified native Swiss Ephemeris
+//! Build script: compile the pinned native Swiss Ephemeris
 //! library and link it into this crate.
 //!
 //! The submodule `swisseph/` must be checked out at the commit recorded in
@@ -6,10 +6,33 @@
 //! when its sources are absent the build fails with a message that names
 //! the missing prerequisite instead of an obscure compiler error.
 //!
-//! Library translation units follow the upstream `Makefile` (`SWEOBJ`):
+//! Engine translation units follow the upstream `Makefile` (`SWEOBJ`):
 //! command line tools (`swetest`, `swevents`, `swemini`, `obama`), test
 //! oracles and unrelated programs are excluded. All compiler outputs live
-//! under Cargo `OUT_DIR`; nothing is written into the submodule.
+//! under Cargo `OUT_DIR`; nothing is written into the submodule. The separately
+//! attributed 2.10.03 degree splitter is an explicit versioned compatibility
+//! unit under `src/native/`, without changing any pinned engine source.
+//! Declared OUT_DIR overlays compact catalog spaces and decode immutable
+//! Moshier argument metadata, with exact static conversion of nutation tables
+//! and a bounded exact remainder in the two angle normalizers. Literal lunar
+//! perturbation kinds retain exact reader bodies with constant control. Lookup and
+//! surrounding expressions retain their pinned order; the dependency checkout
+//! is never modified.
+
+#[path = "build_support/c_source.rs"]
+mod c_source;
+#[path = "build_support/chewm_type_control.rs"]
+mod chewm_type_control;
+#[path = "build_support/file_open.rs"]
+mod file_open;
+#[path = "build_support/moshier.rs"]
+mod moshier;
+#[path = "build_support/nutation.rs"]
+mod nutation;
+#[path = "build_support/period_remainder.rs"]
+mod period_remainder;
+#[path = "build_support/precession_pairs.rs"]
+mod precession_pairs;
 
 use std::env;
 use std::fs;
@@ -49,13 +72,28 @@ const HEADERS: &[&str] = &[
     "swenut2000a.h",
 ];
 
+/// Versioned upstream utility kept separately from the current engine.
+const COMPAT_SOURCE: &str = "src/native/split_deg_2_10_03.c";
+
+/// Lossless string operation compiled into the generated catalog reader.
+const CATALOG_COMPACTION: &str = "src/native/fixed_star_ascii_space_compaction.h";
+
+/// Exact pinned fragment replaced once, after the existing name truncation.
+const CATALOG_SPACE_LOOP: &str =
+    "    while ((sp = strchr(fstar, ' ')) != NULL)\n      swi_strcpy(sp, sp+1);";
+
 /// C probe asserting the ABI widths the Rust declarations rely on.
 ///
 /// `int32` is `int` (32 bit) outside 16-bit targets and `double` is IEEE
 /// binary64; the probe turns a platform mismatch into a build failure here
 /// instead of silent FFI corruption later.
 const ABI_PROBE: &str = r#"
+#include <float.h>
 #include "sweodef.h"
+_Static_assert(FLT_RADIX == 2, "native double must use binary radix");
+_Static_assert(DBL_MANT_DIG == 53, "native double must have binary64 precision");
+_Static_assert(DBL_MIN_EXP == -1021, "native double must have binary64 minimum exponent");
+_Static_assert(DBL_MAX_EXP == 1024, "native double must have binary64 maximum exponent");
 #if !defined(_SWEODEF_INCLUDED)
 #error "sweodef.h did not provide the expected ABI types"
 #endif
@@ -77,6 +115,25 @@ fn main() {
     // a changed compiler must rerun this script instead of silently
     // reusing the cached archive.
     println!("cargo:rerun-if-env-changed=CC");
+    println!("cargo:rerun-if-changed={COMPAT_SOURCE}");
+    println!("cargo:rerun-if-changed={CATALOG_COMPACTION}");
+    println!("cargo:rerun-if-changed=build_support/c_source.rs");
+    println!("cargo:rerun-if-changed=build_support/nutation.rs");
+    for input in moshier::INPUTS {
+        println!("cargo:rerun-if-changed={input}");
+    }
+    for input in chewm_type_control::INPUTS {
+        println!("cargo:rerun-if-changed={input}");
+    }
+    for input in period_remainder::INPUTS {
+        println!("cargo:rerun-if-changed={input}");
+    }
+    for input in file_open::INPUTS {
+        println!("cargo:rerun-if-changed={input}");
+    }
+    for input in precession_pairs::INPUTS {
+        println!("cargo:rerun-if-changed={input}");
+    }
     for name in SOURCES.iter().chain(HEADERS.iter()) {
         println!("cargo:rerun-if-changed=swisseph/{name}");
     }
@@ -93,10 +150,27 @@ fn main() {
     }
 
     let cc = env::var("CC").unwrap_or_else(|_| "cc".to_string());
+    // Use ordinary full optimization for a release build. This never enables
+    // fast-math, reassociation, reduced precision or host-specific instructions.
+    let optimization = if env::var("OPT_LEVEL").as_deref() == Ok("3") {
+        "-O3"
+    } else {
+        "-O2"
+    };
+    // The Darwin linker consumes the compiler's native bitcode archive and
+    // optimizes across the C translation units. Keep ordinary floating-point
+    // semantics and portable target instructions; development builds and
+    // other linkers retain ordinary native objects.
+    let native_lto = optimization == "-O3"
+        && env::var("TARGET").is_ok_and(|target| target.ends_with("-apple-darwin"));
 
     // 1. ABI probe: verify native integer widths before compiling.
     let probe_path = out.join("abi_probe.c");
-    fs::write(&probe_path, ABI_PROBE).expect("write ABI probe");
+    fs::write(
+        &probe_path,
+        format!("{ABI_PROBE}\n{}", period_remainder::period_admission()),
+    )
+    .expect("write ABI and native-period probe");
     let probe_status = Command::new(&cc)
         .arg("-fsyntax-only")
         .arg(format!("-I{}", native.display()))
@@ -115,15 +189,50 @@ fn main() {
     }
 
     // 2. Compile each translation unit into OUT_DIR.
-    let mut objects = Vec::with_capacity(SOURCES.len());
-    for name in SOURCES {
+    let mut objects = Vec::with_capacity(SOURCES.len() + 1);
+    let catalog_input = compacted_catalog_source(&native, &out);
+    file_open::apply(&native, &catalog_input);
+    let moshier_input = moshier::generate(&native, &out);
+    let lunar_input = chewm_type_control::generate(&native, &out);
+    let nutation_input = nutation::generate(&native, &out);
+    period_remainder::apply(&native, &nutation_input);
+    precession_pairs::apply(&native, &nutation_input);
+    let inputs = SOURCES
+        .iter()
+        .map(|name| {
+            if *name == "sweph.c" {
+                catalog_input.clone()
+            } else if *name == "swemmoon.c" {
+                lunar_input.clone()
+            } else if *name == "swemplan.c" {
+                moshier_input.source.clone()
+            } else if *name == "swephlib.c" {
+                nutation_input.clone()
+            } else {
+                native.join(name)
+            }
+        })
+        .chain(std::iter::once(manifest.join(COMPAT_SOURCE)));
+    for input in inputs {
+        let name = input
+            .file_name()
+            .expect("native source filename")
+            .to_string_lossy();
         let object = out.join(format!("{name}.o"));
-        let status = Command::new(&cc)
-            .arg("-O2")
-            .arg("-fPIC")
+        let mut compiler = Command::new(&cc);
+        compiler.arg(optimization).arg("-fPIC");
+        if native_lto {
+            compiler.arg("-flto");
+        }
+        if input == moshier_input.source {
+            // The owned evaluator includes its private generated term bodies.
+            compiler.arg(format!("-I{}", out.display()));
+        }
+        let status = compiler
             .arg(format!("-I{}", native.display()))
+            .arg(format!("-I{}", manifest.join("src/native").display()))
             .arg("-c")
-            .arg(native.join(name))
+            .arg(&input)
             .arg("-o")
             .arg(&object)
             .status();
@@ -131,7 +240,8 @@ fn main() {
             Ok(status) if status.success() => objects.push(object),
             Ok(status) => {
                 panic!(
-                    "compiling swisseph/{name} failed (exit {status}); see compiler output above"
+                    "compiling {} failed (exit {status}); see compiler output above",
+                    input.display()
                 )
             }
             Err(err) => panic!("cannot run C compiler `{cc}`: {err}"),
@@ -153,7 +263,31 @@ fn main() {
 
     println!("cargo:rustc-link-search=native={}", out.display());
     println!("cargo:rustc-link-lib=static=swisseph");
-    write_input_manifest(&out, &cc);
+    write_input_manifest(&out, &cc, optimization, native_lto);
+}
+
+/// Generate exactly one lossless catalog-string substitution in OUT_DIR.
+/// A changed or missing pinned fragment fails closed before compilation;
+/// the dependency checkout and every numerical statement remain untouched.
+fn compacted_catalog_source(native: &Path, out: &Path) -> PathBuf {
+    let original = fs::read_to_string(native.join("sweph.c")).expect("read pinned catalog source");
+    assert_eq!(
+        original.matches(CATALOG_SPACE_LOOP).count(),
+        1,
+        "pinned fixed-star space loop differs; refusing an unreviewed transformation"
+    );
+    let transformed = original.replacen(
+        CATALOG_SPACE_LOOP,
+        "    swe_compact_fixed_star_ascii_spaces(fstar);",
+        1,
+    );
+    let generated = out.join("sweph.c");
+    fs::write(
+        &generated,
+        format!("#include \"fixed_star_ascii_space_compaction.h\"\n{transformed}"),
+    )
+    .expect("write generated catalog source");
+    generated
 }
 
 /// Record which native inputs produced the linked archive without touching
@@ -163,14 +297,63 @@ fn main() {
 /// tracked native input, plus a best-effort compiler version line. It
 /// never shells out to Git, so it also works when built from an extracted
 /// package without version-control metadata.
-fn write_input_manifest(out: &Path, cc: &str) {
+fn write_input_manifest(out: &Path, cc: &str, optimization: &str, native_lto: bool) {
     let manifest = out.join("native-inputs.txt");
     let mut content = String::from("pinned native inputs (see validation/source-pins.json):\n");
     for name in SOURCES.iter().chain(HEADERS.iter()) {
         content.push_str(&format!("swisseph/{name}\n"));
     }
+    content.push_str(&format!("{COMPAT_SOURCE}\n"));
+    content.push_str(&format!("{CATALOG_COMPACTION}\n"));
+    for input in moshier::INPUTS {
+        content.push_str(&format!("{input}\n"));
+    }
+    for input in chewm_type_control::INPUTS {
+        content.push_str(&format!("{input}\n"));
+    }
+    for input in period_remainder::INPUTS {
+        content.push_str(&format!("{input}\n"));
+    }
+    for input in file_open::INPUTS {
+        content.push_str(&format!("{input}\n"));
+    }
+    for input in precession_pairs::INPUTS {
+        content.push_str(&format!("{input}\n"));
+    }
+    content.push_str("build_support/c_source.rs\nbuild_support/nutation.rs\n");
+    content
+        .push_str("native-overlay: fixed-star ASCII-space compaction; generated OUT_DIR/sweph.c\n");
+    content.push_str("native-overlay: immutable Moshier argument metadata and paired coefficient layout; generated OUT_DIR/swemplan.c, swemptab.h, moshier_terms.generated.h and private moshier_evaluators.generated.h\n");
+    content.push_str(
+        "native-overlay: literal lunar perturbation kinds; generated OUT_DIR/swemmoon.c\n",
+    );
+    content.push_str(
+        "native-overlay: exact static nutation coefficient conversion; generated swenut2000a.h\n",
+    );
+    content.push_str("native-overlay: bounded exact remainder in swe_degnorm/swe_radnorm; generated OUT_DIR/swephlib.c\n");
+    content.push_str(
+        "native-overlay: read-only POSIX open/fdopen in swi_fopen; generated OUT_DIR/sweph.c\n",
+    );
+    content.push_str("native-overlay: paired immutable Vondrak periodic coefficients; generated OUT_DIR/swephlib.c\n");
+    for name in [
+        "sweph.c",
+        "swemmoon.c",
+        "swemplan.c",
+        "swemptab.h",
+        "moshier_terms.generated.h",
+        "moshier_evaluators.generated.h",
+        "swephlib.c",
+        "swenut2000a.h",
+    ] {
+        let bytes = fs::read(out.join(name)).expect("read generated overlay identity");
+        content.push_str(&format!(
+            "generated-fnv1a64: {name} {:016x}\n",
+            c_source::fingerprint(&bytes)
+        ));
+    }
     content.push_str(&format!("compiler: {cc}\n"));
-    content.push_str("cflags: -O2 -fPIC\n");
+    let lto_flag = if native_lto { " -flto" } else { "" };
+    content.push_str(&format!("cflags: {optimization} -fPIC{lto_flag}\n"));
     let version_line = Command::new(cc)
         .arg("--version")
         .output()

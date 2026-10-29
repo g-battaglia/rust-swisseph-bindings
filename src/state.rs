@@ -65,6 +65,7 @@ impl Drop for DepthGuard {
 /// lock short-circuits to [`Error`] without running the closure. A nested
 /// call on the thread already holding access is rejected with
 /// `InvalidInput` instead of deadlocking.
+#[inline(always)]
 pub(crate) fn with_native_access<R>(
     operation: impl FnOnce() -> Result<R, Error>,
 ) -> Result<R, Error> {
@@ -96,6 +97,28 @@ mod tests {
     // unaffected.
     #[test]
     fn poisoned_lock_is_reported_as_classified_error() {
+        // Reentry is refused before taking the non-reentrant lock, without
+        // changing the outer depth or running the nested operation.
+        with_native_access(|| {
+            let mut nested_ran = false;
+            let error = with_native_access(|| {
+                nested_ran = true;
+                Ok(())
+            })
+            .expect_err("nested native access must be refused");
+            assert_eq!(error.kind(), ErrorKind::InvalidInput);
+            assert!(!nested_ran);
+            NATIVE_DEPTH.with(|depth| assert_eq!(depth.get(), 1));
+            Ok(())
+        })
+        .unwrap();
+        NATIVE_DEPTH.with(|depth| assert_eq!(depth.get(), 0));
+        // An ordinary error also releases the same scope and allows reuse.
+        let error = with_native_access::<()>(|| Err(Error::invalid_input("test refusal")))
+            .expect_err("the operation error must propagate");
+        assert_eq!(error.kind(), ErrorKind::InvalidInput);
+        with_native_access(|| Ok(())).unwrap();
+
         // Panic while the lock is held: `with_native_access` holds the
         // mutex guard across `operation`, so unwinding through the guard
         // poisons `NATIVE_LOCK`, modelling a panic during a native call.
@@ -108,6 +131,7 @@ mod tests {
             caught.is_err(),
             "probe panic must unwind through the lock guard"
         );
+        NATIVE_DEPTH.with(|depth| assert_eq!(depth.get(), 0));
         // Every later acquisition short-circuits without running the closure.
         let mut ran = false;
         let err = with_native_access(|| {

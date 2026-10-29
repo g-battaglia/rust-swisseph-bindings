@@ -4,6 +4,56 @@
     "submodule": "swisseph",
     "commit": "9083a12d59e98034fb2337061481ac8800c16e64",
     "runtime_version": "2.10.03",
-    "role": "Unmodified native dependency; public ABI and build inputs"
-  }
+    "role": "Unmodified source dependency; public ABI and base build inputs"
+  },
+  "owned_native_overlays": [{
+    "id": "fixed-star-ascii-space-compaction",
+    "base_source": "swisseph/sweph.c",
+    "helper": "src/native/fixed_star_ascii_space_compaction.h",
+    "application": "build.rs generates OUT_DIR/sweph.c; exact pinned fragment required once",
+    "effect": "Single-pass removal of ASCII spaces from an already truncated catalog name; lookup, lifecycle, errors and astronomical calculations unchanged"
+  }, {
+    "id": "read-only-posix-file-open",
+    "base_source": "swisseph/sweph.c",
+    "generator": "build_support/file_open.rs",
+    "helper": "src/native/readonly_file_open.h",
+    "application": "build.rs substitutes only swi_fopen's read-only open call after the reviewed catalog overlay in OUT_DIR/sweph.c; complete source, consumer, preceding-overlay and helper fingerprints required",
+    "effect": "POSIX open(O_RDONLY) then fdopen with the original BFILE_R_ACCESS mode avoids FILE preparation for absent paths; a successful stream owns the descriptor and fdopen failure closes it once; non-POSIX retains original fopen; filename/path order and limits, returned stream behavior, complete native diagnostics and current filesystem observations retained; no retry, CLOEXEC, missing-file or result cache; errno, cancellation and resource-error precedence are not promised"
+  }, {
+    "id": "immutable-moshier-argument-metadata",
+    "base_source": "swisseph/swemplan.c",
+    "base_tables": "swisseph/swemptab.h",
+    "generator": "build_support/moshier.rs",
+    "specializer": "build_support/moshier_specialized.rs",
+    "helper": "src/native/moshier_metadata_eval.h",
+    "application": "build.rs generates OUT_DIR/swemplan.c, swemptab.h, moshier_terms.generated.h and private moshier_evaluators.generated.h; complete consumer/table/emitter fingerprints, exact evaluator fingerprint and complete table decoding required; OUT_DIR include search is added only to the Moshier translation unit",
+    "effect": "Build-time decoding of immutable term structure, lossless pairing of original longitude/latitude coefficient tokens and nine private constant-control evaluators with ascending native harmonic preparation at validated constant bounds; original angle expressions and sscc recurrence, including its second-harmonic write for a single requested harmonic, remain unchanged; time scaling and projection remain shared; larger compiled bodies and stack frames replace runtime term/degree/argument loops without duplicating coefficients; eighteen unused native longitude/latitude pointer tokens become null, enabling removal of redundant arrays while every other table-header byte and the radius stream remain unchanged; per-channel floating stages and Horner order, rounded-product/FMA/contribution/addition boundaries, first-angle assignments, sine signs, polynomial mods3600, term-ordered accumulations and native calls retained; no horizontal reduction, CPU-specific source or flags, time-dependent or result cache"
+  }, {
+    "id": "literal-lunar-perturbation-kinds",
+    "base_source": "swisseph/swemmoon.c",
+    "generator": "build_support/chewm_type_control.rs",
+    "application": "build.rs generates OUT_DIR/swemmoon.c; complete consumer/table fingerprint, all literal call-site counts and inverse byte equality required; generated source identity is included in native-inputs.txt",
+    "effect": "Four private copies retain the exact native chewm body with a constant kind, while original literal argument lists and table/macro branches remain unchanged; no coefficient conversion or precombination, row/angle reordering, new recurrence, call removal, date restriction or result cache; native low-word radius guard and first-angle/sign/zero handling are retained"
+  }, {
+    "id": "exact-static-nutation-coefficient-conversion",
+    "base_source": "swisseph/swephlib.c",
+    "base_tables": "swisseph/swenut2000a.h",
+    "generator": "build_support/nutation.rs",
+    "application": "build.rs retains the original nutation consumer in OUT_DIR/swephlib.c and substitutes four table element types in generated swenut2000a.h; exact consumer fingerprint, complete uses, dimensions and signed integer domains required",
+    "effect": "Exact static conversion of immutable integer inputs already promoted to double by every consumer expression; original literal tokens, comments, arithmetic, models and native calls retained; no time-dependent or result cache"
+  }, {
+    "id": "paired-independent-precession-coordinates",
+    "base_source": "swisseph/swephlib.c",
+    "generator": "build_support/precession_pairs.rs",
+    "helper": "src/native/precession_pairs.h",
+    "application": "build.rs composes after the unchanged nutation/normalizer overlays in OUT_DIR/swephlib.c; complete original/preceding/helper fingerprints, all 110 original period/coefficient tokens and the complete four-edit source inverse are required; both original periodic tables are replaced without duplicate coefficients",
+    "effect": "Two independent coordinates use private generic compiler vector lanes when supported with an exact scalar fallback; original rounded sine products, cosine FMA contributions and separate ordered totals remain, with no horizontal reduction; periods, trig calls, polynomial terms, projection, model branches, scalar parameter/result/table types and alignment are retained; no CPU-specific flags, date restriction, precision reduction or result cache"
+  }, {
+    "id": "bounded-exact-period-remainder",
+    "base_source": "swisseph/swephlib.c",
+    "generator": "build_support/period_remainder.rs",
+    "helper": "src/native/exact_period_remainder.h",
+    "application": "build.rs replaces only the swe_degnorm/swe_radnorm remainder calls in OUT_DIR/swephlib.c; complete source/helper fingerprints, exact integer reciprocal derivation, compile-only native-period admission and binary64 ABI premises required",
+    "effect": "Exact bounded quotient/FMA remainder for positive periods 360.0 and TWOPI; each upward reciprocal is the successor of an integer-derived nearest-even constant admitted against the actual C period macro, with original libc fmod for larger or nonfinite inputs; signed zeros, thresholds, wrapping, rounding-direction results and native calls retained; quotient estimation retains exact returned remainder bits; no reduced precision, date restriction or result cache; libc errno/fenv/trap side effects are not promised, including possible additional FE_INEXACT"
+  }]
 }

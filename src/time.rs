@@ -113,14 +113,61 @@ pub fn julday(year: i32, month: i32, day: i32, hour: f64, cal: Calendar) -> f64 
 /// days are doubles. The upper bound is the midnight after `i32::MAX`'s
 /// last day, expressed without overflowing a Rust or C year argument.
 pub(crate) fn check_calendar_jd(operation: &str, jd: f64, cal: Calendar) -> Result<(), Error> {
-    let first = julday(i32::MIN, 1, 1, 0.0, cal);
-    let end = julday(i32::MAX, 12, 31, 24.0, cal);
+    // Calendar limits depend only on the native pure calendar conversion,
+    // never on ephemeris files, configuration, date inputs or native state.
+    // Keep the original C-produced bounds rather than approximating them with
+    // Rust arithmetic, and avoid repeating these conversions at every guard.
+    static JULIAN: std::sync::OnceLock<(f64, f64)> = std::sync::OnceLock::new();
+    static GREGORIAN: std::sync::OnceLock<(f64, f64)> = std::sync::OnceLock::new();
+    let limits = match cal {
+        Calendar::Julian => &JULIAN,
+        Calendar::Gregorian => &GREGORIAN,
+    };
+    let &(first, end) = limits.get_or_init(|| {
+        (
+            julday(i32::MIN, 1, 1, 0.0, cal),
+            julday(i32::MAX, 12, 31, 24.0, cal),
+        )
+    });
     if !jd.is_finite() || jd < first || jd >= end {
         return Err(Error::invalid_input(format!(
             "{operation}: Julian Day must be finite with a calendar year representable as i32 ({jd})"
         )));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod calendar_domain_tests {
+    use super::{Calendar, check_calendar_jd, julday};
+
+    #[test]
+    fn native_calendar_limits_keep_the_exact_half_open_domain() {
+        for calendar in [Calendar::Julian, Calendar::Gregorian] {
+            let first = julday(i32::MIN, 1, 1, 0.0, calendar);
+            let end = julday(i32::MAX, 12, 31, 24.0, calendar);
+            // Test the immediate representable neighbours: rounded or widened
+            // bounds could otherwise admit an unsafe native integer cast.
+            for _ in 0..2 {
+                for (day, admitted) in [
+                    (first.next_down(), false),
+                    (first, true),
+                    (end.next_down(), true),
+                    (end, false),
+                    (end.next_up(), false),
+                    (f64::NAN, false),
+                    (f64::INFINITY, false),
+                    (f64::NEG_INFINITY, false),
+                ] {
+                    assert_eq!(
+                        check_calendar_jd("calendar domain control", day, calendar).is_ok(),
+                        admitted,
+                        "native calendar-domain admission differs"
+                    );
+                }
+            }
+        }
+    }
 }
 
 /// Decompose a Julian Day while native access is held. The checked domain

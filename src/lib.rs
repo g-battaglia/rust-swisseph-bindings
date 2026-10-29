@@ -4,6 +4,8 @@
 //! from the `swisseph/` submodule by `build.rs`); this crate contributes
 //! ownership, error handling and serialized access, never astronomical
 //! algorithms of its own.
+//! A declared build overlay removes ASCII spaces from a truncated catalog name
+//! in one pass; the original lookup policy and numerical calculations remain.
 //!
 //! # Public API style
 //!
@@ -55,6 +57,13 @@ pub mod global;
 pub mod native;
 
 pub use advisory::{Advisory, AdvisoryDetail};
+
+// Unit tests share one explicit data resolver, including its configuration
+// checks. Load it once so every private test module uses the same policy.
+#[cfg(test)]
+#[path = "../tests/data_dir.rs"]
+mod test_data;
+
 pub use angles::{
     SplitDeg, cotrans, cotrans_sp, cs2degstr, cs2lonlatstr, cs2timestr, csnorm, csroundsec, d2l,
     deg_midp, degnorm, difcs2n, difcsn, difdeg2n, difdegn, difrad2n, rad_midp, radnorm, split_deg,

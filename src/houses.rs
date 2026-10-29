@@ -380,6 +380,7 @@ pub fn houses_ex2(
 /// Preserve its input domains, units, native status/flags and diagnostics;
 /// apply no configuration, fallback or alternate numerical method. Errors
 /// follow the public operation. Caller owns the lock for validation and C read.
+#[inline(always)]
 pub(crate) fn houses_ex2_locked(
     jd_ut: f64,
     flags: i32,
