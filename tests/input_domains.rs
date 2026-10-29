@@ -9,9 +9,11 @@
 
 use swisseph_bindings::{
     Calendar, ErrorKind, FLG_MOSEPH, FLG_SPEED, FLG_TOPOCTR, MOON, SIDM_FAGAN_BRADLEY, SIDM_USER,
-    calc_ut, cs2degstr, cs2lonlatstr, cs2timestr, csroundsec, date_conversion, day_of_week, deltat,
-    difcs2n, difcsn, houses, jdet_to_utc, jdut1_to_utc, lat_to_lmt, lmt_to_lat, set_sid_mode,
-    set_topo, sidtime, split_deg, time_equ, utc_time_zone, utc_to_jd,
+    global::calc_ut, global::deltat, global::houses, global::jdet_to_utc, global::jdut1_to_utc,
+    global::lat_to_lmt, global::lmt_to_lat, global::set_sid_mode, global::set_topo,
+    global::sidtime, global::time_equ, global::utc_to_jd, native::cs2degstr, native::cs2lonlatstr,
+    native::cs2timestr, native::csroundsec, native::date_conversion, native::day_of_week,
+    native::difcs2n, native::difcsn, native::split_deg, native::utc_time_zone,
 };
 
 fn assert_invalid(result: Result<impl std::fmt::Debug, swisseph_bindings::Error>, context: &str) {
@@ -72,11 +74,11 @@ fn format_negation_overflow_is_rejected() {
 fn calendar_decomposition_rejects_unrepresentable_jd() {
     // Proven UBSan case: float-to-integer conversion on NaN.
     assert_invalid(
-        swisseph_bindings::revjul(f64::NAN, Calendar::Gregorian),
+        swisseph_bindings::native::revjul(f64::NAN, Calendar::Gregorian),
         "revjul(NaN)",
     );
     assert_invalid(
-        swisseph_bindings::revjul(1e100, Calendar::Gregorian),
+        swisseph_bindings::native::revjul(1e100, Calendar::Gregorian),
         "revjul(1e100)",
     );
     assert_invalid(day_of_week(f64::NAN), "day_of_week(NaN)");
@@ -89,7 +91,8 @@ fn calendar_decomposition_rejects_unrepresentable_jd() {
         "jdut1_to_utc(inf)",
     );
     // Ordinary and BCE dates still convert.
-    let date = swisseph_bindings::revjul(2451545.0, Calendar::Gregorian).expect("reverse J2000");
+    let date =
+        swisseph_bindings::native::revjul(2451545.0, Calendar::Gregorian).expect("reverse J2000");
     assert_eq!((date.year, date.month, date.day), (2000, 1, 1));
     assert_eq!(day_of_week(2451545.0).expect("weekday"), 5);
 }

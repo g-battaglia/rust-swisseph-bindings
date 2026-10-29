@@ -18,8 +18,10 @@ use swisseph_bindings::{
     AUNIT_TO_PARSEC, COASC1, COASC2, COMET_OFFSET, COSMICAL_SETTING, DE_NUMBER, EQUASC, ErrorKind,
     FICT_MAX, FICT_OFFSET_1, FICTFILE, FLG_CENTER_BODY, FLG_SWIEPH, MARS, MC, SPLIT_DEG_KEEP_DEG,
     SPLIT_DEG_KEEP_SIGN, SPLIT_DEG_NAKSHATRA, SPLIT_DEG_ROUND_DEG, SPLIT_DEG_ROUND_MIN,
-    SPLIT_DEG_ROUND_SEC, SPLIT_DEG_ZODIACAL, VERTEX, calc_ut, cs2degstr, cs2lonlatstr, cs2timestr,
-    csnorm, csroundsec, difcs2n, difcsn, get_current_file_data, set_ephe_path, split_deg,
+    SPLIT_DEG_ROUND_SEC, SPLIT_DEG_ZODIACAL, VERTEX, global::calc_ut,
+    global::get_current_file_data, global::set_ephe_path, native::cs2degstr, native::cs2lonlatstr,
+    native::cs2timestr, native::csnorm, native::csroundsec, native::difcs2n, native::difcsn,
+    native::split_deg,
 };
 
 #[path = "data_dir.rs"]

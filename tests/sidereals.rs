@@ -12,7 +12,8 @@
 
 use swisseph_bindings::{
     ErrorKind, FLG_MOSEPH, FLG_SIDEREAL, FLG_SPEED, SIDM_FAGAN_BRADLEY, SIDM_LAHIRI, SIDM_USER,
-    SUN, calc_ut, get_ayanamsa_ex_ut, get_ayanamsa_ut, houses, houses_ex, set_sid_mode,
+    SUN, global::calc_ut, global::get_ayanamsa_ex_ut, global::get_ayanamsa_ut, global::houses,
+    global::houses_ex, global::set_sid_mode,
 };
 
 /// J2000.0 in Universal Time.

@@ -3,6 +3,9 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use swisseph_bindings::*;
+use swisseph_bindings::{
+    global::close, global::get_current_file_data, global::pheno_ut, global::set_ephe_path,
+};
 
 struct Oracle(PathBuf);
 struct Expected {

@@ -192,7 +192,7 @@ pub(crate) fn check_houses_inputs(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::houses;
+/// use swisseph_bindings::global::houses;
 ///
 /// // London, Placidus, J2000.0.
 /// let london = houses(2451545.0, 51.5, -0.12, b'P')?;
@@ -350,7 +350,7 @@ pub struct GauquelinSector {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::houses_ex2;
+/// use swisseph_bindings::global::houses_ex2;
 ///
 /// // London, Placidus, J2000.0.
 /// let london = houses_ex2(2451545.0, 0, 51.5, -0.12, b'P')?;
@@ -376,7 +376,7 @@ pub fn houses_ex2(
     with_native_access(|| houses_ex2_locked(jd_ut, flags, latitude, longitude, hsys))
 }
 
-/// Execute [`crate::houses_ex2`] with native access already held.
+/// Execute [`crate::global::houses_ex2`] with native access already held.
 /// Preserve its input domains, units, native status/flags and diagnostics;
 /// apply no configuration, fallback or alternate numerical method. Errors
 /// follow the public operation. Caller owns the lock for validation and C read.
@@ -444,7 +444,7 @@ pub(crate) fn houses_ex2_locked(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::houses_gauquelin;
+/// use swisseph_bindings::global::houses_gauquelin;
 ///
 /// // Paris, J2000.0: 36 finite sector cusps.
 /// let paris = houses_gauquelin(2451545.0, 0, 48.85, 2.35)?;
@@ -468,7 +468,7 @@ pub fn houses_gauquelin(
     with_native_access(|| houses_gauquelin_locked(jd_ut, flags, latitude, longitude))
 }
 
-/// Execute [`crate::houses_gauquelin`] with native access already held.
+/// Execute [`crate::global::houses_gauquelin`] with native access already held.
 /// Preserve its input domains, units, native status/flags and diagnostics;
 /// apply no configuration, fallback or alternate numerical method. Errors
 /// follow the public operation. Caller owns the lock for validation and C read.
@@ -584,7 +584,7 @@ fn check_armc_inputs(armc: f64, latitude: f64, eps: f64, hsys: u8) -> Result<(),
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::houses_armc;
+/// use swisseph_bindings::global::houses_armc;
 ///
 /// // ARMC is echoed back in angles[2], normalized to 0-360.
 /// let houses = houses_armc(280.0, 51.5, 23.44, b'P')?;
@@ -635,7 +635,7 @@ pub fn houses_armc(armc: f64, latitude: f64, eps: f64, hsys: u8) -> Result<House
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::houses_armc_ex2;
+/// use swisseph_bindings::global::houses_armc_ex2;
 ///
 /// let houses = houses_armc_ex2(280.0, 51.5, 23.44, b'P', 0.0)?;
 /// assert!(houses.cusp_speeds.iter().all(|s| s.is_finite()));
@@ -723,7 +723,7 @@ pub fn houses_armc_ex2(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::house_pos;
+/// use swisseph_bindings::global::house_pos;
 ///
 /// // The Ascendant sits exactly on the first-house cusp: house 1.
 /// let asc = house_pos(280.0, 51.5, 23.44, b'P', 100.0, 0.0)?;
@@ -787,7 +787,7 @@ pub fn house_pos(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::house_name;
+/// use swisseph_bindings::native::house_name;
 ///
 /// assert_eq!(house_name(b'P'), "Placidus");
 /// assert_eq!(house_name(b'G'), "Gauquelin sectors");
@@ -863,7 +863,7 @@ fn check_gauquelin_inputs(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{MARS, gauquelin_sector};
+/// use swisseph_bindings::{MARS, global::gauquelin_sector};
 ///
 /// // Paris, J2000.0, geometric method.
 /// let sector = gauquelin_sector(2451545.0, MARS, None, 0, 0, 2.35, 48.85, 0.0, 0.0, 0.0)?;
@@ -878,7 +878,7 @@ fn check_gauquelin_inputs(
 /// active UT-based user reference epoch; violations return `InvalidInput`.
 ///
 /// Observer height must satisfy the arithmetic ceiling documented by
-/// [`crate::set_topo`]; excessive height returns `InvalidInput` before
+/// [`crate::global::set_topo`]; excessive height returns `InvalidInput` before
 /// observer configuration or computation. Native geographic limits and
 /// data errors are still reported by the engine.
 #[allow(clippy::too_many_arguments)]

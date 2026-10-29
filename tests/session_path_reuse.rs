@@ -4,8 +4,9 @@
 #![cfg(unix)]
 
 use swisseph_bindings::{
-    FLG_SWIEPH, MARS, MOON, SessionBuilder, calc_ut, close, get_current_file_data, get_tid_acc,
-    require_source_flags, set_ephe_path, set_tid_acc,
+    FLG_SWIEPH, MARS, MOON, SessionBuilder, global::calc_ut, global::close,
+    global::get_current_file_data, global::get_tid_acc, global::set_ephe_path, global::set_tid_acc,
+    native::require_source_flags,
 };
 
 #[path = "support/isolated.rs"]

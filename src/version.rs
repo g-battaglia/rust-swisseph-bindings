@@ -19,7 +19,7 @@ use crate::state::with_native_access;
 /// # Examples
 ///
 /// ```
-/// let version = swisseph_bindings::version()?;
+/// let version = swisseph_bindings::native::version()?;
 /// assert!(!version.is_empty());
 /// # Ok::<(), swisseph_bindings::Error>(())
 /// ```
@@ -43,7 +43,7 @@ pub fn version() -> Result<String, crate::Error> {
 /// Return the executable/library pathname reported by the native library.
 ///
 /// With this static native build, the pathname identifies the executable.
-/// It is independent of [`crate::set_ephe_path`]. The pinned native helper
+/// It is independent of [`crate::global::set_ephe_path`]. The pinned native helper
 /// may truncate it to 256 bytes; some native build variants return an empty
 /// string. Invalid UTF-8 at a truncation boundary is decoded lossily.
 /// The Rust result owns its contents and no native pointer escapes.

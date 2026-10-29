@@ -11,8 +11,9 @@
 use swisseph_bindings::{
     BIT_DISC_CENTER, BIT_GEOCTR_NO_ECL_LAT, BIT_HINDU_RISING, BIT_NO_REFRACTION, CALC_ITRANSIT,
     CALC_MTRANSIT, CALC_RISE, CALC_SET, ErrorKind, FLG_MOSEPH, FLG_SPEED, FLG_SWIEPH, MARS, MOON,
-    NODBIT_FOPOINT, NODBIT_MEAN, NODBIT_OSCU, NODBIT_OSCU_BAR, RiseTransitOutcome, SUN, nod_aps,
-    nod_aps_ut, rise_trans, rise_trans_true_hor, set_ephe_path,
+    NODBIT_FOPOINT, NODBIT_MEAN, NODBIT_OSCU, NODBIT_OSCU_BAR, RiseTransitOutcome, SUN,
+    global::nod_aps, global::nod_aps_ut, global::rise_trans, global::rise_trans_true_hor,
+    global::set_ephe_path,
 };
 
 #[path = "data_dir.rs"]

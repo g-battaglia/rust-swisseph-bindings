@@ -10,9 +10,9 @@
 //! of the location test.
 
 use swisseph_bindings::{
-    ErrorKind, FLG_MOSEPH, MERCURY, MOON, OccultSearchOptions, VENUS, lun_occult_when_glob,
-    lun_occult_when_glob_with_options, lun_occult_when_loc, lun_occult_when_loc_with_options,
-    set_topo,
+    ErrorKind, FLG_MOSEPH, MERCURY, MOON, VENUS, global::lun_occult_when_glob,
+    global::lun_occult_when_loc, global::set_topo, native::OccultSearchOptions,
+    native::lun_occult_when_glob_with_options, native::lun_occult_when_loc_with_options,
 };
 
 /// J2000.0 in Universal Time.

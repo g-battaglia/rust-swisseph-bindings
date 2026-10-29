@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "phase": "P0 bootstrap / P1 advisory schema only",
+  "phase": "P1 root boundary / P3 node records",
   "acceptance": "incomplete",
   "scope": "root",
   "extensions": [
@@ -287,6 +287,15 @@
     "Session::calc": "function",
     "Session::calc_pctr": "function",
     "Session::calc_ut": "function",
+    "Session::nod_aps": "function",
+    "Session::nod_aps_ut": "function",
+    "NodesApsides": "struct",
+    "NodesApsides.ascending": "struct_field",
+    "NodesApsides.descending": "struct_field",
+    "NodesApsides.perihelion": "struct_field",
+    "NodesApsides.aphelion": "struct_field",
+    "NodesApsides.status": "struct_field",
+    "NodesApsides.diagnostic": "struct_field",
     "SessionBuilder": "struct",
     "SessionBuilder::build": "function",
     "SessionBuilder::clear_delta_t_override": "function",
@@ -312,7 +321,6 @@
   "pending": [
     "Full Error/ErrorKind and source-detail interface",
     "Primary pure-result record signatures and all remaining Session operations",
-    "Relocate all stateful free functions to global/native without changing legacy signatures",
     "Deterministic complete Session configuration and backend-native setup boundary",
     "Remove all non-contract LE Session plumbing and extra api exports",
     "Full event/visibility/heliacal records and optional seven/ten time storage",

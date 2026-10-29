@@ -3,6 +3,9 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use swisseph_bindings::*;
+use swisseph_bindings::{
+    global::close, global::get_current_file_data, global::nod_aps_ut, global::set_ephe_path,
+};
 
 struct Oracle(PathBuf);
 struct Expected {
@@ -76,11 +79,11 @@ impl Oracle {
 fn exact(actual: &NodesApsides, expected: &Expected) {
     assert!(expected.status >= 0, "C reference must serve this request");
     assert!(
-        actual.returned_flags == expected.status,
+        actual.status == Some(expected.status),
         "native status/flags differ"
     );
     assert!(
-        actual.diagnostic == expected.diagnostic,
+        actual.diagnostic.as_deref() == Some(expected.diagnostic.as_str()),
         "native diagnostic differs"
     );
     assert!(
@@ -159,7 +162,7 @@ fn configured_ut_nodes_match_c_and_reuse_or_invalidate_the_selected_path() {
                 let expected = oracle.read(&data, 2451545.0, body, flags, method, 0);
                 exact(
                     &selected
-                        .nod_aps_ut(2451545.0, body, flags, method)
+                        .nod_aps_ut(2451545.0, body, method, flags)
                         .expect("configured UT nodes"),
                     &expected,
                 );
@@ -176,23 +179,23 @@ fn configured_ut_nodes_match_c_and_reuse_or_invalidate_the_selected_path() {
         let expected = oracle.read(&data, 2451545.0, MARS, flags, NODBIT_OSCU, profile);
         exact(
             &configured
-                .nod_aps_ut(2451545.0, MARS, flags, NODBIT_OSCU)
+                .nod_aps_ut(2451545.0, MARS, NODBIT_OSCU, flags)
                 .unwrap(),
             &expected,
         );
         pairs += 1;
         // A competing configuration cannot contaminate the next session call.
         let _ = selected
-            .nod_aps_ut(2451545.0, MARS, FLG_SWIEPH | FLG_SPEED, NODBIT_OSCU)
+            .nod_aps_ut(2451545.0, MARS, NODBIT_OSCU, FLG_SWIEPH | FLG_SPEED)
             .unwrap();
         exact(
             &configured
-                .nod_aps_ut(2451545.0, MARS, flags, NODBIT_OSCU)
+                .nod_aps_ut(2451545.0, MARS, NODBIT_OSCU, flags)
                 .unwrap(),
             &expected,
         );
     }
-    let invalid = match selected.nod_aps_ut(f64::NAN, MERCURY, FLG_SWIEPH, NODBIT_MEAN) {
+    let invalid = match selected.nod_aps_ut(f64::NAN, MERCURY, NODBIT_MEAN, FLG_SWIEPH) {
         Err(error) => error,
         Ok(_) => panic!("non-finite date must remain invalid"),
     };
@@ -205,7 +208,7 @@ fn configured_ut_nodes_match_c_and_reuse_or_invalidate_the_selected_path() {
         Err(error) => error,
         Ok(_) => panic!("free unknown body must remain a native failure"),
     };
-    let actual_error = match selected.nod_aps_ut(2451545.0, 999999, FLG_SWIEPH, NODBIT_OSCU) {
+    let actual_error = match selected.nod_aps_ut(2451545.0, 999999, NODBIT_OSCU, FLG_SWIEPH) {
         Err(error) => error,
         Ok(_) => panic!("unknown body must remain a native failure"),
     };
@@ -234,7 +237,7 @@ fn configured_ut_nodes_match_c_and_reuse_or_invalidate_the_selected_path() {
         let expected = oracle.read(&a, 2451546.0, MARS, flags, NODBIT_OSCU, 0);
         exact(
             &selected
-                .nod_aps_ut(2451546.0, MARS, flags, NODBIT_OSCU)
+                .nod_aps_ut(2451546.0, MARS, NODBIT_OSCU, flags)
                 .unwrap(),
             &expected,
         );
@@ -246,7 +249,7 @@ fn configured_ut_nodes_match_c_and_reuse_or_invalidate_the_selected_path() {
         std::fs::remove_file(&link).unwrap();
         exact(
             &selected
-                .nod_aps_ut(2451546.0, MARS, flags, NODBIT_OSCU)
+                .nod_aps_ut(2451546.0, MARS, NODBIT_OSCU, flags)
                 .unwrap(),
             &expected,
         );
@@ -258,7 +261,7 @@ fn configured_ut_nodes_match_c_and_reuse_or_invalidate_the_selected_path() {
         set_ephe_path(Some(a.to_str().unwrap())).unwrap();
         exact(
             &selected
-                .nod_aps_ut(2451546.0, MARS, flags, NODBIT_OSCU)
+                .nod_aps_ut(2451546.0, MARS, NODBIT_OSCU, flags)
                 .unwrap(),
             &missing,
         );
@@ -268,14 +271,14 @@ fn configured_ut_nodes_match_c_and_reuse_or_invalidate_the_selected_path() {
         );
         exact(
             &rival
-                .nod_aps_ut(2451546.0, MARS, flags, NODBIT_OSCU)
+                .nod_aps_ut(2451546.0, MARS, NODBIT_OSCU, flags)
                 .unwrap(),
             &oracle.read(&b, 2451546.0, MARS, flags, NODBIT_OSCU, 0),
         );
         std::os::unix::fs::symlink(&source, &link).unwrap();
         exact(
             &selected
-                .nod_aps_ut(2451546.0, MARS, flags, NODBIT_OSCU)
+                .nod_aps_ut(2451546.0, MARS, NODBIT_OSCU, flags)
                 .unwrap(),
             &expected,
         );
@@ -287,7 +290,7 @@ fn configured_ut_nodes_match_c_and_reuse_or_invalidate_the_selected_path() {
         close().unwrap();
         exact(
             &selected
-                .nod_aps_ut(2451546.0, MARS, flags, NODBIT_OSCU)
+                .nod_aps_ut(2451546.0, MARS, NODBIT_OSCU, flags)
                 .unwrap(),
             &missing,
         );

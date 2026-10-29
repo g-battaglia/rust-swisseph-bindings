@@ -10,10 +10,11 @@
 //! provenance, error classification), never stored reference vectors.
 
 use swisseph_bindings::{
-    ErrorKind, FLG_MOSEPH, FLG_SWIEPH, MARS, SIDM_FAGAN_BRADLEY, SIDM_LAHIRI, gauquelin_sector,
-    get_ayanamsa, get_ayanamsa_ex, get_ayanamsa_ex_ut, get_ayanamsa_name, get_ayanamsa_ut,
-    house_name, house_pos, houses, houses_armc, houses_armc_ex2, houses_ex2, houses_gauquelin,
-    set_sid_mode,
+    ErrorKind, FLG_MOSEPH, FLG_SWIEPH, MARS, SIDM_FAGAN_BRADLEY, SIDM_LAHIRI,
+    global::gauquelin_sector, global::get_ayanamsa, global::get_ayanamsa_ex,
+    global::get_ayanamsa_ex_ut, global::get_ayanamsa_ut, global::house_pos, global::houses,
+    global::houses_armc, global::houses_armc_ex2, global::houses_ex2, global::houses_gauquelin,
+    global::set_sid_mode, native::get_ayanamsa_name, native::house_name,
 };
 
 /// J2000.0 in Universal Time.

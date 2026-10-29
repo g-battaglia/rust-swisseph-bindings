@@ -2,8 +2,9 @@
 //! Inputs and structural assertions only; no native output vectors stored.
 
 use swisseph_bindings::{
-    Calendar, ErrorKind, date_conversion, day_of_week, jdet_to_utc, jdut1_to_utc, julday, revjul,
-    set_delta_t_userdef, utc_to_jd,
+    Calendar, ErrorKind, global::jdet_to_utc, global::jdut1_to_utc, global::set_delta_t_userdef,
+    global::utc_to_jd, native::date_conversion, native::day_of_week, native::julday,
+    native::revjul,
 };
 
 fn invalid(result: Result<impl std::fmt::Debug, swisseph_bindings::Error>) {

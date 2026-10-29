@@ -9,8 +9,9 @@
 //! vectors.
 
 use swisseph_bindings::{
-    ErrorKind, FLG_MOSEPH, FLG_SPEED, FLG_SWIEPH, MARS, fixstar, fixstar_mag, fixstar_ut, fixstar2,
-    fixstar2_mag, fixstar2_ut, gauquelin_sector, set_ephe_path,
+    ErrorKind, FLG_MOSEPH, FLG_SPEED, FLG_SWIEPH, MARS, global::fixstar, global::fixstar_mag,
+    global::fixstar_ut, global::fixstar2, global::fixstar2_mag, global::fixstar2_ut,
+    global::gauquelin_sector, global::set_ephe_path,
 };
 
 #[path = "data_dir.rs"]

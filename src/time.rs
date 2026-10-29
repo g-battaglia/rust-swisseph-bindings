@@ -78,7 +78,7 @@ pub struct CalendarDate {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{Calendar, julday};
+/// use swisseph_bindings::{Calendar, native::julday};
 ///
 /// // J2000.0: 1 January 2000, 12:00.
 /// assert_eq!(julday(2000, 1, 1, 12.0, Calendar::Gregorian), 2451545.0);
@@ -221,7 +221,7 @@ fn check_utc_et_locked(operation: &str, jd_et: f64, cal: Calendar) -> Result<(),
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{Calendar, revjul};
+/// use swisseph_bindings::{Calendar, native::revjul};
 ///
 /// let date = revjul(2451545.0, Calendar::Gregorian)?;
 /// assert_eq!((date.year, date.month, date.day, date.hour), (2000, 1, 1, 12.0));
@@ -291,7 +291,7 @@ pub struct DeltaT {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{Calendar, utc_to_jd};
+/// use swisseph_bindings::{Calendar, global::utc_to_jd};
 ///
 /// // J2000.0 midday UTC: TT runs about a minute ahead of UT1.
 /// let days = utc_to_jd(2000, 1, 1, 12, 0, 0.0, Calendar::Gregorian)?;
@@ -378,7 +378,7 @@ pub fn utc_to_jd(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{Calendar, jdet_to_utc, utc_to_jd};
+/// use swisseph_bindings::{Calendar, global::jdet_to_utc, global::utc_to_jd};
 ///
 /// let days = utc_to_jd(2000, 1, 1, 12, 0, 0.0, Calendar::Gregorian)?;
 /// let back = jdet_to_utc(days.jd_et, Calendar::Gregorian)?;
@@ -546,7 +546,7 @@ pub fn utc_time_zone(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{Calendar, date_conversion};
+/// use swisseph_bindings::{Calendar, native::date_conversion};
 ///
 /// assert_eq!(date_conversion(2000, 1, 1, 12.0, Calendar::Gregorian)?, 2451545.0);
 /// # Ok::<(), swisseph_bindings::Error>(())
@@ -598,7 +598,7 @@ pub fn date_conversion(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::day_of_week;
+/// use swisseph_bindings::native::day_of_week;
 ///
 /// assert_eq!(day_of_week(2451545.0)?, 5);
 /// # Ok::<(), swisseph_bindings::Error>(())
@@ -639,7 +639,7 @@ pub(crate) fn deltat_locked(jd_ut: f64) -> f64 {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::deltat;
+/// use swisseph_bindings::global::deltat;
 ///
 /// let dt = deltat(2451545.0)?;
 /// assert!(dt > 0.0005 && dt < 0.001);
@@ -726,7 +726,7 @@ pub fn time_equ(jd_ut: f64) -> Result<EquationOfTime, Error> {
     with_native_access(|| time_equ_locked(jd_ut))
 }
 
-/// Execute [`crate::time_equ`] with native access already held.
+/// Execute [`crate::global::time_equ`] with native access already held.
 /// Preserve its input domains, units, native status/flags and diagnostics;
 /// apply no configuration, fallback or alternate numerical method. Errors
 /// follow the public operation. Caller owns the lock for validation and C read.
@@ -846,7 +846,7 @@ pub fn lat_to_lmt(jd_lat: f64, longitude: f64) -> Result<LocalTime, Error> {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::sidtime;
+/// use swisseph_bindings::global::sidtime;
 ///
 /// let st = sidtime(2451545.0)?;
 /// assert!((0.0..24.0).contains(&st));

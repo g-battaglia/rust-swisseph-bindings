@@ -2,6 +2,20 @@
 //! Only inputs and structural assertions are retained.
 
 use swisseph_bindings::*;
+use swisseph_bindings::{
+    global::calc, global::calc_ut, global::fixstar2, global::fixstar2_mag, global::fixstar2_ut,
+    global::gauquelin_sector, global::get_ayanamsa, global::get_ayanamsa_ex,
+    global::get_ayanamsa_ex_ut, global::get_ayanamsa_ut, global::get_orbital_elements,
+    global::heliacal_pheno_ut, global::heliacal_ut, global::houses, global::houses_ex,
+    global::houses_ex2, global::houses_gauquelin, global::lun_eclipse_how,
+    global::lun_eclipse_when, global::lun_eclipse_when_loc, global::lun_occult_when_loc,
+    global::mooncross_node, global::nod_aps, global::nod_aps_ut, global::pheno, global::pheno_ut,
+    global::rise_trans, global::rise_trans_true_hor, global::set_delta_t_userdef,
+    global::set_ephe_path, global::set_sid_mode, global::set_topo, global::sol_eclipse_how,
+    global::sol_eclipse_when_glob, global::sol_eclipse_when_loc, global::solcross,
+    global::vis_limit_mag, native::cs2lonlatstr, native::cs2timestr, native::d2l,
+    native::utc_time_zone,
+};
 #[path = "support/isolated.rs"]
 mod isolated;
 

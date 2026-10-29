@@ -12,8 +12,8 @@
 //! [`native`] preserves native-only extensions and raw 1.x pure signatures.
 //! Legacy extension arguments retain C ordering and scalar observer values.
 //!
-//! This branch is staging the 2.0 migration: legacy root re-exports below are
-//! still being removed and are not part of the final closed primary contract.
+//! Configured free functions are available only through the declared extension
+//! modules. The root contains Session operations, pure utilities and records.
 //!
 //! Native configuration (data path, observer, sidereal mode) is
 //! process-global inside the C library. Each function holds one private
@@ -41,6 +41,7 @@ mod error;
 mod events;
 mod ffi;
 mod houses;
+mod node_result;
 mod observer;
 mod positions;
 mod session;
@@ -57,12 +58,10 @@ pub use angles::{
     SplitDeg, cotrans, cotrans_sp, cs2degstr, cs2lonlatstr, cs2timestr, csnorm, csroundsec, d2l,
     deg_midp, degnorm, difcs2n, difcsn, difdeg2n, difdegn, difrad2n, rad_midp, radnorm, split_deg,
 };
-pub use config::{
-    Ayanamsha, CurrentFileData, MAX_EPHE_PATH_LEN, MAX_JPL_FILE_LEN, close, ensure_ephe_path,
-    get_ayanamsa, get_ayanamsa_ex, get_ayanamsa_ex_ut, get_ayanamsa_name, get_ayanamsa_ut,
-    get_current_file_data, get_tid_acc, set_delta_t_userdef, set_ephe_path, set_jpl_file,
-    set_sid_mode, set_tid_acc, set_topo,
-};
+pub use config::Ayanamsha;
+// Internal metadata storage uses the same owned native record; it is not a
+// primary export. External metadata access is explicitly native-specific.
+pub(crate) use config::CurrentFileData;
 pub use constants::{
     ACRONYCHAL_RISING, ACRONYCHAL_SETTING, ADMETOS, APOLLON, APP_TO_TRUE, ARMC, ASC, AST_OFFSET,
     ASTNAMFILE, AUNIT_TO_KM, AUNIT_TO_LIGHTYEAR, AUNIT_TO_PARSEC, BIT_ASTRO_TWILIGHT,
@@ -113,40 +112,25 @@ pub use error::{Error, ErrorKind};
 pub use events::{
     BelowHorizon, GlobalLunarEclipse, GlobalOccultation, GlobalSolarEclipse, HeliacalEvent,
     HeliacalPhenomena, LocalLunarEclipse, LocalOccultation, LocalSolarEclipse, LongitudeCrossing,
-    LunarEclipseCircumstances, NodeCrossing, OccultSearchOptions, OccultationGeometry,
-    SolarEclipseCircumstances, SolarEclipseGeometry, VisibilityLimit, VisibilityOutcome,
-    heliacal_pheno_ut, heliacal_ut, helio_cross, helio_cross_ut, lun_eclipse_how, lun_eclipse_when,
-    lun_eclipse_when_loc, lun_occult_when_glob, lun_occult_when_glob_with_options,
-    lun_occult_when_loc, lun_occult_when_loc_with_options, lun_occult_where, mooncross,
-    mooncross_node, mooncross_node_ut, mooncross_ut, sol_eclipse_how, sol_eclipse_when_glob,
-    sol_eclipse_when_loc, sol_eclipse_where, solcross, solcross_ut, vis_limit_mag,
+    LunarEclipseCircumstances, NodeCrossing, OccultationGeometry, SolarEclipseCircumstances,
+    SolarEclipseGeometry, VisibilityLimit, VisibilityOutcome,
 };
-pub use houses::{
-    GauquelinSector, GauquelinSectors, HousePosition, Houses, HousesWithSpeeds, gauquelin_sector,
-    house_name, house_pos, houses, houses_armc, houses_armc_ex2, houses_ex, houses_ex2,
-    houses_gauquelin,
-};
+pub use houses::{GauquelinSector, GauquelinSectors, HousePosition, Houses, HousesWithSpeeds};
+pub use node_result::NodesApsides;
 pub use observer::{
-    Celestial, DistanceExtremes, Horizontal, NodesApsides, OrbitalElements, Phenomena, Refraction,
-    RiseTransitOutcome, azalt, azalt_rev, get_orbital_elements, nod_aps, nod_aps_ut,
-    orbit_max_min_true_distance, pheno, pheno_ut, refrac, refrac_extended, rise_trans,
-    rise_trans_true_hor, set_lapse_rate,
+    Celestial, DistanceExtremes, Horizontal, OrbitalElements, Phenomena, Refraction,
+    RiseTransitOutcome,
 };
-pub use positions::{Position, calc, calc_pctr, calc_ut, get_planet_name, require_source_flags};
+pub use positions::Position;
 pub use session::{Session, SessionBuilder};
-pub use stars::{
-    StarMagnitude, StarPosition, fixed_star_catalog, fixstar, fixstar_mag, fixstar_ut, fixstar2,
-    fixstar2_mag, fixstar2_ut,
-};
+pub use stars::{StarMagnitude, StarPosition};
 pub use time::{
     Calendar, CalendarDate, DeltaT, EquationOfTime, JulDays, LocalTime, UtcDateTime,
-    date_conversion, day_of_week, deltat, deltat_ex, jdet_to_utc, jdut1_to_utc, julday, lat_to_lmt,
-    lmt_to_lat, revjul, sidtime, sidtime0, time_equ, utc_time_zone, utc_to_jd,
+    date_conversion, day_of_week, julday, revjul, utc_time_zone,
 };
-pub use version::{library_path, version};
 
-/// Complete native output buffers; existing convenience projections remain.
-pub use events::{
+// Private aliases keep the locked Session implementation independent of the
+// extension re-export spelling. Complete buffers are public only in native.
+pub(crate) use events::{
     HeliacalPhenomenaFull, OccultationGeometryFull, SolarEclipseGeometryFull, VisibilityFull,
-    heliacal_pheno_ut_full, lun_occult_where_full, sol_eclipse_where_full, vis_limit_mag_full,
 };

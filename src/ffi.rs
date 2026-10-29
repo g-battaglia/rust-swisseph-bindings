@@ -1094,7 +1094,7 @@ unsafe extern "C" {
     /// backward); the safe wrapper passes only the direction bit here —
     /// the native `SE_ECL_ONE_TRY` single-conjunction mode is decoded
     /// only by the lunar occultation searches (see
-    /// [`crate::OccultSearchOptions`]). Returns the local phase bitmask (`SE_ECL_TOTAL`,
+    /// [`crate::native::OccultSearchOptions`]). Returns the local phase bitmask (`SE_ECL_TOTAL`,
     /// `SE_ECL_PARTIAL`, ... combined with `SE_ECL_VISIBLE` and the
     /// `SE_ECL_*_VISIBLE` contact bits), or `ERR` (-1) on failure. The
     /// search advances lunation by lunation until a visible eclipse is
@@ -1147,7 +1147,7 @@ unsafe extern "C" {
     /// [`ECLIPSE_TRET_LEN`] slots with the global-eclipse layout;
     /// `serr` needs [`SERR_LEN`] bytes. `backward` carries the direction
     /// in bit 0 and the `SE_ECL_ONE_TRY` single-conjunction mode in its
-    /// dedicated bit (see [`crate::OccultSearchOptions`]); the safe
+    /// dedicated bit (see [`crate::native::OccultSearchOptions`]); the safe
     /// wrapper encodes both via `encode_occult_backward` and never sets
     /// any other bit. A one-try miss returns 0 with `tret[0]` holding the
     /// examined conjunction epoch. Returns the occultation-type bitmask,
@@ -1181,7 +1181,7 @@ unsafe extern "C" {
     /// bitmask (`SE_ECL_TOTAL`, `SE_ECL_PARTIAL` combined with
     /// `SE_ECL_VISIBLE`, the `SE_ECL_*_VISIBLE` contact bits and the
     /// `SE_ECL_OCC_*_DAYLIGHT` bits), or `ERR` (-1) on failure. With a
-    /// one-try `backward` encoding (see [`crate::OccultSearchOptions`])
+    /// one-try `backward` encoding (see [`crate::native::OccultSearchOptions`])
     /// a miss returns 0 with `tret[0]` holding a date suitable for the
     /// next try; without `SE_ECL_ONE_TRY` the search runs until a visible
     /// event is found.

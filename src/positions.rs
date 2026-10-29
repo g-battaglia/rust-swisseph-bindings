@@ -131,9 +131,9 @@ pub(crate) fn calc_ut_locked(jd_ut: f64, body: i32, flags: i32) -> Result<Positi
 ///
 /// # Configuration dependence
 ///
-/// Topocentric output requires [`crate::set_topo`], sidereal output
-/// requires [`crate::set_sid_mode`], and file-based sources require data
-/// files visible through [`crate::set_ephe_path`]. Each free call holds
+/// Topocentric output requires [`crate::global::set_topo`], sidereal output
+/// requires [`crate::global::set_sid_mode`], and file-based sources require data
+/// files visible through [`crate::global::set_ephe_path`]. Each free call holds
 /// the process-wide native lock across its own native sequence; a
 /// `set_*` plus this computation remain two acquisitions. Callers needing
 /// atomic config-plus-computation must use [`crate::Session`], which holds
@@ -154,7 +154,7 @@ pub(crate) fn calc_ut_locked(jd_ut: f64, body: i32, flags: i32) -> Result<Positi
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, FLG_SPEED, MOON, calc_ut};
+/// use swisseph_bindings::{FLG_MOSEPH, FLG_SPEED, MOON, global::calc_ut};
 ///
 /// // The Moshier model needs no data files, so this runs anywhere.
 /// let moon = calc_ut(2451545.0, MOON, FLG_MOSEPH | FLG_SPEED)?;
@@ -167,7 +167,7 @@ pub(crate) fn calc_ut_locked(jd_ut: f64, body: i32, flags: i32) -> Result<Positi
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 pub fn calc_ut(jd_ut: f64, body: i32, flags: i32) -> Result<Position, Error> {
     if !jd_ut.is_finite() {
         return Err(Error::invalid_input(format!(
@@ -227,7 +227,7 @@ pub(crate) fn calc_locked(jd_et: f64, body: i32, flags: i32) -> Result<Position,
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 pub fn calc(jd_et: f64, body: i32, flags: i32) -> Result<Position, Error> {
     if !jd_et.is_finite() {
         return Err(Error::invalid_input(format!(
@@ -263,7 +263,7 @@ pub fn calc(jd_et: f64, body: i32, flags: i32) -> Result<Position, Error> {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_SPEED, FLG_SWIEPH, MARS, MOON, calc_pctr, set_ephe_path};
+/// use swisseph_bindings::{FLG_SPEED, FLG_SWIEPH, MARS, MOON, global::calc_pctr, global::set_ephe_path};
 ///
 /// // Planet-centric positions need data files: the Moshier model is not
 /// // supported natively for this entry point (an explicit external data
@@ -288,7 +288,7 @@ pub fn calc(jd_et: f64, body: i32, flags: i32) -> Result<Position, Error> {
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 pub fn calc_pctr(jd_et: f64, body: i32, center: i32, flags: i32) -> Result<Position, Error> {
     if !jd_et.is_finite() {
         return Err(Error::invalid_input(format!(
@@ -298,7 +298,7 @@ pub fn calc_pctr(jd_et: f64, body: i32, center: i32, flags: i32) -> Result<Posit
     with_native_access(|| calc_pctr_locked(jd_et, body, center, flags))
 }
 
-/// Execute [`crate::calc_pctr`] with native access already held.
+/// Execute [`crate::global::calc_pctr`] with native access already held.
 /// Preserve its input domains, units, native status/flags and diagnostics;
 /// apply no configuration, fallback or alternate numerical method. Errors
 /// follow the public operation. Caller owns the lock for validation and C read.
@@ -386,9 +386,7 @@ pub(crate) fn calc_pctr_locked(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{
-///     AST_OFFSET, CERES, CUPIDO, SUN, get_planet_name, set_ephe_path,
-/// };
+/// use swisseph_bindings::{AST_OFFSET, CERES, CUPIDO, SUN, global::get_planet_name, global::set_ephe_path};
 ///
 /// // Ephemeris data comes from an explicit external directory when set,
 /// // otherwise from the checkout data (doctests run with the package root
@@ -478,9 +476,7 @@ fn describe_calc_failure(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{
-///     FLG_MOSEPH, FLG_SPEED, FLG_SWIEPH, Position, require_source_flags,
-/// };
+/// use swisseph_bindings::{FLG_MOSEPH, FLG_SPEED, FLG_SWIEPH, Position, native::require_source_flags};
 ///
 /// // A Moshier result satisfies a Moshier request.
 /// let moshier = Position {

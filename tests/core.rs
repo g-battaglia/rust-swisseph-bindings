@@ -16,9 +16,10 @@ use std::thread;
 
 use swisseph_bindings::{
     Calendar, ErrorKind, FLG_MOSEPH, FLG_SPEED, FLG_SWIEPH, FLG_TOPOCTR, GREG_CAL, JUL_CAL, MARS,
-    MOON, SIDM_FAGAN_BRADLEY, SIDM_LAHIRI, SUN, calc, calc_ut, close, get_ayanamsa_ut,
-    get_planet_name, houses, houses_ex, julday, library_path, revjul, set_ephe_path, set_sid_mode,
-    set_topo, version,
+    MOON, SIDM_FAGAN_BRADLEY, SIDM_LAHIRI, SUN, global::calc, global::calc_ut, global::close,
+    global::get_ayanamsa_ut, global::get_planet_name, global::houses, global::houses_ex,
+    global::set_ephe_path, global::set_sid_mode, global::set_topo, native::julday,
+    native::library_path, native::revjul, native::version,
 };
 
 #[path = "data_dir.rs"]

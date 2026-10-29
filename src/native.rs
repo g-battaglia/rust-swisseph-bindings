@@ -30,6 +30,7 @@ pub use crate::events::{
     vis_limit_mag_full,
 };
 pub use crate::houses::house_name;
+pub use crate::observer::NodesApsides;
 pub use crate::positions::require_source_flags;
 pub use crate::stars::fixed_star_catalog;
 pub use crate::time::{date_conversion, day_of_week, julday, revjul, utc_time_zone};

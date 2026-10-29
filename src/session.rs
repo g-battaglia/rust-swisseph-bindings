@@ -61,7 +61,7 @@
 //! # Discipline
 //!
 //! - One lock: sessions use the same process-wide boundary as every free
-//!   function, so [`crate::close`] and data-identity reads
+//!   function, so [`crate::global::close`] and data-identity reads
 //!   ([`Session::get_current_file_data`]) cannot interleave mid-sequence.
 //! - No reentry: calling any binding entry (free function or another
 //!   session method) from inside a session method on the same thread is
@@ -69,7 +69,7 @@
 //!   contention blocks on the mutex.
 //! - No callbacks run under the lock and no `Drop` closes native state:
 //!   sessions are plain owned Rust values (`Send`/`Sync` by auto-trait,
-//!   no unsafe impls) and closing stays an explicit [`crate::close`]
+//!   no unsafe impls) and closing stays an explicit [`crate::global::close`]
 //!   call.
 //! - Free functions are preserved with their global-state semantics; they
 //!   remain non-atomic across `set_*` + compute pairs by design.
@@ -149,7 +149,7 @@ impl SessionBuilder {
 
     /// Set the geographic observer (east-positive degrees, degrees north,
     /// meters) for the session. [`Self::build`] checks the arithmetic height
-    /// limit documented by [`crate::set_topo`].
+    /// limit documented by [`crate::global::set_topo`].
     pub fn topo(&mut self, longitude: f64, latitude: f64, altitude: f64) -> &mut Self {
         self.topo = Some((longitude, latitude, altitude));
         self
@@ -157,7 +157,7 @@ impl SessionBuilder {
 
     /// Select the sidereal mode for the session; `t0`/`ayan_t0`
     /// parameterize `SIDM_USER`. [`Self::build`] checks the reference epoch
-    /// domain documented by [`crate::set_sid_mode`].
+    /// domain documented by [`crate::global::set_sid_mode`].
     pub fn sid_mode(&mut self, mode: i32, t0: f64, ayan_t0: f64) -> &mut Self {
         self.sid_mode = Some((mode, t0, ayan_t0));
         self
@@ -412,7 +412,7 @@ impl Session {
     ///
     /// Reads the session observer, sidereal mode, data path/JPL file,
     /// tidal and Delta-T state atomically with the computation. `body`
-    /// and `flags` follow [`crate::calc_ut`].
+    /// and `flags` follow [`crate::global::calc_ut`].
     pub fn calc_ut(&self, jd_ut: f64, body: i32, flags: i32) -> Result<Position, Error> {
         if !jd_ut.is_finite() {
             return Err(Error::invalid_input(format!(
@@ -425,7 +425,7 @@ impl Session {
     /// Planetary phenomena for a Universal Time Julian Day.
     ///
     /// Apply this session's path, observer, sidereal, tidal and Delta-T settings
-    /// atomically with the same native operation as [`crate::pheno_ut`]. Body and
+    /// atomically with the same native operation as [`crate::global::pheno_ut`]. Body and
     /// flags follow that function; all twenty words, returned flags and native
     /// diagnostic are preserved. An unchanged path keeps files/caches open under
     /// the existing session rules; public setters and explicit close still reload.
@@ -439,11 +439,29 @@ impl Session {
         self.compute(|| crate::observer::pheno_ut_locked(jd_ut, body, flags))
     }
 
+    /// Nodes and apsides at TT Julian days, in primary `(jd, body, method, flags)` order.
+    /// All four six-word arrays and actual status/diagnostic channels are kept.
+    /// Invalid epochs, native failures and lock failures propagate unchanged.
+    pub fn nod_aps(
+        &self,
+        jd_tt: f64,
+        body: i32,
+        method: i32,
+        flags: i32,
+    ) -> Result<crate::NodesApsides, Error> {
+        if !jd_tt.is_finite() {
+            return Err(Error::invalid_input("nod_aps: Julian Day must be finite"));
+        }
+        self.compute(|| crate::observer::nod_aps_locked(jd_tt, body, flags, method))
+            .map(crate::NodesApsides::from_native)
+    }
+
     /// Nodes and apsides for a Universal Time Julian Day.
     ///
     /// Apply this session's path, observer, sidereal, tidal and Delta-T settings
-    /// atomically with the same native operation as [`crate::nod_aps_ut`]. Body,
-    /// flags and method follow that function. All four six-word arrays, native
+    /// atomically with the same native operation as [`crate::global::nod_aps_ut`]. Body,
+    /// method and flags follow the primary `(jd, body, method, flags)` order.
+    /// The legacy global function retains C order. All four six-word arrays, native
     /// status and diagnostic are preserved, including units selected by flags.
     /// An unchanged path retains open files under the existing session rules;
     /// public setters and explicit close continue to invalidate that state.
@@ -454,8 +472,8 @@ impl Session {
         &self,
         jd_ut: f64,
         body: i32,
-        flags: i32,
         method: i32,
+        flags: i32,
     ) -> Result<crate::NodesApsides, Error> {
         if !jd_ut.is_finite() {
             return Err(Error::invalid_input(
@@ -463,6 +481,7 @@ impl Session {
             ));
         }
         self.compute(|| crate::observer::nod_aps_ut_locked(jd_ut, body, flags, method))
+            .map(crate::NodesApsides::from_native)
     }
 
     /// Body position for an Ephemeris Time Julian Day.
@@ -482,7 +501,7 @@ impl Session {
     ///
     /// Reads the session data path (house systems with an internal solar
     /// position) atomically with the computation. Arguments follow
-    /// [`crate::houses()`].
+    /// [`crate::global::houses()`].
     pub fn houses(
         &self,
         jd_ut: f64,
@@ -498,7 +517,7 @@ impl Session {
     /// House cusps and angles with ephemeris flags.
     ///
     /// Same configuration dependence as [`Session::houses`]; arguments
-    /// follow [`crate::houses_ex`].
+    /// follow [`crate::global::houses_ex`].
     pub fn houses_ex(
         &self,
         jd_ut: f64,
@@ -512,7 +531,7 @@ impl Session {
         self.compute(|| houses_ex_locked(jd_ut, flags, latitude, longitude, hsys))
     }
 
-    /// Run [`crate::calc_pctr`] after applying this session's configuration
+    /// Run [`crate::global::calc_pctr`] after applying this session's configuration
     /// under one native acquisition. `jd_et` is TT/ET Julian days; other units and
     /// input domains follow the linked operation. Return the complete native
     /// output, real flags/status/diagnostic where provided; preserve native,
@@ -527,7 +546,7 @@ impl Session {
     ) -> Result<Position, Error> {
         self.compute(|| crate::positions::calc_pctr_locked(jd_et, body, center, flags))
     }
-    /// Run [`crate::houses_ex2`] after applying this session's configuration
+    /// Run [`crate::global::houses_ex2`] after applying this session's configuration
     /// under one native acquisition. `jd_ut` is UT Julian days; other units and
     /// input domains follow the linked operation. Return the complete native
     /// output, real flags/status/diagnostic where provided; preserve native,
@@ -543,7 +562,7 @@ impl Session {
     ) -> Result<HousesWithSpeeds, Error> {
         self.compute(|| crate::houses::houses_ex2_locked(jd_ut, flags, latitude, longitude, hsys))
     }
-    /// Run [`crate::houses_gauquelin`] after applying this session's configuration
+    /// Run [`crate::global::houses_gauquelin`] after applying this session's configuration
     /// under one native acquisition. `jd_ut` is UT Julian days; other units and
     /// input domains follow the linked operation. Return the complete native
     /// output, real flags/status/diagnostic where provided; preserve native,
@@ -558,7 +577,7 @@ impl Session {
     ) -> Result<GauquelinSectors, Error> {
         self.compute(|| crate::houses::houses_gauquelin_locked(jd_ut, flags, latitude, longitude))
     }
-    /// Run [`crate::get_ayanamsa`] after applying this session's configuration
+    /// Run [`crate::global::get_ayanamsa`] after applying this session's configuration
     /// under one native acquisition. `jd_et` is TT/ET Julian days; other units and
     /// input domains follow the linked operation. Return the complete native
     /// output, real flags/status/diagnostic where provided; preserve native,
@@ -567,7 +586,7 @@ impl Session {
     pub fn get_ayanamsa(&self, jd_et: f64) -> Result<f64, Error> {
         self.compute(|| crate::config::get_ayanamsa_locked(jd_et))
     }
-    /// Run [`crate::get_ayanamsa_ex`] after applying this session's configuration
+    /// Run [`crate::global::get_ayanamsa_ex`] after applying this session's configuration
     /// under one native acquisition. `jd_et` is TT/ET Julian days; other units and
     /// input domains follow the linked operation. Return the complete native
     /// output, real flags/status/diagnostic where provided; preserve native,
@@ -576,7 +595,7 @@ impl Session {
     pub fn get_ayanamsa_ex(&self, jd_et: f64, flags: i32) -> Result<Ayanamsha, Error> {
         self.compute(|| crate::config::get_ayanamsa_ex_locked(jd_et, flags))
     }
-    /// Run [`crate::get_ayanamsa_ex_ut`] after applying this session's configuration
+    /// Run [`crate::global::get_ayanamsa_ex_ut`] after applying this session's configuration
     /// under one native acquisition. `jd_ut` is UT Julian days; other units and
     /// input domains follow the linked operation. Return the complete native
     /// output, real flags/status/diagnostic where provided; preserve native,
@@ -585,7 +604,7 @@ impl Session {
     pub fn get_ayanamsa_ex_ut(&self, jd_ut: f64, flags: i32) -> Result<Ayanamsha, Error> {
         self.compute(|| crate::config::get_ayanamsa_ex_ut_locked(jd_ut, flags))
     }
-    /// Run [`crate::time_equ`] after applying this session's configuration
+    /// Run [`crate::global::time_equ`] after applying this session's configuration
     /// under one native acquisition. `jd_ut` is UT Julian days; other units and
     /// input domains follow the linked operation. Return the complete native
     /// output, real flags/status/diagnostic where provided; preserve native,
@@ -594,7 +613,7 @@ impl Session {
     pub fn time_equ(&self, jd_ut: f64) -> Result<EquationOfTime, Error> {
         self.compute(|| crate::time::time_equ_locked(jd_ut))
     }
-    /// Run [`crate::fixstar`] after applying this session's configuration
+    /// Run [`crate::global::fixstar`] after applying this session's configuration
     /// under one native acquisition. `jd_et` is TT/ET Julian days; other units and
     /// input domains follow the linked operation. Return the complete native
     /// output, real flags/status/diagnostic where provided; preserve native,
@@ -603,7 +622,7 @@ impl Session {
     pub fn fixstar(&self, star: &str, jd_et: f64, flags: i32) -> Result<StarPosition, Error> {
         self.compute(|| crate::stars::fixstar_locked(star, jd_et, flags))
     }
-    /// Run [`crate::fixstar_ut`] after applying this session's configuration
+    /// Run [`crate::global::fixstar_ut`] after applying this session's configuration
     /// under one native acquisition. `jd_ut` is UT Julian days; other units and
     /// input domains follow the linked operation. Return the complete native
     /// output, real flags/status/diagnostic where provided; preserve native,
@@ -612,7 +631,7 @@ impl Session {
     pub fn fixstar_ut(&self, star: &str, jd_ut: f64, flags: i32) -> Result<StarPosition, Error> {
         self.compute(|| crate::stars::fixstar_ut_locked(star, jd_ut, flags))
     }
-    /// Run [`crate::fixstar2`] after applying this session's configuration
+    /// Run [`crate::global::fixstar2`] after applying this session's configuration
     /// under one native acquisition. `jd_et` is TT/ET Julian days; other units and
     /// input domains follow the linked operation. Return the complete native
     /// output, real flags/status/diagnostic where provided; preserve native,
@@ -621,7 +640,7 @@ impl Session {
     pub fn fixstar2(&self, star: &str, jd_et: f64, flags: i32) -> Result<StarPosition, Error> {
         self.compute(|| crate::stars::fixstar2_locked(star, jd_et, flags))
     }
-    /// Run [`crate::fixstar2_ut`] after applying this session's configuration
+    /// Run [`crate::global::fixstar2_ut`] after applying this session's configuration
     /// under one native acquisition. `jd_ut` is UT Julian days; other units and
     /// input domains follow the linked operation. Return the complete native
     /// output, real flags/status/diagnostic where provided; preserve native,
@@ -630,7 +649,7 @@ impl Session {
     pub fn fixstar2_ut(&self, star: &str, jd_ut: f64, flags: i32) -> Result<StarPosition, Error> {
         self.compute(|| crate::stars::fixstar2_ut_locked(star, jd_ut, flags))
     }
-    /// Run [`crate::fixstar_mag`] after applying this session's configuration
+    /// Run [`crate::global::fixstar_mag`] after applying this session's configuration
     /// under one native acquisition. magnitude is unitless visual magnitude; other units and
     /// input domains follow the linked operation. Return the complete native
     /// output, real flags/status/diagnostic where provided; preserve native,
@@ -639,7 +658,7 @@ impl Session {
     pub fn fixstar_mag(&self, star: &str) -> Result<StarMagnitude, Error> {
         self.compute(|| crate::stars::fixstar_mag_locked(star))
     }
-    /// Run [`crate::sol_eclipse_where_full`] after applying this session's configuration
+    /// Run [`crate::native::sol_eclipse_where_full`] after applying this session's configuration
     /// under one native acquisition. `jd_ut` is UT Julian days; other units and
     /// input domains follow the linked operation. Return the complete native
     /// output, real flags/status/diagnostic where provided; preserve native,
@@ -652,7 +671,7 @@ impl Session {
     ) -> Result<SolarEclipseGeometryFull, Error> {
         self.compute(|| crate::events::sol_eclipse_where_full_locked(jd_ut, flags))
     }
-    /// Run [`crate::lun_occult_where_full`] after applying this session's configuration
+    /// Run [`crate::native::lun_occult_where_full`] after applying this session's configuration
     /// under one native acquisition. `jd_ut` is UT Julian days; other units and
     /// input domains follow the linked operation. Return the complete native
     /// output, real flags/status/diagnostic where provided; preserve native,
@@ -667,7 +686,7 @@ impl Session {
     ) -> Result<OccultationGeometryFull, Error> {
         self.compute(|| crate::events::lun_occult_where_full_locked(jd_ut, body, star_name, flags))
     }
-    /// Run [`crate::heliacal_pheno_ut_full`] after applying this session's configuration
+    /// Run [`crate::native::heliacal_pheno_ut_full`] after applying this session's configuration
     /// under one native acquisition. `jd_ut` is UT Julian days; other units and
     /// input domains follow the linked operation. Return the complete native
     /// output, real flags/status/diagnostic where provided; preserve native,
@@ -693,7 +712,7 @@ impl Session {
             )
         })
     }
-    /// Run [`crate::vis_limit_mag_full`] after applying this session's
+    /// Run [`crate::native::vis_limit_mag_full`] after applying this session's
     /// configuration under one native acquisition. UT days, east/north
     /// degrees, metres, atmosphere/observer domains and flags follow the free
     /// operation. Return all ten initialized slots, actual vision-mode or
@@ -720,7 +739,7 @@ impl Session {
     }
     /// Read the extended native visual magnitude and resolved name after the
     /// owned path is installed in the same acquisition. Query semantics and
-    /// missing-catalog/native errors follow [`crate::fixstar2_mag`]; preserve
+    /// missing-catalog/native errors follow [`crate::global::fixstar2_mag`]; preserve
     /// the actual diagnostic, with no date calculation or catalog substitution.
     pub fn fixstar2_mag(&self, star: &str) -> Result<crate::StarMagnitude, Error> {
         crate::stars::check_star_name("fixstar2_mag", star)?;
@@ -769,7 +788,7 @@ impl Session {
     /// applied atomically with the search; the search's own observer is
     /// passed per call and — like the free function — becomes the
     /// process-global observer afterwards. Arguments follow
-    /// [`crate::rise_trans`].
+    /// [`crate::global::rise_trans`].
     #[allow(clippy::too_many_arguments)]
     pub fn rise_trans(
         &self,
@@ -845,12 +864,12 @@ impl Session {
     /// The snapshot is copied under the computation's native lock, before
     /// another call can replace the file state. This query does not apply
     /// configuration or read current native slots. Other sessions, free
-    /// calls and [`crate::close`] therefore cannot change the snapshot.
+    /// calls and [`crate::global::close`] therefore cannot change the snapshot.
     /// Clones of this session share it; the latest completed computation
     /// on any clone wins, including a native failure. Inputs rejected
     /// before native access leave it untouched.
     ///
-    /// Slots and fields follow [`crate::get_current_file_data`]. Returns
+    /// Slots and fields follow [`crate::global::get_current_file_data`]. Returns
     /// `None` before the first computation, for an empty slot, or for an
     /// ID outside `0..=4`. The report describes native slots at the end of
     /// the operation, not a complete list of sources used by the result;

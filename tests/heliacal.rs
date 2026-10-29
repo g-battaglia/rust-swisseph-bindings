@@ -12,8 +12,8 @@ use swisseph_bindings::{
     HELFLAG_NO_DETAILS, HELFLAG_OPTICAL_PARAMS, HELFLAG_PHOTOPIC, HELFLAG_SCOTOPIC,
     HELFLAG_SEARCH_1_PERIOD, HELFLAG_VISLIM_DARK, HELFLAG_VISLIM_NOMOON, HELFLAG_VISLIM_PHOTOPIC,
     HELFLAG_VISLIM_SCOTOPIC, HELIACAL_RISING, HELIACAL_SETTING, MIXEDOPIC_FLAG, MORNING_FIRST,
-    MORNING_LAST, PHOTOPIC_FLAG, SCOTOPIC_FLAG, TJD_INVALID, VisibilityOutcome, heliacal_pheno_ut,
-    heliacal_ut, set_ephe_path, vis_limit_mag,
+    MORNING_LAST, PHOTOPIC_FLAG, SCOTOPIC_FLAG, TJD_INVALID, VisibilityOutcome,
+    global::heliacal_pheno_ut, global::heliacal_ut, global::set_ephe_path, global::vis_limit_mag,
 };
 
 #[path = "data_dir.rs"]

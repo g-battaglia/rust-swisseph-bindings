@@ -45,7 +45,7 @@ Set `CC` to select the C compiler executable.
 Compute the Sun's position and speed using Moshier, without external data files:
 
 ```rust
-use swisseph_bindings::{Calendar, FLG_MOSEPH, FLG_SPEED, SUN, SessionBuilder, julday};
+use swisseph_bindings::{Calendar, FLG_MOSEPH, FLG_SPEED, SUN, SessionBuilder, native::julday};
 
 fn main() -> Result<(), swisseph_bindings::Error> {
     let jd_ut = julday(2000, 1, 1, 12.0, Calendar::Gregorian);

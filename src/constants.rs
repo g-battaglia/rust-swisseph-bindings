@@ -4,16 +4,16 @@
 //! declaration block. Public names use bare aliases of the native `SE_*`
 //! identifiers; their units and meanings are documented on each constant.
 
-/// Julian calendar flag for [`crate::julday`] and [`crate::revjul`].
+/// Julian calendar flag for [`crate::native::julday`] and [`crate::native::revjul`].
 pub const JUL_CAL: i32 = 0;
-/// Gregorian (proleptic) calendar flag for [`crate::julday`] and [`crate::revjul`].
+/// Gregorian (proleptic) calendar flag for [`crate::native::julday`] and [`crate::native::revjul`].
 pub const GREG_CAL: i32 = 1;
 
 // ---------------------------------------------------------------------------
 // Body numbers (`ipl` for [`crate::calc_ut`] / [`crate::calc`])
 // ---------------------------------------------------------------------------
 
-/// Nutation/obliquity pseudo-body for [`crate::calc_ut`] / [`crate::calc`].
+/// Nutation/obliquity pseudo-body for [`crate::global::calc_ut`] / [`crate::global::calc`].
 pub const ECL_NUT: i32 = -1;
 /// Fixed-star pseudo-body identifier; star operations select targets by name.
 pub const FIXSTAR: i32 = -10;
@@ -148,9 +148,9 @@ pub const FLG_XYZ: i32 = 4 * 1024;
 pub const FLG_RADIANS: i32 = 8 * 1024;
 /// Barycentric positions.
 pub const FLG_BARYCTR: i32 = 16 * 1024;
-/// Topocentric positions (requires [`crate::set_topo`]).
+/// Topocentric positions (requires [`crate::global::set_topo`]).
 pub const FLG_TOPOCTR: i32 = 32 * 1024;
-/// Sidereal positions (requires [`crate::set_sid_mode`]).
+/// Sidereal positions (requires [`crate::global::set_sid_mode`]).
 pub const FLG_SIDEREAL: i32 = 64 * 1024;
 /// ICRS reference frame.
 pub const FLG_ICRS: i32 = 128 * 1024;
@@ -255,7 +255,7 @@ pub const SIDM_LAHIRI_VP285: i32 = 44;
 pub const SIDM_KRISHNAMURTI_VP291: i32 = 45;
 /// Lahiri ICRC ayanamsha.
 pub const SIDM_LAHIRI_ICRC: i32 = 46;
-/// User-defined ayanamsha (`t0` is Terrestrial Time; see [`crate::set_sid_mode`]).
+/// User-defined ayanamsha (`t0` is Terrestrial Time; see [`crate::global::set_sid_mode`]).
 pub const SIDM_USER: i32 = 255;
 
 // ---------------------------------------------------------------------------
@@ -289,7 +289,7 @@ pub const SE_TIDAL_26: f64 = -26.0;
 pub const SE_TIDAL_STEPHENSON_2016: f64 = -25.85;
 /// Default tidal acceleration (currently the DE431 value).
 pub const SE_TIDAL_DEFAULT: f64 = SE_TIDAL_DE431;
-/// Sentinel restoring automatic tidal acceleration in [`crate::set_tid_acc`].
+/// Sentinel restoring automatic tidal acceleration in [`crate::global::set_tid_acc`].
 pub const SE_TIDAL_AUTOMATIC: f64 = 999999.0;
 /// Tidal acceleration assumed by the Moshier analytical model.
 pub const SE_TIDAL_MOSEPH: f64 = SE_TIDAL_DE404;
@@ -298,7 +298,7 @@ pub const SE_TIDAL_SWIEPH: f64 = SE_TIDAL_DEFAULT;
 /// Tidal acceleration assumed by JPL data files.
 pub const SE_TIDAL_JPLEPH: f64 = SE_TIDAL_DEFAULT;
 /// Sentinel clearing the user Delta-T override in
-/// [`crate::set_delta_t_userdef`] (`None` sends this value natively).
+/// [`crate::global::set_delta_t_userdef`] (`None` sends this value natively).
 pub const SE_DELTAT_AUTOMATIC: f64 = -1e-10;
 
 // ---------------------------------------------------------------------------
@@ -475,7 +475,7 @@ pub const HELFLAG_VISLIM_PHOTOPIC: i32 = 16384;
 /// Force scotopic (night) vision for the limiting magnitude.
 pub const HELFLAG_VISLIM_SCOTOPIC: i32 = 32768;
 /// Arcus-visionis search/phenomenon method (Victor Reijs VR criterion).
-/// [`crate::heliacal_ut`] rejects all `AVKIND` search bits with
+/// [`crate::global::heliacal_ut`] rejects all `AVKIND` search bits with
 /// `InvalidInput` because of a pinned-native internal buffer defect.
 /// Instant-based phenomenon calls retain the native flag semantics.
 pub const HELFLAG_AV: i32 = 65536;
@@ -488,17 +488,17 @@ pub const HELFLAG_AVKIND_MIN7: i32 = 262144;
 /// Arcus-visionis kind Babylonian (minimum 9°).
 pub const HELFLAG_AVKIND_MIN9: i32 = 524288;
 /// Selection mask for every arcus-visionis kind bit.
-/// These bits are unavailable in [`crate::heliacal_ut`]; see [`HELFLAG_AV`].
+/// These bits are unavailable in [`crate::global::heliacal_ut`]; see [`HELFLAG_AV`].
 pub const HELFLAG_AVKIND: i32 =
     HELFLAG_AVKIND_VR | HELFLAG_AVKIND_PTO | HELFLAG_AVKIND_MIN7 | HELFLAG_AVKIND_MIN9;
-/// [`crate::vis_limit_mag`] status: the object is below the local horizon
+/// [`crate::global::vis_limit_mag`] status: the object is below the local horizon
 /// (a dedicated `Ok` outcome, never an error).
 pub const HELFLAG_BELOW_HORIZON: i32 = -2;
-/// [`crate::vis_limit_mag`] vision status: photopic (daylight) vision.
+/// [`crate::global::vis_limit_mag`] vision status: photopic (daylight) vision.
 pub const HELFLAG_PHOTOPIC: i32 = 0;
-/// [`crate::vis_limit_mag`] vision status: scotopic (night) vision.
+/// [`crate::global::vis_limit_mag`] vision status: scotopic (night) vision.
 pub const HELFLAG_SCOTOPIC: i32 = 1;
-/// [`crate::vis_limit_mag`] vision status: near the photopic/scotopic
+/// [`crate::global::vis_limit_mag`] vision status: near the photopic/scotopic
 /// limit (bit 1 added to the photopic/scotopic bit).
 pub const HELFLAG_MIXED: i32 = 2;
 /// Photopic vision flag; equals [`HELFLAG_PHOTOPIC`].
@@ -507,7 +507,7 @@ pub const PHOTOPIC_FLAG: i32 = 0;
 pub const SCOTOPIC_FLAG: i32 = 1;
 /// Mixed photopic/scotopic vision flag; equals [`HELFLAG_MIXED`].
 pub const MIXEDOPIC_FLAG: i32 = 2;
-/// Invalid-time sentinel used by [`crate::heliacal_pheno_ut`] slot 15
+/// Invalid-time sentinel used by [`crate::global::heliacal_pheno_ut`] slot 15
 /// (`TbYallop`) when the Yallop lunar-crescent timing does not apply
 /// (non-lunar objects).
 pub const TJD_INVALID: f64 = 99999999.0;
@@ -538,7 +538,7 @@ pub const SPLIT_DEG_KEEP_DEG: i32 = 32;
 /// Acronychal rising event type (5).
 ///
 /// The pinned header marks this "still not implemented": the engine
-/// rejects it natively (see [`crate::heliacal_ut`]). The constant is
+/// rejects it natively (see [`crate::global::heliacal_ut`]). The constant is
 /// bound so the declared-but-unavailable type is visible, not to enable
 /// it.
 pub const ACRONYCHAL_RISING: i32 = 5;
@@ -571,7 +571,7 @@ pub const FICT_OFFSET_1: i32 = 39;
 /// Default JPL Development Ephemeris number.
 pub const DE_NUMBER: i32 = 431;
 /// Calculate the position of the center of the body instead of the photo
-/// center (flag bit for [`crate::calc`] / [`crate::calc_ut`]).
+/// center (flag bit for [`crate::global::calc`] / [`crate::global::calc_ut`]).
 pub const FLG_CENTER_BODY: i32 = 1024 * 1024;
 /// Ascendant index into the [`crate::Houses`] angles array.
 pub const ASC: i32 = 0;

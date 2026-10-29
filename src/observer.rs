@@ -86,7 +86,7 @@ pub enum RiseTransitOutcome {
 /// Calculate nodes and apsides for an Ephemeris Time Julian Day.
 ///
 /// `body` is a body number (for example [`crate::MARS`]); `flags`
-/// combines the same source/geometry/output bits as [`crate::calc`]
+/// combines the same source/geometry/output bits as [`crate::global::calc`]
 /// (ephemeris flag, heliocentric, speed, ...). `method` selects the
 /// model: [`crate::NODBIT_MEAN`] (mean elements where defined, the
 /// default — also used when `method` is 0), [`crate::NODBIT_OSCU`]
@@ -103,7 +103,7 @@ pub enum RiseTransitOutcome {
 /// # Configuration dependence
 ///
 /// File-based sources require data files visible through
-/// [`crate::set_ephe_path`]; the active configuration is captured under
+/// [`crate::global::set_ephe_path`]; the active configuration is captured under
 /// the process-wide native lock together with the computation.
 ///
 /// # Errors
@@ -116,7 +116,7 @@ pub enum RiseTransitOutcome {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, FLG_SPEED, MARS, NODBIT_MEAN, nod_aps};
+/// use swisseph_bindings::{FLG_MOSEPH, FLG_SPEED, MARS, NODBIT_MEAN, global::nod_aps};
 ///
 /// // The Moshier model needs no data files, so this runs anywhere.
 /// let nodes = nod_aps(2451545.0, MARS, FLG_MOSEPH | FLG_SPEED, NODBIT_MEAN)?;
@@ -129,58 +129,69 @@ pub enum RiseTransitOutcome {
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 pub fn nod_aps(jd_et: f64, body: i32, flags: i32, method: i32) -> Result<NodesApsides, Error> {
     if !jd_et.is_finite() {
         return Err(Error::invalid_input("nod_aps: Julian Day must be finite"));
     }
-    with_native_access(|| {
-        crate::domain::check_et_locked("nod_aps", jd_et, flags)?;
-        let mut xnasc = [0.0; POSITION_LEN];
-        let mut xndsc = [0.0; POSITION_LEN];
-        let mut xperi = [0.0; POSITION_LEN];
-        let mut xaphe = [0.0; POSITION_LEN];
-        let mut serr = [0 as c_char; SERR_LEN];
-        // SAFETY: each vector owns POSITION_LEN writable f64 slots and
-        // `serr` owns SERR_LEN writable bytes; all outlive this call and
-        // no other thread can access native state while the lock is held.
-        // Results are only exposed after the native status is checked.
-        let ret = unsafe {
-            ffi::swe_nod_aps(
-                jd_et,
-                body,
-                flags,
-                method,
-                xnasc.as_mut_ptr(),
-                xndsc.as_mut_ptr(),
-                xperi.as_mut_ptr(),
-                xaphe.as_mut_ptr(),
-                serr.as_mut_ptr(),
-            )
-        };
-        // SAFETY: `serr` is our own fully initialized buffer; the read is
-        // bounded by SERR_LEN (see `read_native_text`).
-        let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
-        if ret < 0 {
-            Err(Error::native(describe_nodes_failure(
-                "nod_aps",
-                jd_et,
-                body,
-                flags,
-                method,
-                &diagnostic,
-            )))
-        } else {
-            Ok(NodesApsides {
-                ascending: xnasc,
-                descending: xndsc,
-                perihelion: xperi,
-                aphelion: xaphe,
-                returned_flags: ret,
-                diagnostic,
-            })
-        }
-    })
+    with_native_access(|| nod_aps_locked(jd_et, body, flags, method))
+}
+
+/// Compute TT nodes/apsides under caller-owned native access.
+/// The caller applies configuration and preserves the original ET admission,
+/// all four six-word arrays, integer status and bounded diagnostic. No public
+/// setter chain, second evaluation or change of clock is introduced.
+pub(crate) fn nod_aps_locked(
+    jd_et: f64,
+    body: i32,
+    flags: i32,
+    method: i32,
+) -> Result<NodesApsides, Error> {
+    crate::domain::check_et_locked("nod_aps", jd_et, flags)?;
+    let mut xnasc = [0.0; POSITION_LEN];
+    let mut xndsc = [0.0; POSITION_LEN];
+    let mut xperi = [0.0; POSITION_LEN];
+    let mut xaphe = [0.0; POSITION_LEN];
+    let mut serr = [0 as c_char; SERR_LEN];
+    // SAFETY: each vector owns POSITION_LEN writable f64 slots and
+    // `serr` owns SERR_LEN writable bytes; all outlive this call and
+    // no other thread can access native state while the lock is held.
+    // Results are only exposed after the native status is checked.
+    let ret = unsafe {
+        ffi::swe_nod_aps(
+            jd_et,
+            body,
+            flags,
+            method,
+            xnasc.as_mut_ptr(),
+            xndsc.as_mut_ptr(),
+            xperi.as_mut_ptr(),
+            xaphe.as_mut_ptr(),
+            serr.as_mut_ptr(),
+        )
+    };
+    // SAFETY: `serr` is our own fully initialized buffer; the read is
+    // bounded by SERR_LEN (see `read_native_text`).
+    let diagnostic = unsafe { read_native_text(serr.as_ptr(), SERR_LEN) };
+    if ret < 0 {
+        Err(Error::native(describe_nodes_failure(
+            "nod_aps",
+            jd_et,
+            body,
+            flags,
+            method,
+            &diagnostic,
+        )))
+    } else {
+        Ok(NodesApsides {
+            ascending: xnasc,
+            descending: xndsc,
+            perihelion: xperi,
+            aphelion: xaphe,
+            returned_flags: ret,
+            diagnostic,
+        })
+    }
 }
 
 /// Calculate nodes and apsides for a Universal Time Julian Day.
@@ -192,7 +203,7 @@ pub fn nod_aps(jd_et: f64, body: i32, flags: i32, method: i32) -> Result<NodesAp
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, FLG_SPEED, MARS, NODBIT_MEAN, nod_aps_ut};
+/// use swisseph_bindings::{FLG_MOSEPH, FLG_SPEED, MARS, NODBIT_MEAN, global::nod_aps_ut};
 ///
 /// let nodes = nod_aps_ut(2451545.0, MARS, FLG_MOSEPH | FLG_SPEED, NODBIT_MEAN)?;
 /// assert!((0.0..360.0).contains(&nodes.perihelion[0]));
@@ -204,7 +215,7 @@ pub fn nod_aps(jd_et: f64, body: i32, flags: i32, method: i32) -> Result<NodesAp
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 pub fn nod_aps_ut(jd_ut: f64, body: i32, flags: i32, method: i32) -> Result<NodesApsides, Error> {
     if !jd_ut.is_finite() {
         return Err(Error::invalid_input(
@@ -417,9 +428,9 @@ pub(crate) fn check_rise_inputs(
 /// feed refraction.
 ///
 /// Observer side effect: the native search installs this observer as the
-/// process-global observer (as if by [`crate::set_topo`]), so later
-/// topocentric [`crate::calc_ut`]/[`crate::calc`] calls observe it until
-/// [`crate::set_topo`] runs again. Established by probing the pinned
+/// process-global observer (as if by [`crate::global::set_topo`]), so later
+/// topocentric [`crate::global::calc_ut`]/[`crate::global::calc`] calls observe it until
+/// [`crate::global::set_topo`] runs again. Established by probing the pinned
 /// build.
 ///
 /// A found event reports its Universal Time Julian Day; a circumpolar
@@ -430,7 +441,7 @@ pub(crate) fn check_rise_inputs(
 /// # Configuration dependence
 ///
 /// File-based sources and the fixed-star path require data/catalog files
-/// visible through [`crate::set_ephe_path`]; the active configuration is
+/// visible through [`crate::global::set_ephe_path`]; the active configuration is
 /// captured under the process-wide native lock together with the search.
 ///
 /// # Errors
@@ -441,11 +452,11 @@ pub(crate) fn check_rise_inputs(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{CALC_RISE, FLG_SWIEPH, SUN, rise_trans};
+/// use swisseph_bindings::{CALC_RISE, FLG_SWIEPH, SUN, global::rise_trans};
 ///
 /// // Sunrise over Greenwich on 2000-01-01 (explicit external data, else
 /// // the checkout data, keeps this runnable).
-/// use swisseph_bindings::set_ephe_path;
+/// use swisseph_bindings::global::set_ephe_path;
 /// // Ephemeris data comes from an explicit external directory when set,
 /// // otherwise from the checkout data (doctests run with the package root
 /// // as the working directory); without either, there is nothing
@@ -466,10 +477,10 @@ pub(crate) fn check_rise_inputs(
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 ///
 /// Observer height must satisfy the arithmetic ceiling documented by
-/// [`crate::set_topo`]; excessive height returns `InvalidInput` before
+/// [`crate::global::set_topo`]; excessive height returns `InvalidInput` before
 /// observer configuration or computation. Native geographic limits and
 /// data errors are still reported by the engine.
 #[allow(clippy::too_many_arguments)]
@@ -513,7 +524,7 @@ pub fn rise_trans(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{CALC_SET, FLG_SWIEPH, SUN, rise_trans_true_hor, set_ephe_path};
+/// use swisseph_bindings::{CALC_SET, FLG_SWIEPH, SUN, global::rise_trans_true_hor, global::set_ephe_path};
 ///
 /// // Ephemeris data comes from an explicit external directory when set,
 /// // otherwise from the checkout data (doctests run with the package root
@@ -535,10 +546,10 @@ pub fn rise_trans(
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 ///
 /// Observer height must satisfy the arithmetic ceiling documented by
-/// [`crate::set_topo`]; excessive height returns `InvalidInput` before
+/// [`crate::global::set_topo`]; excessive height returns `InvalidInput` before
 /// observer configuration or computation. Native geographic limits and
 /// data errors are still reported by the engine.
 #[allow(clippy::too_many_arguments)]
@@ -748,7 +759,7 @@ fn check_horizontal_inputs(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{EQU2HOR, azalt};
+/// use swisseph_bindings::{EQU2HOR, global::azalt};
 ///
 /// let h = azalt(2451545.0, EQU2HOR, 12.5, 41.9, 0.0, 1013.25, 15.0, 200.0, 60.0)?;
 /// assert!((0.0..360.0).contains(&h.azimuth));
@@ -762,7 +773,7 @@ fn check_horizontal_inputs(
 /// shifts under the computation lock; violations return `InvalidInput`.
 ///
 /// Observer height must satisfy the arithmetic ceiling documented by
-/// [`crate::set_topo`]; excessive height returns `InvalidInput` before
+/// [`crate::global::set_topo`]; excessive height returns `InvalidInput` before
 /// observer configuration or computation. Native geographic limits and
 /// data errors are still reported by the engine.
 #[allow(clippy::too_many_arguments)]
@@ -831,7 +842,7 @@ pub fn azalt(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{EQU2HOR, HOR2EQU, azalt, azalt_rev};
+/// use swisseph_bindings::{EQU2HOR, HOR2EQU, global::azalt, global::azalt_rev};
 ///
 /// let h = azalt(2451545.0, EQU2HOR, 12.5, 41.9, 0.0, 0.0, 15.0, 200.0, 60.0)?;
 /// let c = azalt_rev(2451545.0, HOR2EQU, 12.5, 41.9, 0.0, h.azimuth, h.true_altitude)?;
@@ -846,7 +857,7 @@ pub fn azalt(
 /// shifts under the computation lock; violations return `InvalidInput`.
 ///
 /// Observer height must satisfy the arithmetic ceiling documented by
-/// [`crate::set_topo`]; excessive height returns `InvalidInput` before
+/// [`crate::global::set_topo`]; excessive height returns `InvalidInput` before
 /// observer configuration or computation. Native geographic limits and
 /// data errors are still reported by the engine.
 #[allow(clippy::too_many_arguments)]
@@ -915,7 +926,7 @@ pub fn azalt_rev(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{TRUE_TO_APP, refrac};
+/// use swisseph_bindings::{TRUE_TO_APP, global::refrac};
 ///
 /// // Refraction lifts the apparent position at 10° by about 0.09°.
 /// let apparent = refrac(10.0, 1013.25, 15.0, TRUE_TO_APP)?;
@@ -969,7 +980,7 @@ pub fn refrac(altitude: f64, atpress: f64, attemp: f64, calc_flag: i32) -> Resul
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{TRUE_TO_APP, refrac_extended};
+/// use swisseph_bindings::{TRUE_TO_APP, global::refrac_extended};
 ///
 /// // Sea level: no horizon dip; refraction of about 0.087° at 10°.
 /// let r = refrac_extended(10.0, 0.0, 1013.25, 15.0, 0.0065, TRUE_TO_APP)?;
@@ -1055,7 +1066,7 @@ pub(crate) fn apply_lapse_rate_locked(lapse_rate: f64) {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::set_lapse_rate;
+/// use swisseph_bindings::global::set_lapse_rate;
 ///
 /// set_lapse_rate(0.0065)?;
 /// # Ok::<(), swisseph_bindings::Error>(())
@@ -1126,14 +1137,14 @@ impl Phenomena {
 /// Compute planetary phenomena for an Ephemeris Time Julian Day.
 ///
 /// `body` is a body number (for example [`crate::MARS`]); `flags`
-/// combines the same source/geometry bits as [`crate::calc`]. There is
+/// combines the same source/geometry bits as [`crate::global::calc`]. There is
 /// no body-or-star union here: fixed-star phenomena are not a native
 /// operation.
 ///
 /// # Configuration dependence
 ///
 /// File-based sources require data files visible through
-/// [`crate::set_ephe_path`]; the active configuration is captured under
+/// [`crate::global::set_ephe_path`]; the active configuration is captured under
 /// the process-wide native lock together with the computation.
 ///
 /// # Errors
@@ -1146,7 +1157,7 @@ impl Phenomena {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, MARS, pheno};
+/// use swisseph_bindings::{FLG_MOSEPH, MARS, global::pheno};
 ///
 /// // The Moshier model needs no data files, so this runs anywhere.
 /// let ph = pheno(2451545.0, MARS, FLG_MOSEPH)?;
@@ -1159,7 +1170,7 @@ impl Phenomena {
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 pub fn pheno(jd_et: f64, body: i32, flags: i32) -> Result<Phenomena, Error> {
     if !jd_et.is_finite() {
         return Err(Error::invalid_input("pheno: Julian Day must be finite"));
@@ -1203,7 +1214,7 @@ pub fn pheno(jd_et: f64, body: i32, flags: i32) -> Result<Phenomena, Error> {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, MARS, pheno_ut};
+/// use swisseph_bindings::{FLG_MOSEPH, MARS, global::pheno_ut};
 ///
 /// let ph = pheno_ut(2451545.0, MARS, FLG_MOSEPH)?;
 /// assert!((0.0..180.0).contains(&ph.elongation()));
@@ -1215,7 +1226,7 @@ pub fn pheno(jd_et: f64, body: i32, flags: i32) -> Result<Phenomena, Error> {
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 pub fn pheno_ut(jd_ut: f64, body: i32, flags: i32) -> Result<Phenomena, Error> {
     if !jd_ut.is_finite() {
         return Err(Error::invalid_input("pheno_ut: Julian Day must be finite"));
@@ -1379,7 +1390,7 @@ impl OrbitalElements {
 /// Day.
 ///
 /// `body` is a body number (for example [`crate::MARS`]); `flags`
-/// combines the same source/geometry bits as [`crate::calc`]. The
+/// combines the same source/geometry bits as [`crate::global::calc`]. The
 /// elements describe the ellipse the body would follow if all
 /// perturbations ceased at that instant. There is no Universal Time
 /// variant natively — convert the epoch with the time functions first
@@ -1393,7 +1404,7 @@ impl OrbitalElements {
 ///
 /// # Configuration dependence
 ///
-/// Same contract as [`pheno`]: data files via [`crate::set_ephe_path`],
+/// Same contract as [`pheno`]: data files via [`crate::global::set_ephe_path`],
 /// configuration captured under the process-wide native lock.
 ///
 /// # Errors
@@ -1406,7 +1417,7 @@ impl OrbitalElements {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, MARS, get_orbital_elements};
+/// use swisseph_bindings::{FLG_MOSEPH, MARS, global::get_orbital_elements};
 ///
 /// // The Moshier model needs no data files, so this runs anywhere.
 /// let el = get_orbital_elements(2451545.0, MARS, FLG_MOSEPH)?;
@@ -1420,7 +1431,7 @@ impl OrbitalElements {
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 pub fn get_orbital_elements(jd_et: f64, body: i32, flags: i32) -> Result<OrbitalElements, Error> {
     if !jd_et.is_finite() {
         return Err(Error::invalid_input(
@@ -1497,7 +1508,7 @@ pub struct DistanceExtremes {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, MARS, orbit_max_min_true_distance};
+/// use swisseph_bindings::{FLG_MOSEPH, MARS, global::orbit_max_min_true_distance};
 ///
 /// // The Moshier model needs no data files, so this runs anywhere.
 /// let d = orbit_max_min_true_distance(2451545.0, MARS, FLG_MOSEPH)?;
@@ -1510,7 +1521,7 @@ pub struct DistanceExtremes {
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 pub fn orbit_max_min_true_distance(
     jd_et: f64,
     body: i32,

@@ -13,8 +13,9 @@ mod isolated;
 use std::sync::{Mutex, MutexGuard};
 
 use swisseph_bindings::{
-    Calendar, ErrorKind, FLG_MOSEPH, FLG_SPEED, FLG_SWIEPH, SUN, calc_ut, fixstar_ut, houses,
-    houses_ex, julday, revjul, set_ephe_path, version,
+    Calendar, ErrorKind, FLG_MOSEPH, FLG_SPEED, FLG_SWIEPH, SUN, global::calc_ut,
+    global::fixstar_ut, global::houses, global::houses_ex, global::set_ephe_path, native::julday,
+    native::revjul, native::version,
 };
 
 /// J2000.0 in Universal Time.

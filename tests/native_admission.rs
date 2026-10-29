@@ -2,6 +2,10 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use swisseph_bindings::*;
+use swisseph_bindings::{
+    global::fixstar2, global::fixstar2_mag, global::fixstar2_ut, global::mooncross_ut,
+    global::set_ephe_path, native::fixed_star_catalog, native::lun_occult_where_full,
+};
 
 /// Build the public-header reference against this target's C archive.
 fn oracle() -> PathBuf {

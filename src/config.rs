@@ -409,7 +409,7 @@ pub(crate) fn apply_delta_t_locked(native_dt: f64) -> Result<(), Error> {
 ///
 /// ```
 /// // Restore the default search path.
-/// swisseph_bindings::set_ephe_path(None)?;
+/// swisseph_bindings::global::set_ephe_path(None)?;
 /// # Ok::<(), swisseph_bindings::Error>(())
 /// ```
 pub fn set_ephe_path(path: Option<&str>) -> Result<(), Error> {
@@ -425,7 +425,7 @@ pub fn set_ephe_path(path: Option<&str>) -> Result<(), Error> {
 /// `path` uses the same UTF-8 byte limits and `None`/empty/default conventions as
 /// [`set_ephe_path`], including native `SE_EPHE_PATH` precedence. An unchanged
 /// request retains open files and calculation caches. A changed request,
-/// environment, relevant working directory, native thread, explicit [`crate::close`]
+/// environment, relevant working directory, native thread, explicit [`crate::global::close`]
 /// or binding-owned manual tidal setting requires path installation again.
 ///
 /// Use [`set_ephe_path`] to force a reload even when the spelling is unchanged,
@@ -472,15 +472,15 @@ fn ephe_path_argument(path: Option<&str>) -> Result<Option<CString>, Error> {
 ///
 /// `longitude` is east-positive degrees, `latitude` is degrees north, and
 /// `altitude` is meters above sea level. The setting applies to subsequent
-/// [`crate::calc_ut`]/[`crate::calc`] calls with `FLG_TOPOCTR` and to
+/// [`crate::global::calc_ut`]/[`crate::global::calc`] calls with `FLG_TOPOCTR` and to
 /// observer-dependent calls in later families.
 ///
-/// The observer-taking searches ([`crate::rise_trans`],
-/// [`crate::rise_trans_true_hor`], [`crate::heliacal_ut`],
-/// [`crate::heliacal_pheno_ut`], [`crate::vis_limit_mag`],
-/// [`crate::sol_eclipse_when_loc`], [`crate::sol_eclipse_how`],
-/// [`crate::lun_eclipse_when_loc`], [`crate::lun_eclipse_how`] and
-/// [`crate::lun_occult_when_loc`]) install their observer the same way as
+/// The observer-taking searches ([`crate::global::rise_trans`],
+/// [`crate::global::rise_trans_true_hor`], [`crate::global::heliacal_ut`],
+/// [`crate::global::heliacal_pheno_ut`], [`crate::global::vis_limit_mag`],
+/// [`crate::global::sol_eclipse_when_loc`], [`crate::global::sol_eclipse_how`],
+/// [`crate::global::lun_eclipse_when_loc`], [`crate::global::lun_eclipse_how`] and
+/// [`crate::global::lun_occult_when_loc`]) install their observer the same way as
 /// a side effect (established by probing the pinned build): a topocentric
 /// calculation always sees the most recently installed observer, whether
 /// it came from here or from such a search.
@@ -578,7 +578,7 @@ pub const MAX_JPL_FILE_LEN: usize = 255;
 ///
 /// ```no_run
 /// // Requires a JPL data file visible through the ephemeris path.
-/// swisseph_bindings::set_jpl_file("de431.eph")?;
+/// swisseph_bindings::native::set_jpl_file("de431.eph")?;
 /// # Ok::<(), swisseph_bindings::Error>(())
 /// ```
 pub fn set_jpl_file(fname: &str) -> Result<(), Error> {
@@ -605,8 +605,8 @@ pub fn set_jpl_file(fname: &str) -> Result<(), Error> {
 /// Set the tidal acceleration of the Moon used in Delta-T calculations.
 ///
 /// `acc` is arcsec/cy²; [`crate::SE_TIDAL_AUTOMATIC`] restores automatic
-/// selection. The setting rescales the Delta T returned by [`crate::deltat`]
-/// and [`crate::deltat_ex`] for dates before 1955.0; from 1955.0 onwards
+/// selection. The setting rescales the Delta T returned by [`crate::global::deltat`]
+/// and [`crate::global::deltat_ex`] for dates before 1955.0; from 1955.0 onwards
 /// Delta T is pinned by modern observations and unaffected. A user Delta-T
 /// override from [`set_delta_t_userdef`] takes precedence over this setting.
 ///
@@ -631,8 +631,8 @@ pub fn set_tid_acc(acc: f64) -> Result<(), Error> {
 
 /// Return the tidal acceleration of the Moon in arcsec/cy².
 ///
-/// This is the value currently used by [`crate::deltat`] and
-/// [`crate::deltat_ex`]: either set explicitly by [`set_tid_acc`] or, in
+/// This is the value currently used by [`crate::global::deltat`] and
+/// [`crate::global::deltat_ex`]: either set explicitly by [`set_tid_acc`] or, in
 /// automatic mode, the native default ([`crate::SE_TIDAL_DEFAULT`]) as
 /// possibly updated to the intrinsic value of opened data files (see
 /// [`set_tid_acc`]).
@@ -640,7 +640,7 @@ pub fn set_tid_acc(acc: f64) -> Result<(), Error> {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{SE_TIDAL_AUTOMATIC, SE_TIDAL_DE421, get_tid_acc, set_tid_acc};
+/// use swisseph_bindings::{SE_TIDAL_AUTOMATIC, SE_TIDAL_DE421, global::get_tid_acc, global::set_tid_acc};
 ///
 /// set_tid_acc(SE_TIDAL_DE421)?;
 /// assert_eq!(get_tid_acc()?, SE_TIDAL_DE421);
@@ -655,8 +655,8 @@ pub fn get_tid_acc() -> Result<f64, Error> {
     })
 }
 
-/// Fix the Delta T (TT minus UT, in days) returned by [`crate::deltat`]
-/// and [`crate::deltat_ex`], or resume computed values.
+/// Fix the Delta T (TT minus UT, in days) returned by [`crate::global::deltat`]
+/// and [`crate::global::deltat_ex`], or resume computed values.
 ///
 /// `Some(dt)` pins Delta T to `dt` days; `None` clears the override by
 /// passing the native [`crate::SE_DELTAT_AUTOMATIC`] sentinel. While an
@@ -671,7 +671,7 @@ pub fn get_tid_acc() -> Result<f64, Error> {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{deltat, set_delta_t_userdef};
+/// use swisseph_bindings::{global::deltat, global::set_delta_t_userdef};
 ///
 /// set_delta_t_userdef(Some(65.0 / 86400.0))?;
 /// assert!((deltat(2451545.0)? - 65.0 / 86400.0).abs() < 1e-12);
@@ -744,7 +744,7 @@ fn checked_ayanamsha(function: &str, value: f64) -> Result<f64, Error> {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{SIDM_LAHIRI, get_ayanamsa_ut, set_sid_mode};
+/// use swisseph_bindings::{SIDM_LAHIRI, global::get_ayanamsa_ut, global::set_sid_mode};
 ///
 /// set_sid_mode(SIDM_LAHIRI, 0.0, 0.0)?;
 /// let ayan = get_ayanamsa_ut(2451545.0)?;
@@ -775,7 +775,7 @@ pub fn get_ayanamsa_ut(jd_ut: f64) -> Result<f64, Error> {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{SIDM_LAHIRI, get_ayanamsa, set_sid_mode};
+/// use swisseph_bindings::{SIDM_LAHIRI, global::get_ayanamsa, global::set_sid_mode};
 ///
 /// set_sid_mode(SIDM_LAHIRI, 0.0, 0.0)?;
 /// let ayan = get_ayanamsa(2451545.0)?;
@@ -797,7 +797,7 @@ pub fn get_ayanamsa(jd_et: f64) -> Result<f64, Error> {
     with_native_access(|| get_ayanamsa_locked(jd_et))
 }
 
-/// Execute [`crate::get_ayanamsa`] with native access already held.
+/// Execute [`crate::global::get_ayanamsa`] with native access already held.
 /// Preserve its input domains, units, native status/flags and diagnostics;
 /// apply no configuration, fallback or alternate numerical method. Errors
 /// follow the public operation. Caller owns the lock for validation and C read.
@@ -831,7 +831,7 @@ pub(crate) fn get_ayanamsa_locked(jd_et: f64) -> Result<f64, Error> {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_SWIEPH, SIDM_LAHIRI, get_ayanamsa_ex, set_sid_mode};
+/// use swisseph_bindings::{FLG_SWIEPH, SIDM_LAHIRI, global::get_ayanamsa_ex, global::set_sid_mode};
 ///
 /// set_sid_mode(SIDM_LAHIRI, 0.0, 0.0)?;
 /// let ayan = get_ayanamsa_ex(2451545.0, FLG_SWIEPH)?;
@@ -853,7 +853,7 @@ pub fn get_ayanamsa_ex(jd_et: f64, flags: i32) -> Result<Ayanamsha, Error> {
     with_native_access(|| get_ayanamsa_ex_locked(jd_et, flags))
 }
 
-/// Execute [`crate::get_ayanamsa_ex`] with native access already held.
+/// Execute [`crate::global::get_ayanamsa_ex`] with native access already held.
 /// Preserve its input domains, units, native status/flags and diagnostics;
 /// apply no configuration, fallback or alternate numerical method. Errors
 /// follow the public operation. Caller owns the lock for validation and C read.
@@ -895,7 +895,7 @@ pub(crate) fn get_ayanamsa_ex_locked(jd_et: f64, flags: i32) -> Result<Ayanamsha
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_SWIEPH, SIDM_LAHIRI, get_ayanamsa_ex_ut, set_sid_mode};
+/// use swisseph_bindings::{FLG_SWIEPH, SIDM_LAHIRI, global::get_ayanamsa_ex_ut, global::set_sid_mode};
 ///
 /// set_sid_mode(SIDM_LAHIRI, 0.0, 0.0)?;
 /// let ayan = get_ayanamsa_ex_ut(2451545.0, FLG_SWIEPH)?;
@@ -917,7 +917,7 @@ pub fn get_ayanamsa_ex_ut(jd_ut: f64, flags: i32) -> Result<Ayanamsha, Error> {
     with_native_access(|| get_ayanamsa_ex_ut_locked(jd_ut, flags))
 }
 
-/// Execute [`crate::get_ayanamsa_ex_ut`] with native access already held.
+/// Execute [`crate::global::get_ayanamsa_ex_ut`] with native access already held.
 /// Preserve its input domains, units, native status/flags and diagnostics;
 /// apply no configuration, fallback or alternate numerical method. Errors
 /// follow the public operation. Caller owns the lock for validation and C read.
@@ -962,7 +962,7 @@ pub(crate) fn get_ayanamsa_ex_ut_locked(jd_ut: f64, flags: i32) -> Result<Ayanam
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{SIDM_FAGAN_BRADLEY, SIDM_LAHIRI, get_ayanamsa_name};
+/// use swisseph_bindings::{SIDM_FAGAN_BRADLEY, SIDM_LAHIRI, native::get_ayanamsa_name};
 ///
 /// assert_eq!(get_ayanamsa_name(SIDM_LAHIRI)?, "Lahiri");
 /// assert_eq!(get_ayanamsa_name(SIDM_FAGAN_BRADLEY)?, "Fagan/Bradley");
@@ -1099,7 +1099,7 @@ pub(crate) fn capture_current_file_data_locked(ifno: i32, target: &mut Option<Cu
 /// never an error: absence of a file is data, not a failure.
 ///
 /// The report reflects the files the engine has actually opened, so a
-/// file-based computation (for example [`crate::calc_ut`] with
+/// file-based computation (for example [`crate::global::calc_ut`] with
 /// [`crate::FLG_SWIEPH`]) must run first; the query itself holds the
 /// native lock with its read.
 ///
@@ -1108,7 +1108,7 @@ pub(crate) fn capture_current_file_data_locked(ifno: i32, target: &mut Option<Cu
 /// ```
 /// // The query always succeeds; whether a file is loaded depends on
 /// // the process-global data configuration and computation history.
-/// let _report = swisseph_bindings::get_current_file_data(0)?;
+/// let _report = swisseph_bindings::global::get_current_file_data(0)?;
 /// # Ok::<(), swisseph_bindings::Error>(())
 /// ```
 pub fn get_current_file_data(ifno: i32) -> Result<Option<CurrentFileData>, Error> {

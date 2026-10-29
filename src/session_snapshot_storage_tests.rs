@@ -124,7 +124,7 @@ fn copied_file_paths_reuse_capacity_and_remain_owned_snapshot_bytes() {
     let output = path.as_ref().unwrap();
     assert_eq!((output.as_ptr(), output.capacity()), storage);
     assert_eq!(output, &moon_file.path);
-    crate::close().unwrap();
+    crate::global::close().unwrap();
     session.get_current_file_path_into(1, &mut path).unwrap();
     assert_eq!(path.as_deref(), Some(moon_file.path.as_str()));
 }

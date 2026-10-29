@@ -4,6 +4,10 @@
 use super::protocol::{Record, Request};
 use super::registry::Op;
 use swisseph_bindings::*;
+use swisseph_bindings::{
+    global::helio_cross, global::helio_cross_ut, global::mooncross, global::mooncross_node,
+    global::mooncross_node_ut, global::mooncross_ut, global::solcross, global::solcross_ut,
+};
 
 /// Preserve a crossing's exact time and complete diagnostic.
 fn crossing(value: LongitudeCrossing) -> Record {

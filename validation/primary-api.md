@@ -4,8 +4,8 @@
 
 This branch prepares the 2.0.0 primary API contract. **It is not yet a complete
 2.0.0 implementation or release candidate.** The legacy extension namespaces
-exist, but transitional root exports and inherited Session settings have not
-yet been removed. The contract test is an explicit structural bootstrap;
+exist and configured legacy free functions/native-only helpers have left the
+root. Inherited Session settings and remaining typed-family work are pending. The contract test is an explicit structural bootstrap;
 passing it does not qualify omitted operations.
 
 The target is one primary API at the crate root: constants, pure utilities,
@@ -26,9 +26,9 @@ legacy extension functions to make them resemble Session methods.
 and their extension paths. All 74 global and 37 native paths now exist as direct
 re-exports of the original definitions, with no argument adapters. Fully
 qualified paths in the frozen-signature test prevent fallback to a root
-function if an extension export disappears. The root aliases remain transitional during this
-incomplete migration; they must be removed before final acceptance. The final
-primary inventory must reject all undeclared root exports.
+function if an extension export disappears. Stateful free functions and native
+helpers are no longer root exports. Pure utilities still require their final
+typed results. The final primary inventory must reject all undeclared exports.
 
 Explicit native-only destinations include `_full` operations,
 `ensure_ephe_path`, `require_source_flags`, `set_jpl_file`, `library_path`,
@@ -79,22 +79,38 @@ mappings cannot pass the `check` command. The implemented extension nodes
 permit inventory to exclude exactly `--extension global --extension native`,
 never arbitrary members or root aliases. No remote CI is introduced.
 
-## Existing differential-runner blocker
+## Differential-runner diagnosis
 
-The unmodified starting revision reproduces the default runner failure at
-`OCCULT_SELF_GEOMETRY_REJECTED` (JD 2451545, Moon target, Moshier flags): it
-expects a safe-boundary rejection, while the current fixed-instant API admits
-that query. The advisory-only candidate reproduces the same failure. This is
-not reported as a passing native matrix.
+The baseline failure at `OCCULT_SELF_GEOMETRY_REJECTED` was an incorrect runner
+expectation, not a missing search guard. Fixed-instant Moon geometry is admitted
+by the pinned C API; unlike self-occultation searches, it terminates and can
+return undefined geometry. The existing native-admission regression already
+requires exact C words for both finite and non-finite outputs.
 
-A temporary recipe using the ordinary C-comparison path instead encounters the
-runner's non-finite-output guard at float slot 0. That trial was reverted; no
-native algorithm, safety rule, result word or comparison tolerance was changed.
-Resolve the degenerate geometry contract explicitly before claiming a complete
-native-parity pass. No numerical vectors are retained in this report.
+A separately compiled public-header witness at JD 2451545 with the Moon and
+Moshier flags reports status 0, two non-finite geography words, and buffers of
+10/20 words. No numerical reference vectors are retained. A trial general
+rejection conflicted with that native-admission contract and was removed.
+Neither the C engine nor valid-request admission is changed.
 
-Focused position/advisory and native error-metadata regressions are separate
-checks. Their success does not erase the default-runner blocker.
+The corrected recipe compares native words. The comparator retains exact NaN
+payload/sign bits for fixed-instant occultation geometry, while its existing
+finite-only position/refraction checks remain unchanged. Negative controls
+reject changed NaN payloads and matching non-finite words on finite-only routes.
+No tolerance or numeric algorithm changes.
+
+The retained-file-history mismatch in `SESSION_DEFAULT_CLEAR_CLOSE_RESET`
+was another replay defect: the C script forced a repeated path setter/cache
+reset while Session correctly reused its installed path. Input-only setter
+tracking now applies the same guarded path semantics to C; every actual C
+result, computation and metadata comparison remains intact. Free setters still
+force reloads. This predicts no numerical output and fabricates no metadata.
+
+The complete default `cargo test --no-fail-fast` run now passes: 184 ordinary
+Rust tests, 88 doctests, seven-method and persistent-state Session controls,
+and the 1,347-case native smoke profile. The smoke profile covers 104/105 public
+operations and 98/101 native symbols; it is not the separate selected-data,
+sanitizer or extracted-package qualification.
 
 ## Executed advisory/schema slice
 
@@ -140,13 +156,35 @@ compiler-resolved root inventory (excluding exactly global/native traversal)
 pass. Fourteen local audit tests and the unchanged common-contract suffix pass.
 Native pin remains `9083a12d59e98034fb2337061481ac8800c16e64` (2.10.03);
 no C body, build setting or dataset changed. The default differential matrix
-remains blocked as documented above. Legacy root aliases are still pending
-removal; namespace availability alone does not close the primary API gate.
+remains blocked as documented above. At that earlier checkpoint root aliases were still present. The subsequent
+root-boundary slice removes configured free exports; complete primary schemas
+and deterministic configuration remain separate gates.
+
+## Root boundary and node/apse records
+
+Configured legacy free operations and native-only helpers are removed from the
+root. Their 111 extension signatures remain unchanged; the 23 root free
+utilities are the deliberately pure subset, still awaiting final typed returns.
+Examples, doctests and validation callers use explicit global/native paths.
+The maintenance codemod has six data-independent regression tests and changes
+only caller namespaces/documentation, not numerical arguments or assertions.
+
+Primary Session node/apse methods use `(jd, body, method, flags)`, unlike the
+frozen C-order global functions. The TT method uses the original native body
+factored into a caller-locked helper. Both methods return four complete six-word
+vectors plus optional actual status/diagnostic. Native legacy records remain
+in native; the primary status is never labelled source flags.
+
+The replicated contract now checks both methods and exhaustive record fields.
+The existing direct-C UT test still executes all 15 method/flag/frame pairs and
+its path-lease/error/reset checks, with no changed numerical assertion. The
+swapped i32 values are discriminating: original method values 1/2 and masks
+including SPEED/source/frame flags are not interchangeable.
 
 ## Work remaining
 
 - Finish compiler-resolved mapping and the full closed primary inventory.
-- Finish the primary vertical slice and remove transitional root legacy exports.
+- Finish primary pure-function result signatures and the full vertical slice.
 - Make Session configuration fully deterministic and complete its operations.
 - Add final typed errors, full records and optional seven/ten event layouts.
 - Preserve all native values/status/diagnostics and run same-engine C parity.

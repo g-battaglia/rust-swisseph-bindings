@@ -6,6 +6,12 @@ use std::sync::Mutex;
 
 static CONFIGURATION: Mutex<()> = Mutex::new(());
 use swisseph_bindings::*;
+use swisseph_bindings::{
+    global::calc_ut, global::heliacal_ut, global::set_delta_t_userdef, global::set_ephe_path,
+    global::vis_limit_mag, native::heliacal_pheno_ut_full, native::lun_occult_where_full,
+    native::require_source_flags, native::set_jpl_file, native::sol_eclipse_where_full,
+    native::version, native::vis_limit_mag_full,
+};
 
 /// Build the independent caller against the archive used by this Cargo target.
 fn oracle() -> PathBuf {

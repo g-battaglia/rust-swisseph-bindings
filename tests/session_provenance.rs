@@ -2,8 +2,8 @@
 //! and never reset native files. Comparisons are in memory only.
 
 use swisseph_bindings::{
-    CALC_RISE, Calendar, FLG_MOSEPH, FLG_SWIEPH, MARS, MOON, SUN, SessionBuilder, calc_ut, close,
-    get_current_file_data, julday, require_source_flags,
+    CALC_RISE, Calendar, FLG_MOSEPH, FLG_SWIEPH, MARS, MOON, SUN, SessionBuilder, global::calc_ut,
+    global::close, global::get_current_file_data, native::julday, native::require_source_flags,
 };
 
 #[path = "data_dir.rs"]

@@ -42,7 +42,7 @@ use crate::state::with_native_access;
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::cotrans;
+/// use swisseph_bindings::native::cotrans;
 ///
 /// // The vernal equinox sits at the origin of both frames.
 /// let equinox = cotrans(0.0, 0.0, 1.0, 23.44)?;
@@ -87,7 +87,7 @@ pub fn cotrans(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::cotrans_sp;
+/// use swisseph_bindings::native::cotrans_sp;
 ///
 /// let (pos, speed) = cotrans_sp(0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 23.44)?;
 /// assert!(pos[0].abs() < 1e-9 && pos[1].abs() < 1e-9);
@@ -141,7 +141,7 @@ pub fn cotrans_sp(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::degnorm;
+/// use swisseph_bindings::native::degnorm;
 ///
 /// assert_eq!(degnorm(-10.0), 350.0);
 /// assert_eq!(degnorm(360.0), 0.0);
@@ -170,7 +170,7 @@ pub fn degnorm(x: f64) -> f64 {
 ///
 /// ```
 /// use std::f64::consts::PI;
-/// use swisseph_bindings::radnorm;
+/// use swisseph_bindings::native::radnorm;
 ///
 /// assert!((radnorm(7.0) - (7.0 - 2.0 * PI)).abs() < 1e-15);
 /// ```
@@ -193,7 +193,7 @@ pub fn radnorm(x: f64) -> f64 {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::difdegn;
+/// use swisseph_bindings::native::difdegn;
 ///
 /// assert_eq!(difdegn(10.0, 350.0), 20.0);
 /// assert_eq!(difdegn(350.0, 10.0), 340.0);
@@ -217,7 +217,7 @@ pub fn difdegn(p1: f64, p2: f64) -> f64 {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::difdeg2n;
+/// use swisseph_bindings::native::difdeg2n;
 ///
 /// assert_eq!(difdeg2n(10.0, 350.0), 20.0);
 /// assert_eq!(difdeg2n(350.0, 10.0), -20.0);
@@ -242,7 +242,7 @@ pub fn difdeg2n(p1: f64, p2: f64) -> f64 {
 ///
 /// ```
 /// use std::f64::consts::PI;
-/// use swisseph_bindings::difrad2n;
+/// use swisseph_bindings::native::difrad2n;
 ///
 /// assert!((difrad2n(0.1, 6.2) - (0.1 - 6.2 + 2.0 * PI)).abs() < 1e-15);
 /// ```
@@ -266,7 +266,7 @@ pub fn difrad2n(p1: f64, p2: f64) -> f64 {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::deg_midp;
+/// use swisseph_bindings::native::deg_midp;
 ///
 /// assert_eq!(deg_midp(350.0, 10.0), 0.0);
 /// ```
@@ -290,7 +290,7 @@ pub fn deg_midp(x1: f64, x0: f64) -> f64 {
 ///
 /// ```
 /// use std::f64::consts::PI;
-/// use swisseph_bindings::rad_midp;
+/// use swisseph_bindings::native::rad_midp;
 ///
 /// // Short way across the 2π seam, from the wrap contract itself.
 /// let want = (0.1 + 6.2 - 2.0 * PI) / 2.0;
@@ -327,7 +327,7 @@ pub fn rad_midp(x1: f64, x0: f64) -> f64 {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::d2l;
+/// use swisseph_bindings::native::d2l;
 ///
 /// assert_eq!(d2l(2.5)?, 3);
 /// assert_eq!(d2l(-0.5)?, -1);
@@ -359,7 +359,7 @@ pub fn d2l(x: f64) -> Result<i32, Error> {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::csnorm;
+/// use swisseph_bindings::native::csnorm;
 ///
 /// assert_eq!(csnorm(-360000), 129240000);
 /// assert_eq!(csnorm(129600000), 0);
@@ -397,7 +397,7 @@ pub fn csnorm(p: i32) -> i32 {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::difcsn;
+/// use swisseph_bindings::native::difcsn;
 ///
 /// assert_eq!(difcsn(720000, 360000)?, 360000);
 /// assert_eq!(difcsn(360000, 720000)?, 129240000);
@@ -433,7 +433,7 @@ pub fn difcsn(p1: i32, p2: i32) -> Result<i32, Error> {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::difcs2n;
+/// use swisseph_bindings::native::difcs2n;
 ///
 /// assert_eq!(difcs2n(360000, 720000)?, -360000);
 /// assert_eq!(difcs2n(64800000, 0)?, -64800000);
@@ -474,7 +474,7 @@ pub fn difcs2n(p1: i32, p2: i32) -> Result<i32, Error> {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::csroundsec;
+/// use swisseph_bindings::native::csroundsec;
 ///
 /// assert_eq!(csroundsec(150)?, 200);
 /// assert_eq!(csroundsec(149)?, 100);
@@ -518,7 +518,7 @@ pub fn csroundsec(x: i32) -> Result<i32, Error> {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::cs2timestr;
+/// use swisseph_bindings::native::cs2timestr;
 ///
 /// assert_eq!(cs2timestr(0, b':', false)?, "00:00:00");
 /// assert_eq!(cs2timestr(4526050, b':', false)?, "12:34:21");
@@ -574,7 +574,7 @@ pub fn cs2timestr(cs: i32, sep: u8, suppress_zero: bool) -> Result<String, Error
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::cs2lonlatstr;
+/// use swisseph_bindings::native::cs2lonlatstr;
 ///
 /// assert_eq!(cs2lonlatstr(360000, b'N', b'S')?, "1N00");
 /// assert_eq!(cs2lonlatstr(-360000, b'N', b'S')?, "1S00");
@@ -621,7 +621,7 @@ pub fn cs2lonlatstr(cs: i32, plus: u8, minus: u8) -> Result<String, Error> {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::cs2degstr;
+/// use swisseph_bindings::native::cs2degstr;
 ///
 /// assert_eq!(cs2degstr(360000)?, " 1°00'00");
 /// assert_eq!(cs2degstr(-360000)?, "-1°00'00");
@@ -680,7 +680,7 @@ pub struct SplitDeg {
 /// ([`SPLIT_DEG_KEEP_SIGN`](crate::SPLIT_DEG_KEEP_SIGN)) or degree
 /// ([`SPLIT_DEG_KEEP_DEG`](crate::SPLIT_DEG_KEEP_DEG)) boundary. Unknown
 /// bits pass through engine-defined; any integer is accepted, like the
-/// method argument of [`crate::nod_aps`].
+/// method argument of [`crate::global::nod_aps`].
 ///
 /// Negative inputs split their absolute value with `sign = −1`, except
 /// in the zodiacal form, which splits the absolute value with the zodiac
@@ -706,7 +706,7 @@ pub struct SplitDeg {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{SPLIT_DEG_ZODIACAL, split_deg};
+/// use swisseph_bindings::{SPLIT_DEG_ZODIACAL, native::split_deg};
 ///
 /// let plain = split_deg(45.5, 0)?;
 /// assert_eq!((plain.deg, plain.min, plain.sec, plain.sign), (45, 30, 0, 1));

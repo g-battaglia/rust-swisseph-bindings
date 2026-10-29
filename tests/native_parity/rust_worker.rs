@@ -6,6 +6,23 @@ use super::protocol::{Record, Request, read_frame, write_frame};
 use super::registry::Op;
 use std::io;
 use swisseph_bindings::*;
+use swisseph_bindings::{
+    global::calc, global::calc_pctr, global::calc_ut, global::close, global::deltat,
+    global::deltat_ex, global::get_ayanamsa, global::get_ayanamsa_ex, global::get_ayanamsa_ex_ut,
+    global::get_ayanamsa_ut, global::get_current_file_data, global::get_planet_name,
+    global::get_tid_acc, global::house_pos, global::houses, global::houses_armc,
+    global::houses_armc_ex2, global::houses_ex, global::houses_ex2, global::houses_gauquelin,
+    global::jdet_to_utc, global::jdut1_to_utc, global::lat_to_lmt, global::lmt_to_lat,
+    global::set_delta_t_userdef, global::set_ephe_path, global::set_lapse_rate,
+    global::set_sid_mode, global::set_tid_acc, global::set_topo, global::sidtime, global::sidtime0,
+    global::time_equ, global::utc_to_jd, native::cotrans, native::cotrans_sp, native::cs2degstr,
+    native::cs2lonlatstr, native::cs2timestr, native::csnorm, native::csroundsec, native::d2l,
+    native::date_conversion, native::day_of_week, native::deg_midp, native::degnorm,
+    native::difcs2n, native::difcsn, native::difdeg2n, native::difdegn, native::difrad2n,
+    native::get_ayanamsa_name, native::house_name, native::julday, native::library_path,
+    native::rad_midp, native::radnorm, native::require_source_flags, native::revjul,
+    native::set_jpl_file, native::split_deg, native::utc_time_zone, native::version,
+};
 
 /// Worker-only status distinct from all native statuses, including no-event.
 pub const NATIVE_ERROR: i32 = -101;

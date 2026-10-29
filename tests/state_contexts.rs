@@ -45,10 +45,11 @@ use std::thread;
 use swisseph_bindings::{
     CALC_RISE, Calendar, EQU2HOR, ErrorKind, FLG_MOSEPH, FLG_SPEED, FLG_SWIEPH, FLG_TOPOCTR,
     HELIACAL_RISING, MARS, MOON, SE_TIDAL_AUTOMATIC, SE_TIDAL_DE421, SE_TIDAL_DEFAULT,
-    SIDM_FAGAN_BRADLEY, SIDM_LAHIRI, SUN, TRUE_TO_APP, azalt, calc_ut, close, deltat, fixstar_ut,
-    get_ayanamsa_name, get_ayanamsa_ut, heliacal_ut, julday, refrac, rise_trans,
-    set_delta_t_userdef, set_ephe_path, set_lapse_rate, set_sid_mode, set_tid_acc, set_topo,
-    sol_eclipse_when_loc,
+    SIDM_FAGAN_BRADLEY, SIDM_LAHIRI, SUN, TRUE_TO_APP, global::azalt, global::calc_ut,
+    global::close, global::deltat, global::fixstar_ut, global::get_ayanamsa_ut,
+    global::heliacal_ut, global::refrac, global::rise_trans, global::set_delta_t_userdef,
+    global::set_ephe_path, global::set_lapse_rate, global::set_sid_mode, global::set_tid_acc,
+    global::set_topo, global::sol_eclipse_when_loc, native::get_ayanamsa_name, native::julday,
 };
 
 #[path = "data_dir.rs"]

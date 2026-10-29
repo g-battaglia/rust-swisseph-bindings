@@ -19,6 +19,7 @@ fn retained_value_and_session_traits() {
     owned::<eph::Ayanamsha>();
     owned::<eph::LongitudeCrossing>();
     owned::<eph::NodeCrossing>();
+    owned::<eph::NodesApsides>();
     owned::<eph::Horizontal>();
     owned::<eph::Celestial>();
     owned::<eph::Position>();
@@ -56,6 +57,29 @@ fn retained_position_entry_signatures() {
         eph::Session::calc_ut;
     let _: fn(&eph::Session, f64, i32, i32, i32) -> Result<eph::Position, eph::Error> =
         eph::Session::calc_pctr;
+}
+
+#[test]
+fn node_apse_entry_signatures() {
+    let _: fn(&eph::Session, f64, i32, i32, i32) -> Result<eph::NodesApsides, eph::Error> =
+        eph::Session::nod_aps;
+    let _: fn(&eph::Session, f64, i32, i32, i32) -> Result<eph::NodesApsides, eph::Error> =
+        eph::Session::nod_aps_ut;
+}
+
+#[allow(dead_code)]
+fn node_apse_schema(result: eph::NodesApsides) {
+    let eph::NodesApsides {
+        ascending,
+        descending,
+        perihelion,
+        aphelion,
+        status,
+        diagnostic,
+    } = result;
+    let _: [[f64; 6]; 4] = [ascending, descending, perihelion, aphelion];
+    let _: Option<i32> = status;
+    let _: Option<String> = diagnostic;
 }
 
 #[test]

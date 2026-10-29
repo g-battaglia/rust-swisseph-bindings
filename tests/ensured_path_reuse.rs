@@ -2,6 +2,11 @@
 //! All reference positions remain in memory in isolated single-test children.
 #![cfg(unix)]
 use swisseph_bindings::*;
+use swisseph_bindings::{
+    global::calc_ut, global::close, global::get_current_file_data, global::get_tid_acc,
+    global::set_ephe_path, global::set_tid_acc, native::MAX_EPHE_PATH_LEN,
+    native::ensure_ephe_path, native::require_source_flags,
+};
 #[path = "support/isolated.rs"]
 mod isolated;
 #[path = "data_dir.rs"]

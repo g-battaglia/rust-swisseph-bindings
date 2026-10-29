@@ -25,10 +25,11 @@
 //! rejected before native access because the pinned searches cannot run safely.
 
 use swisseph_bindings::{
-    Calendar, ErrorKind, FLG_MOSEPH, FLG_SPEED, FLG_SWIEPH, FLG_TOPOCTR, MARS, MOON,
-    OccultSearchOptions, SUN, SessionBuilder, VENUS, calc_ut, get_planet_name, houses_ex2, julday,
-    lun_occult_when_glob, lun_occult_when_glob_with_options, require_source_flags, revjul,
-    set_ephe_path, sol_eclipse_when_loc, version,
+    Calendar, ErrorKind, FLG_MOSEPH, FLG_SPEED, FLG_SWIEPH, FLG_TOPOCTR, MARS, MOON, SUN,
+    SessionBuilder, VENUS, global::calc_ut, global::get_planet_name, global::houses_ex2,
+    global::lun_occult_when_glob, global::set_ephe_path, global::sol_eclipse_when_loc,
+    native::OccultSearchOptions, native::julday, native::lun_occult_when_glob_with_options,
+    native::require_source_flags, native::revjul, native::version,
 };
 
 /// Resolve the external ephemeris data directory: `SWISSEPH_EPHE_DIR`

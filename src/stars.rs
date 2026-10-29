@@ -16,7 +16,7 @@ use crate::state::with_native_access;
 /// Computed fixed-star position: all six native components plus provenance.
 ///
 /// Component order and units depend on the request flags exactly as in
-/// [`crate::calc_ut`]. For the default ecliptic output the layout is
+/// [`crate::global::calc_ut`]. For the default ecliptic output the layout is
 /// longitude, latitude (degrees), distance (AU), then the three matching
 /// daily rates; speeds are daily rates only when `FLG_SPEED` (or
 /// `FLG_SPEED3`) was requested.
@@ -164,17 +164,17 @@ fn is_native_builtin_position_query(star: &str) -> bool {
 ///
 /// `star` is the traditional star name (for example `"Sirius"`); `jd_et`
 /// is Ephemeris Time in days; `flags` combines the same source, geometry
-/// and output bits as [`crate::calc`] (the default `0` requests apparent
+/// and output bits as [`crate::global::calc`] (the default `0` requests apparent
 /// geocentric ecliptic positions without speeds).
 ///
 /// # Data and configuration dependence
 ///
 /// Star data comes from the fixed-star catalog (`sefstars.txt`) found
-/// through the ephemeris search path (see [`crate::set_ephe_path`]); in a
+/// through the ephemeris search path (see [`crate::global::set_ephe_path`]); in a
 /// checkout the submodule data keeps catalog lookups working, otherwise
 /// point the search path at an explicit external data directory.
-/// Topocentric output requires [`crate::set_topo`], sidereal output
-/// requires [`crate::set_sid_mode`]. Held under the process-wide native
+/// Topocentric output requires [`crate::global::set_topo`], sidereal output
+/// requires [`crate::global::set_sid_mode`]. Held under the process-wide native
 /// lock together with the active configuration.
 ///
 /// # Errors
@@ -189,7 +189,7 @@ fn is_native_builtin_position_query(star: &str) -> bool {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{fixstar_ut, set_ephe_path};
+/// use swisseph_bindings::{global::fixstar_ut, global::set_ephe_path};
 ///
 /// // Catalog lookups use the shipped data (doctests run with the package
 /// // root as the working directory).
@@ -214,13 +214,13 @@ fn is_native_builtin_position_query(star: &str) -> bool {
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 pub fn fixstar(star: &str, jd_et: f64, flags: i32) -> Result<StarPosition, Error> {
     check_star_inputs("fixstar", star, jd_et)?;
     with_native_access(|| fixstar_locked(star, jd_et, flags))
 }
 
-/// Execute [`crate::fixstar`] with native access already held.
+/// Execute [`crate::global::fixstar`] with native access already held.
 /// Preserve its input domains, units, native status/flags and diagnostics;
 /// apply no configuration, fallback or alternate numerical method. Errors
 /// follow the public operation. Caller owns the lock for validation and C read.
@@ -283,13 +283,13 @@ pub(crate) fn fixstar_locked(star: &str, jd_et: f64, flags: i32) -> Result<StarP
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 pub fn fixstar_ut(star: &str, jd_ut: f64, flags: i32) -> Result<StarPosition, Error> {
     check_star_inputs("fixstar_ut", star, jd_ut)?;
     with_native_access(|| fixstar_ut_locked(star, jd_ut, flags))
 }
 
-/// Execute [`crate::fixstar_ut`] with native access already held.
+/// Execute [`crate::global::fixstar_ut`] with native access already held.
 /// Preserve its input domains, units, native status/flags and diagnostics;
 /// apply no configuration, fallback or alternate numerical method. Errors
 /// follow the public operation. Caller owns the lock for validation and C read.
@@ -349,18 +349,18 @@ pub(crate) fn fixstar_ut_locked(star: &str, jd_ut: f64, flags: i32) -> Result<St
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 ///
 /// An unavailable or empty fixed-star catalog returns an actionable
 /// `Native` error before the extended native lookup. Configure
-/// [`crate::set_ephe_path`] or `SE_EPHE_PATH` to a directory containing
+/// [`crate::global::set_ephe_path`] or `SE_EPHE_PATH` to a directory containing
 /// the catalog. The native search path and query semantics are preserved.
 pub fn fixstar2(star: &str, jd_et: f64, flags: i32) -> Result<StarPosition, Error> {
     check_star_inputs("fixstar2", star, jd_et)?;
     with_native_access(|| fixstar2_locked(star, jd_et, flags))
 }
 
-/// Execute [`crate::fixstar2`] with native access already held.
+/// Execute [`crate::global::fixstar2`] with native access already held.
 /// Preserve its input domains, units, native status/flags and diagnostics;
 /// apply no configuration, fallback or alternate numerical method. Errors
 /// follow the public operation. Caller owns the lock for validation and C read.
@@ -416,7 +416,7 @@ pub(crate) fn fixstar2_locked(star: &str, jd_et: f64, flags: i32) -> Result<Star
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{fixstar2_ut, set_ephe_path};
+/// use swisseph_bindings::{global::fixstar2_ut, global::set_ephe_path};
 ///
 /// // The nomenclature lookup resolves to the same catalog entry as the
 /// // traditional name (doctests run with the package root as the
@@ -442,18 +442,18 @@ pub(crate) fn fixstar2_locked(star: &str, jd_et: f64, flags: i32) -> Result<Star
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 ///
 /// An unavailable or empty fixed-star catalog returns an actionable
 /// `Native` error before the extended native lookup. Configure
-/// [`crate::set_ephe_path`] or `SE_EPHE_PATH` to a directory containing
+/// [`crate::global::set_ephe_path`] or `SE_EPHE_PATH` to a directory containing
 /// the catalog. The native search path and query semantics are preserved.
 pub fn fixstar2_ut(star: &str, jd_ut: f64, flags: i32) -> Result<StarPosition, Error> {
     check_star_inputs("fixstar2_ut", star, jd_ut)?;
     with_native_access(|| fixstar2_ut_locked(star, jd_ut, flags))
 }
 
-/// Execute [`crate::fixstar2_ut`] with native access already held.
+/// Execute [`crate::global::fixstar2_ut`] with native access already held.
 /// Preserve its input domains, units, native status/flags and diagnostics;
 /// apply no configuration, fallback or alternate numerical method. Errors
 /// follow the public operation. Caller owns the lock for validation and C read.
@@ -516,7 +516,7 @@ pub(crate) fn fixstar2_ut_locked(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{fixstar_mag, set_ephe_path};
+/// use swisseph_bindings::{global::fixstar_mag, global::set_ephe_path};
 ///
 /// // Doctests run with the package root as the working directory.
 /// // Ephemeris data comes from an explicit external directory when set,
@@ -539,7 +539,7 @@ pub fn fixstar_mag(star: &str) -> Result<StarMagnitude, Error> {
     with_native_access(|| fixstar_mag_locked(star))
 }
 
-/// Execute [`crate::fixstar_mag`] with native access already held.
+/// Execute [`crate::global::fixstar_mag`] with native access already held.
 /// Preserve its input domains, units, native status/flags and diagnostics;
 /// apply no configuration, fallback or alternate numerical method. Errors
 /// follow the public operation. Caller owns the lock for validation and C read.
@@ -585,7 +585,7 @@ pub(crate) fn fixstar_mag_locked(star: &str) -> Result<StarMagnitude, Error> {
 ///
 /// An unavailable or empty fixed-star catalog returns an actionable
 /// `Native` error before the extended native lookup. Configure
-/// [`crate::set_ephe_path`] or `SE_EPHE_PATH` to a directory containing
+/// [`crate::global::set_ephe_path`] or `SE_EPHE_PATH` to a directory containing
 /// the catalog. The native search path and query semantics are preserved.
 pub fn fixstar2_mag(star: &str) -> Result<StarMagnitude, Error> {
     check_star_name("fixstar2_mag", star)?;

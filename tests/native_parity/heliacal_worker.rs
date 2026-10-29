@@ -3,6 +3,7 @@
 use super::protocol::{Record, Request};
 use super::registry::Op;
 use swisseph_bindings::*;
+use swisseph_bindings::{global::heliacal_pheno_ut, global::heliacal_ut, global::vis_limit_mag};
 
 /// Dispatch arrays in pressure/temperature/humidity/range and native six-slot
 /// observer order. Times are UT days, geography degrees and elevation metres.

@@ -10,8 +10,9 @@
 
 use swisseph_bindings::{
     APP_TO_TRUE, ECL2HOR, EQU2HOR, ErrorKind, FLG_MOSEPH, HOR2ECL, HOR2EQU, MARS, MOON, SUN,
-    TRUE_TO_APP, azalt, azalt_rev, get_orbital_elements, orbit_max_min_true_distance, pheno,
-    pheno_ut, refrac, refrac_extended, set_ephe_path, set_lapse_rate,
+    TRUE_TO_APP, global::azalt, global::azalt_rev, global::get_orbital_elements,
+    global::orbit_max_min_true_distance, global::pheno, global::pheno_ut, global::refrac,
+    global::refrac_extended, global::set_ephe_path, global::set_lapse_rate,
 };
 
 /// J2000.0 as a Julian Day label.

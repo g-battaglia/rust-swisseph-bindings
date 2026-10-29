@@ -4,6 +4,13 @@
 use super::protocol::{Record, Request};
 use super::registry::Op;
 use swisseph_bindings::*;
+use swisseph_bindings::{
+    global::azalt, global::azalt_rev, global::fixstar, global::fixstar_mag, global::fixstar_ut,
+    global::fixstar2, global::fixstar2_mag, global::fixstar2_ut, global::gauquelin_sector,
+    global::get_orbital_elements, global::nod_aps, global::nod_aps_ut,
+    global::orbit_max_min_true_distance, global::pheno, global::pheno_ut, global::refrac,
+    global::refrac_extended, global::rise_trans, global::rise_trans_true_hor,
+};
 
 /// Pack only the public value/diagnostic pair shared by these native operations.
 fn value_diagnostic(value: f64, diagnostic: String) -> Record {
