@@ -22,6 +22,8 @@ fn retained_value_and_session_traits() {
     owned::<eph::Horizontal>();
     owned::<eph::Celestial>();
     owned::<eph::Position>();
+    owned::<eph::Advisory>();
+    owned::<eph::AdvisoryDetail>();
     owned::<eph::Error>();
     owned::<eph::Session>();
     owned::<eph::SessionBuilder>();
@@ -131,6 +133,46 @@ fn retained_record_schemas(
         latitude_or_dec,
     } = celestial;
     let _: (f64, f64) = (longitude_or_ra, latitude_or_dec);
+}
+
+#[allow(dead_code)]
+fn position_and_advisory_schemas(position: eph::Position, advisory: eph::Advisory) {
+    let eph::Position {
+        values,
+        returned_flags,
+        diagnostic,
+        warnings,
+        messages,
+    } = position;
+    let _: [f64; 6] = values;
+    let _: i32 = returned_flags;
+    let _: String = diagnostic;
+    let _: Vec<eph::Advisory> = warnings;
+    let _: Vec<String> = messages;
+    let eph::Advisory { detail, message } = advisory;
+    let _: String = message;
+    match detail {
+        eph::AdvisoryDetail::LunarPolynomial {
+            centuries_from_j2000,
+            outside_valid_range,
+        } => {
+            let _: f64 = centuries_from_j2000;
+            let _: bool = outside_valid_range;
+        }
+        eph::AdvisoryDetail::UnknownSiderealMode { mode } => {
+            let _: i32 = mode;
+        }
+        eph::AdvisoryDetail::UnsupportedSiderealProjection { bits } => {
+            let _: i32 = bits;
+        }
+        eph::AdvisoryDetail::MalformedConfiguration { path, detail } => {
+            let _: String = path;
+            let _: String = detail;
+        }
+        eph::AdvisoryDetail::SelfInteractionExcluded { perturber } => {
+            let _: String = perturber;
+        }
+    }
 }
 
 #[allow(dead_code)]

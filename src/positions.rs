@@ -34,14 +34,13 @@ use crate::{FLG_JPLEPH, FLG_MOSEPH, FLG_SWIEPH};
 pub struct Position {
     /// The six native output components; see the type documentation.
     pub values: [f64; POSITION_LEN],
-    /// Flag set returned by the native call.
+    /// Flags reported by the backend, not independent dataset authentication.
     ///
-    /// This is the source of truth for which ephemeris actually served the
-    /// request: when data files are missing the engine falls back to the
-    /// analytical Moshier model and reports `FLG_MOSEPH` here instead of
-    /// the requested `FLG_SWIEPH`. Never assume the requested source was
-    /// used — inspect these bits, or enforce them with
-    /// [`require_source_flags`].
+    /// A missing-file fallback can report `FLG_MOSEPH` instead of the
+    /// requested `FLG_SWIEPH`. Component fallbacks may also appear in the
+    /// original diagnostic; the primary flag bits alone are not a complete
+    /// source report. The native-specific [`require_source_flags`] helper
+    /// retains its existing flag/component check.
     pub returned_flags: i32,
     /// Native diagnostic text (`serr`).
     ///
@@ -51,6 +50,11 @@ pub struct Position {
     /// value is a warning when all position components are finite. A
     /// non-finite native position is classified as `ErrorKind::Native`.
     pub diagnostic: String,
+    /// Structured producer advisories. This native position API supplies none;
+    /// its actual warning text remains in `diagnostic`, without classification.
+    pub warnings: Vec<crate::Advisory>,
+    /// Separate producer messages, empty when the engine supplies no channel.
+    pub messages: Vec<String>,
 }
 
 impl Position {
@@ -106,6 +110,8 @@ pub(crate) fn calc_ut_locked(jd_ut: f64, body: i32, flags: i32) -> Result<Positi
             values: xx,
             returned_flags: ret,
             diagnostic,
+            warnings: Vec::new(),
+            messages: Vec::new(),
         })
     }
 }
@@ -202,6 +208,8 @@ pub(crate) fn calc_locked(jd_et: f64, body: i32, flags: i32) -> Result<Position,
             values: xx,
             returned_flags: ret,
             diagnostic,
+            warnings: Vec::new(),
+            messages: Vec::new(),
         })
     }
 }
@@ -346,6 +354,8 @@ pub(crate) fn calc_pctr_locked(
             values: xx,
             returned_flags: ret,
             diagnostic,
+            warnings: Vec::new(),
+            messages: Vec::new(),
         })
     }
 }
@@ -477,6 +487,8 @@ fn describe_calc_failure(
 ///     values: [0.0; 6],
 ///     returned_flags: FLG_MOSEPH | FLG_SPEED,
 ///     diagnostic: String::new(),
+///     warnings: Vec::new(),
+///     messages: Vec::new(),
 /// };
 /// require_source_flags(&moshier, FLG_MOSEPH | FLG_SPEED)?;
 /// //... but not a Swiss-data request: the fallback is rejected.

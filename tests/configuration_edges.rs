@@ -143,6 +143,8 @@ fn strict_source_checks_reported_component_fallbacks() {
         values: [0.0; 6],
         returned_flags: FLG_SWIEPH,
         diagnostic: "using Moshier eph. for moon;".into(),
+        warnings: Vec::new(),
+        messages: Vec::new(),
     };
     assert_eq!(
         require_source_flags(&position, FLG_SWIEPH)

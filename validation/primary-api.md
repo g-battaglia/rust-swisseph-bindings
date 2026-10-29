@@ -92,6 +92,30 @@ native-parity pass. No numerical vectors are retained in this report.
 Focused position/advisory and native error-metadata regressions are separate
 checks. Their success does not erase the default-runner blocker.
 
+## Executed advisory/schema slice
+
+The new contract-local Advisory/AdvisoryDetail declarations match the approved
+schema; Position carries owned advisory/message vectors. The native position
+entries supply no structured channel, so those vectors remain empty while the
+actual diagnostic is retained. No numerical or native source changed.
+
+Checks on this slice:
+
+- Six structural bootstrap tests, covering 218 constants and retained schemas.
+- One legacy-signature test spelling all 111 original fn-pointer types. The
+  localized expected type-complexity lint is intentional: aliases would obscure
+  the exact legacy scalar argument signatures this test must preserve.
+- One native position/advisory regression and two independent-C error-metadata
+  regressions; two source-helper regressions and the component-fallback check.
+- Strict all-target Clippy, formatting and strict private rustdoc pass.
+- Fourteen local audit/negative-control tests pass, including field/method name
+  collisions, hidden helpers, alias members and explicit Deref leakage.
+
+This does not qualify the blocked default differential matrix or the still
+unimplemented deterministic Session/primary-export migration. No version/tag or
+package publication is performed in this checkpoint. Remote Actions was found
+enabled and disabled before any branch push; no workflow was added or started.
+
 ## Work remaining
 
 - Finish compiler-resolved mapping and the full closed primary inventory.

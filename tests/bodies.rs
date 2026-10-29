@@ -49,6 +49,8 @@ fn strict_helper_accepts_match_and_default_chain() {
         values: [0.0; 6],
         returned_flags: FLG_MOSEPH | FLG_SPEED,
         diagnostic: String::new(),
+        warnings: Vec::new(),
+        messages: Vec::new(),
     };
     require_source_flags(&moshier, FLG_MOSEPH | FLG_SPEED).expect("matching source");
     // No source bit requested means the native default chain: nothing
@@ -65,6 +67,8 @@ fn strict_helper_rejects_silent_fallback() {
         values: [0.0; 6],
         returned_flags: FLG_MOSEPH | FLG_SPEED,
         diagnostic: "using Moshier eph.; ".to_string(),
+        warnings: Vec::new(),
+        messages: Vec::new(),
     };
     let err = require_source_flags(&moshier, FLG_SWIEPH | FLG_SPEED)
         .expect_err("swiss request served by moshier must fail strict");
@@ -78,6 +82,8 @@ fn strict_helper_rejects_silent_fallback() {
         values: [0.0; 6],
         returned_flags: FLG_MOSEPH | FLG_SPEED,
         diagnostic: String::new(),
+        warnings: Vec::new(),
+        messages: Vec::new(),
     };
     let err = require_source_flags(&jpl, FLG_JPLEPH | FLG_SPEED)
         .expect_err("jpl request served by moshier must fail strict");

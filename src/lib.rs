@@ -29,6 +29,7 @@
 //! and the native diagnostic text is preserved whenever the C call
 //! provides one. A valid zero result is data, never an error.
 
+mod advisory;
 mod angles;
 mod config;
 mod constants;
@@ -45,6 +46,7 @@ mod state;
 mod time;
 mod version;
 
+pub use advisory::{Advisory, AdvisoryDetail};
 pub use angles::{
     SplitDeg, cotrans, cotrans_sp, cs2degstr, cs2lonlatstr, cs2timestr, csnorm, csroundsec, d2l,
     deg_midp, degnorm, difcs2n, difcsn, difdeg2n, difdegn, difrad2n, rad_midp, radnorm, split_deg,

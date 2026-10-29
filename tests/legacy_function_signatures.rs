@@ -4,6 +4,10 @@
 use swisseph_bindings::*;
 
 #[test]
+#[expect(
+    clippy::type_complexity,
+    reason = "the legacy contract intentionally spells complete fn-pointer types without aliases"
+)]
 fn legacy_function_types_and_argument_order() {
     let _: fn(f64, f64, f64, f64) -> Result<[f64; 3], Error> = swisseph_bindings::cotrans;
     let _: fn(f64, f64, f64, f64, f64, f64, f64) -> Result<([f64; 3], [f64; 3]), Error> =
