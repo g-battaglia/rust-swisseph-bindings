@@ -281,11 +281,18 @@ pub fn compare(
         }
         _ => (),
     }
-    same(
-        &c,
-        rust,
-        op.entry().layout == Layout::PureScalar || matches!(op, Op::Cotrans | Op::CotransSp),
-    )
+    if op == Op::LunOccultWhere {
+        // Fixed-instant native geometry admits undefined components. Preserve
+        // their complete words; this is stricter than NaN-class equality and
+        // does not relax the finite-only contract of positions/refraction.
+        same_fields(&c, rust, FloatContract::NativeWords)
+    } else {
+        same(
+            &c,
+            rust,
+            op.entry().layout == Layout::PureScalar || matches!(op, Op::Cotrans | Op::CotransSp),
+        )
+    }
 }
 
 /// Check a Rust-only strict-source policy using the preceding genuine C
@@ -353,6 +360,25 @@ pub fn source_policy(
 /// Exact exposed-field comparison, with NaN-class matching restricted to
 /// explicitly documented pure floating-point propagation paths.
 pub fn same(c: &Record, rust: &Record, allow_nonfinite: bool) -> Result<usize, String> {
+    same_fields(
+        c,
+        rust,
+        if allow_nonfinite {
+            FloatContract::PurePropagation
+        } else {
+            FloatContract::Finite
+        },
+    )
+}
+
+#[derive(Clone, Copy)]
+enum FloatContract {
+    Finite,
+    PurePropagation,
+    NativeWords,
+}
+
+fn same_fields(c: &Record, rust: &Record, policy: FloatContract) -> Result<usize, String> {
     if c.code != rust.code {
         return Err(if c.code >= 0 && rust.code == NATIVE_ERROR {
             "C success / Rust Native error"
@@ -375,10 +401,12 @@ pub fn same(c: &Record, rust: &Record, allow_nonfinite: bool) -> Result<usize, S
         }
     }
     for (index, (a, b)) in c.floats.iter().zip(&rust.floats).enumerate() {
-        if !allow_nonfinite && (!a.is_finite() || !b.is_finite()) {
+        if matches!(policy, FloatContract::Finite) && (!a.is_finite() || !b.is_finite()) {
             return Err(format!("unexpected non-finite float[{index}]"));
         }
-        if a.to_bits() != b.to_bits() && !(allow_nonfinite && a.is_nan() && b.is_nan()) {
+        if a.to_bits() != b.to_bits()
+            && !(matches!(policy, FloatContract::PurePropagation) && a.is_nan() && b.is_nan())
+        {
             return Err(format!("float[{index}] finite bits/sign/non-finite class"));
         }
     }
@@ -537,6 +565,23 @@ pub fn self_test() -> Result<(), String> {
         if compare(op, Some(&native), &error, false).is_ok() {
             return Err("non-finite position partial diagnostic accepted".into());
         }
+    }
+    // Actual native undefined words require exact NaN payload/sign identity;
+    // finite-only contracts must still reject even matching non-finite words.
+    let undefined = Record {
+        floats: vec![f64::from_bits(0x7ff8_0000_0000_0001)],
+        ..Record::default()
+    };
+    same_fields(&undefined, &undefined, FloatContract::NativeWords)?;
+    if same(&undefined, &undefined, false).is_ok() {
+        return Err("finite-only contract accepted undefined words".into());
+    }
+    let changed_payload = Record {
+        floats: vec![f64::from_bits(0x7ff8_0000_0000_0002)],
+        ..Record::default()
+    };
+    if same_fields(&undefined, &changed_payload, FloatContract::NativeWords).is_ok() {
+        return Err("native NaN payload mutation accepted".into());
     }
     let encoded = original.encode();
     let decoded = Record::decode(&encoded).map_err(|e| e.to_string())?;

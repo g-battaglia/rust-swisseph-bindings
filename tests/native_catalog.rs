@@ -4,7 +4,13 @@ use std::{
     path::{Path, PathBuf},
     process::Command,
 };
-use swisseph_bindings::{ErrorKind, SessionBuilder, fixed_star_catalog, fixstar2_mag};
+use swisseph_bindings::{
+    ErrorKind, SessionBuilder, global::fixstar2_mag, native::fixed_star_catalog,
+};
+
+// Both scripts deliberately inspect the process-global catalogue after a
+// Session call. Serialize whole scripts, not individual binding operations.
+static CATALOGUE_SCRIPT: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 /// Read a length-prefixed native string without saving the binary response.
 fn take_text<'a>(bytes: &'a [u8], at: &mut usize) -> &'a str {
@@ -40,6 +46,7 @@ fn oracle() -> PathBuf {
 }
 #[test]
 fn selected_catalog_matches_numeric_c_order_and_end() {
+    let _script = CATALOGUE_SCRIPT.lock().unwrap();
     let data = std::env::var("SWISSEPH_EPHE_DIR").expect("select identified catalog data");
     let path = Path::new(&data).join("sefstars.txt");
     let before = std::fs::read(&path).unwrap();
@@ -101,6 +108,7 @@ fn selected_catalog_matches_numeric_c_order_and_end() {
 }
 #[test]
 fn unavailable_or_empty_catalog_is_an_error_not_empty_success() {
+    let _script = CATALOGUE_SCRIPT.lock().unwrap();
     let dir = std::env::temp_dir().join(format!("native-catalog-missing-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let mut b = SessionBuilder::new();

@@ -127,9 +127,9 @@ pub fn smoke() -> Vec<Case> {
         step(LunOccultWhere, &[VENUS, FLG_MOSEPH], &[2451545.0], &[None]),
     ));
     cases.push(one(
-        "OCCULT_SELF_GEOMETRY_REJECTED".into(),
+        "OCCULT_SELF_GEOMETRY_NATIVE_WORDS".into(),
         "occultations",
-        rejected(LunOccultWhere, &[MOON, FLG_MOSEPH], &[2451545.0], &[None]),
+        step(LunOccultWhere, &[MOON, FLG_MOSEPH], &[2451545.0], &[None]),
     ));
 
     let mut defaults = vec![2451545.0, 0.0, 51.5, 0.0];

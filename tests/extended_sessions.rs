@@ -2,9 +2,22 @@
 //! Expected arrays stay in memory; assertions print only operation and case ids.
 use std::sync::Arc;
 use swisseph_bindings::*;
+use swisseph_bindings::{
+    global::calc_pctr, global::fixstar, global::fixstar_mag, global::fixstar_ut, global::fixstar2,
+    global::fixstar2_mag, global::fixstar2_ut, global::get_ayanamsa, global::get_ayanamsa_ex,
+    global::get_ayanamsa_ex_ut, global::houses_ex2, global::houses_gauquelin,
+    global::set_delta_t_userdef, global::set_ephe_path, global::set_sid_mode, global::set_topo,
+    global::time_equ, native::heliacal_pheno_ut_full, native::lun_occult_where_full,
+    native::sol_eclipse_where_full,
+};
+
+// Serial scripts use non-atomic global setters to construct independent
+// expectations. Their internally spawned contention threads remain concurrent.
+static EXPECTATION_SCRIPT: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 #[test]
 fn complete_session_operations_remain_configured_under_contention() {
+    let _script = EXPECTATION_SCRIPT.lock().unwrap();
     let data = std::env::var("SWISSEPH_EPHE_DIR").expect("select identified data");
     let mut records = Vec::new();
     for (mode, lon, lat, offset) in [
@@ -89,6 +102,7 @@ fn complete_session_operations_remain_configured_under_contention() {
 
 #[test]
 fn additional_native_session_routes_keep_complete_results_and_errors() {
+    let _script = EXPECTATION_SCRIPT.lock().unwrap();
     let data = std::env::var("SWISSEPH_EPHE_DIR").expect("select identified data");
     set_ephe_path(Some(&data)).unwrap();
     set_sid_mode(SIDM_LAHIRI, 0.0, 0.0).unwrap();

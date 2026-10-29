@@ -152,7 +152,7 @@ fn check_solar_crossing_flags(function: &str, flags: i32) -> Result<(), Error> {
 /// # Configuration dependence
 ///
 /// File-based sources require data files visible through
-/// [`crate::set_ephe_path`]; the active configuration is captured under
+/// [`crate::global::set_ephe_path`]; the active configuration is captured under
 /// the process-wide native lock together with the search.
 ///
 /// # Errors
@@ -167,7 +167,7 @@ fn check_solar_crossing_flags(function: &str, flags: i32) -> Result<(), Error> {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, solcross};
+/// use swisseph_bindings::{FLG_MOSEPH, global::solcross};
 ///
 /// // Next 0° Aries ingress of the Moshier Sun after J2000.
 /// let cross = solcross(0.0, 2451545.0, FLG_MOSEPH)?;
@@ -180,7 +180,7 @@ fn check_solar_crossing_flags(function: &str, flags: i32) -> Result<(), Error> {
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 pub fn solcross(x2cross: f64, jd_et: f64, flags: i32) -> Result<LongitudeCrossing, Error> {
     check_solar_crossing_flags("solcross", flags)?;
     check_crossing_inputs("solcross", x2cross, jd_et)?;
@@ -208,7 +208,7 @@ pub fn solcross(x2cross: f64, jd_et: f64, flags: i32) -> Result<LongitudeCrossin
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, solcross_ut};
+/// use swisseph_bindings::{FLG_MOSEPH, global::solcross_ut};
 ///
 /// let cross = solcross_ut(0.0, 2451545.0, FLG_MOSEPH)?;
 /// assert!(cross.time > 2451545.0 && cross.time < 2451545.0 + 400.0);
@@ -220,7 +220,7 @@ pub fn solcross(x2cross: f64, jd_et: f64, flags: i32) -> Result<LongitudeCrossin
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 pub fn solcross_ut(x2cross: f64, jd_ut: f64, flags: i32) -> Result<LongitudeCrossing, Error> {
     check_solar_crossing_flags("solcross_ut", flags)?;
     check_crossing_inputs("solcross_ut", x2cross, jd_ut)?;
@@ -243,7 +243,7 @@ pub fn solcross_ut(x2cross: f64, jd_ut: f64, flags: i32) -> Result<LongitudeCros
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, mooncross};
+/// use swisseph_bindings::{FLG_MOSEPH, global::mooncross};
 ///
 /// let cross = mooncross(0.0, 2451545.0, FLG_MOSEPH)?;
 /// assert!(cross.time > 2451545.0 && cross.time < 2451545.0 + 30.0);
@@ -255,7 +255,7 @@ pub fn solcross_ut(x2cross: f64, jd_ut: f64, flags: i32) -> Result<LongitudeCros
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 pub fn mooncross(x2cross: f64, jd_et: f64, flags: i32) -> Result<LongitudeCrossing, Error> {
     check_crossing_inputs("mooncross", x2cross, jd_et)?;
     with_native_access(|| {
@@ -278,7 +278,7 @@ pub fn mooncross(x2cross: f64, jd_et: f64, flags: i32) -> Result<LongitudeCrossi
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, mooncross_ut};
+/// use swisseph_bindings::{FLG_MOSEPH, global::mooncross_ut};
 ///
 /// let cross = mooncross_ut(0.0, 2451545.0, FLG_MOSEPH)?;
 /// assert!(cross.time > 2451545.0 && cross.time < 2451545.0 + 30.0);
@@ -290,7 +290,7 @@ pub fn mooncross(x2cross: f64, jd_et: f64, flags: i32) -> Result<LongitudeCrossi
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 pub fn mooncross_ut(x2cross: f64, jd_ut: f64, flags: i32) -> Result<LongitudeCrossing, Error> {
     check_crossing_inputs("mooncross_ut", x2cross, jd_ut)?;
     with_native_access(|| {
@@ -323,7 +323,7 @@ pub fn mooncross_ut(x2cross: f64, jd_ut: f64, flags: i32) -> Result<LongitudeCro
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, mooncross_node};
+/// use swisseph_bindings::{FLG_MOSEPH, global::mooncross_node};
 ///
 /// let cross = mooncross_node(2451545.0, FLG_MOSEPH)?;
 /// assert!(cross.time > 2451545.0 && cross.time < 2451545.0 + 15.0);
@@ -336,7 +336,7 @@ pub fn mooncross_ut(x2cross: f64, jd_ut: f64, flags: i32) -> Result<LongitudeCro
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 pub fn mooncross_node(jd_et: f64, flags: i32) -> Result<NodeCrossing, Error> {
     if !jd_et.is_finite() {
         return Err(Error::invalid_input(
@@ -385,7 +385,7 @@ pub fn mooncross_node(jd_et: f64, flags: i32) -> Result<NodeCrossing, Error> {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, mooncross_node_ut};
+/// use swisseph_bindings::{FLG_MOSEPH, global::mooncross_node_ut};
 ///
 /// let cross = mooncross_node_ut(2451545.0, FLG_MOSEPH)?;
 /// assert!(cross.time > 2451545.0 && cross.time < 2451545.0 + 15.0);
@@ -398,7 +398,7 @@ pub fn mooncross_node(jd_et: f64, flags: i32) -> Result<NodeCrossing, Error> {
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 pub fn mooncross_node_ut(jd_ut: f64, flags: i32) -> Result<NodeCrossing, Error> {
     if !jd_ut.is_finite() {
         return Err(Error::invalid_input(
@@ -470,7 +470,7 @@ fn describe_node_failure(function: &str, jd: f64, flags: i32, diagnostic: &str) 
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, MARS, helio_cross};
+/// use swisseph_bindings::{FLG_MOSEPH, MARS, global::helio_cross};
 ///
 /// let cross = helio_cross(MARS, 0.0, 2451545.0, FLG_MOSEPH, 1)?;
 /// assert!(cross.time > 2451545.0);
@@ -482,7 +482,7 @@ fn describe_node_failure(function: &str, jd: f64, flags: i32, diagnostic: &str) 
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 pub fn helio_cross(
     body: i32,
     x2cross: f64,
@@ -541,7 +541,7 @@ pub fn helio_cross(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, MARS, helio_cross_ut};
+/// use swisseph_bindings::{FLG_MOSEPH, MARS, global::helio_cross_ut};
 ///
 /// let cross = helio_cross_ut(MARS, 0.0, 2451545.0, FLG_MOSEPH, 1)?;
 /// assert!(cross.time > 2451545.0);
@@ -553,7 +553,7 @@ pub fn helio_cross(
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 pub fn helio_cross_ut(
     body: i32,
     x2cross: f64,
@@ -790,7 +790,7 @@ fn check_eclipse_search_inputs(function: &str, jd_start: f64) -> Result<(), Erro
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{ECL_TOTAL, FLG_MOSEPH, sol_eclipse_when_glob};
+/// use swisseph_bindings::{ECL_TOTAL, FLG_MOSEPH, global::sol_eclipse_when_glob};
 ///
 /// // Next total solar eclipse after 2024-01-01 (Moshier needs no data).
 /// let ecl = sol_eclipse_when_glob(2460310.5, FLG_MOSEPH, ECL_TOTAL, false)?;
@@ -804,7 +804,7 @@ fn check_eclipse_search_inputs(function: &str, jd_start: f64) -> Result<(), Erro
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 /// Eclipse search epochs additionally lie within JD
 /// `-63412861279.0..=63417764339.0`, the inward-rounded bounds of the
 /// pinned native integer lunation counter. These are arithmetic limits,
@@ -875,7 +875,7 @@ pub fn sol_eclipse_when_glob(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{ECL_TOTAL, FLG_MOSEPH, lun_eclipse_when};
+/// use swisseph_bindings::{ECL_TOTAL, FLG_MOSEPH, global::lun_eclipse_when};
 ///
 /// // Next total lunar eclipse after 2024-01-01 (Moshier needs no data).
 /// let ecl = lun_eclipse_when(2460310.5, FLG_MOSEPH, ECL_TOTAL, false)?;
@@ -889,7 +889,7 @@ pub fn sol_eclipse_when_glob(
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 /// Eclipse search epochs additionally lie within JD
 /// `-63412861279.0..=63417764339.0`, the inward-rounded bounds of the
 /// pinned native integer lunation counter. These are arithmetic limits,
@@ -1191,7 +1191,7 @@ impl LunarEclipseCircumstances {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, sol_eclipse_where};
+/// use swisseph_bindings::{FLG_MOSEPH, global::sol_eclipse_where};
 ///
 /// // Greatest eclipse of the 2024-04-08 total solar eclipse.
 /// let geo = sol_eclipse_where(2460409.26, FLG_MOSEPH)?;
@@ -1205,7 +1205,7 @@ impl LunarEclipseCircumstances {
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 pub fn sol_eclipse_where_full(jd_ut: f64, flags: i32) -> Result<SolarEclipseGeometryFull, Error> {
     if !jd_ut.is_finite() {
         return Err(Error::invalid_input(
@@ -1215,7 +1215,7 @@ pub fn sol_eclipse_where_full(jd_ut: f64, flags: i32) -> Result<SolarEclipseGeom
     with_native_access(|| sol_eclipse_where_full_locked(jd_ut, flags))
 }
 
-/// Execute [`crate::sol_eclipse_where_full`] with native access already held.
+/// Execute [`crate::native::sol_eclipse_where_full`] with native access already held.
 /// Preserve its input domains, units, native status/flags and diagnostics;
 /// apply no configuration, fallback or alternate numerical method. Errors
 /// follow the public operation. Caller owns the lock for validation and C read.
@@ -1292,8 +1292,8 @@ pub fn sol_eclipse_where(jd_ut: f64, flags: i32) -> Result<SolarEclipseGeometry,
 ///
 /// Observer side effect: although no search runs, the native call still
 /// installs this observer as the process-global observer (as if by
-/// [`crate::set_topo`]), so later topocentric [`crate::calc_ut`]/
-/// [`crate::calc`] calls observe it until [`crate::set_topo`] runs
+/// [`crate::global::set_topo`]), so later topocentric [`crate::global::calc_ut`]/
+/// [`crate::global::calc`] calls observe it until [`crate::global::set_topo`] runs
 /// again. Established by probing the pinned build.
 ///
 /// A return type of 0 means no eclipse is in progress at this place and
@@ -1312,7 +1312,7 @@ pub fn sol_eclipse_where(jd_ut: f64, flags: i32) -> Result<SolarEclipseGeometry,
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, sol_eclipse_how};
+/// use swisseph_bindings::{FLG_MOSEPH, global::sol_eclipse_how};
 ///
 /// // Totality near the greatest eclipse (25.3°N, 104.1°W) at maximum.
 /// let loc = sol_eclipse_how(2460409.26, FLG_MOSEPH, -104.1, 25.3, 0.0)?;
@@ -1326,10 +1326,10 @@ pub fn sol_eclipse_where(jd_ut: f64, flags: i32) -> Result<SolarEclipseGeometry,
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 ///
 /// Observer height must satisfy the arithmetic ceiling documented by
-/// [`crate::set_topo`]; excessive height returns `InvalidInput` before
+/// [`crate::global::set_topo`]; excessive height returns `InvalidInput` before
 /// observer configuration or computation. Native geographic limits and
 /// data errors are still reported by the engine.
 #[allow(clippy::too_many_arguments)]
@@ -1397,8 +1397,8 @@ pub fn sol_eclipse_how(
 ///
 /// Observer side effect: although no search runs, the native call still
 /// installs a `Some` observer as the process-global observer (as if by
-/// [`crate::set_topo`]), so later topocentric [`crate::calc_ut`]/
-/// [`crate::calc`] calls observe it until [`crate::set_topo`] runs
+/// [`crate::global::set_topo`]), so later topocentric [`crate::global::calc_ut`]/
+/// [`crate::global::calc`] calls observe it until [`crate::global::set_topo`] runs
 /// again. Established by probing the pinned build.
 ///
 /// A return type of 0 means no (from the observer: visible) eclipse is
@@ -1416,7 +1416,7 @@ pub fn sol_eclipse_how(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, lun_eclipse_how};
+/// use swisseph_bindings::{FLG_MOSEPH, global::lun_eclipse_how};
 ///
 /// // Near the maximum of the 2024-09-18 partial lunar eclipse.
 /// let lun = lun_eclipse_how(2460571.61, FLG_MOSEPH, None)?;
@@ -1430,10 +1430,10 @@ pub fn sol_eclipse_how(
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 ///
 /// Observer height must satisfy the arithmetic ceiling documented by
-/// [`crate::set_topo`]; excessive height returns `InvalidInput` before
+/// [`crate::global::set_topo`]; excessive height returns `InvalidInput` before
 /// observer configuration or computation. Native geographic limits and
 /// data errors are still reported by the engine.
 pub fn lun_eclipse_how(
@@ -1851,9 +1851,9 @@ fn describe_local_search_failure(
 /// `backward` selects the search direction (`false` = forward).
 ///
 /// Observer side effect: the native search installs this observer as the
-/// process-global observer (as if by [`crate::set_topo`]), so later
-/// topocentric [`crate::calc_ut`]/[`crate::calc`] calls observe it until
-/// [`crate::set_topo`] runs again. Established by probing the pinned
+/// process-global observer (as if by [`crate::global::set_topo`]), so later
+/// topocentric [`crate::global::calc_ut`]/[`crate::global::calc`] calls observe it until
+/// [`crate::global::set_topo`] runs again. Established by probing the pinned
 /// build.
 ///
 /// The search advances lunation by lunation until a visible eclipse is
@@ -1877,7 +1877,7 @@ fn describe_local_search_failure(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_SWIEPH, set_ephe_path, sol_eclipse_when_loc};
+/// use swisseph_bindings::{FLG_SWIEPH, global::set_ephe_path, global::sol_eclipse_when_loc};
 ///
 /// // Next solar eclipse visible from Dallas after 2024-01-01 (explicit
 /// // external data, else the checkout data, keeps this runnable).
@@ -1902,14 +1902,14 @@ fn describe_local_search_failure(
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 /// Eclipse search epochs additionally lie within JD
 /// `-63412861279.0..=63417764339.0`, the inward-rounded bounds of the
 /// pinned native integer lunation counter. These are arithmetic limits,
 /// independent of actual ephemeris file coverage.
 ///
 /// Observer height must satisfy the arithmetic ceiling documented by
-/// [`crate::set_topo`]; excessive height returns `InvalidInput` before
+/// [`crate::global::set_topo`]; excessive height returns `InvalidInput` before
 /// observer configuration or computation. Native geographic limits and
 /// data errors are still reported by the engine.
 pub fn sol_eclipse_when_loc(
@@ -1985,9 +1985,9 @@ pub fn sol_eclipse_when_loc(
 /// it). `backward` selects the search direction.
 ///
 /// Observer side effect: the native search installs this observer as the
-/// process-global observer (as if by [`crate::set_topo`]), so later
-/// topocentric [`crate::calc_ut`]/[`crate::calc`] calls observe it until
-/// [`crate::set_topo`] runs again. Established by probing the pinned
+/// process-global observer (as if by [`crate::global::set_topo`]), so later
+/// topocentric [`crate::global::calc_ut`]/[`crate::global::calc`] calls observe it until
+/// [`crate::global::set_topo`] runs again. Established by probing the pinned
 /// build.
 ///
 /// The search advances eclipse by eclipse until a visible one is found;
@@ -2007,7 +2007,7 @@ pub fn sol_eclipse_when_loc(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_SWIEPH, lun_eclipse_when_loc, set_ephe_path};
+/// use swisseph_bindings::{FLG_SWIEPH, global::lun_eclipse_when_loc, global::set_ephe_path};
 ///
 /// // Next lunar eclipse visible from London after 2024-04-15 (the
 /// // 2024-09-18 partial eclipse).
@@ -2032,14 +2032,14 @@ pub fn sol_eclipse_when_loc(
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 /// Eclipse search epochs additionally lie within JD
 /// `-63412861279.0..=63417764339.0`, the inward-rounded bounds of the
 /// pinned native integer lunation counter. These are arithmetic limits,
 /// independent of actual ephemeris file coverage.
 ///
 /// Observer height must satisfy the arithmetic ceiling documented by
-/// [`crate::set_topo`]; excessive height returns `InvalidInput` before
+/// [`crate::global::set_topo`]; excessive height returns `InvalidInput` before
 /// observer configuration or computation. Native geographic limits and
 /// data errors are still reported by the engine.
 pub fn lun_eclipse_when_loc(
@@ -2434,7 +2434,7 @@ fn encode_occult_backward(search: OccultSearchOptions) -> i32 {
 /// # Configuration dependence
 ///
 /// File-based sources and the fixed-star path require data/catalog
-/// files visible through [`crate::set_ephe_path`]; the active
+/// files visible through [`crate::global::set_ephe_path`]; the active
 /// configuration is captured under the process-wide native lock
 /// together with the search.
 ///
@@ -2448,7 +2448,7 @@ fn encode_occult_backward(search: OccultSearchOptions) -> i32 {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, VENUS, lun_occult_when_glob};
+/// use swisseph_bindings::{FLG_MOSEPH, VENUS, global::lun_occult_when_glob};
 ///
 /// // Next lunar occultation of Venus after J2000 (Moshier needs no
 /// // data).
@@ -2463,7 +2463,7 @@ fn encode_occult_backward(search: OccultSearchOptions) -> i32 {
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 #[allow(clippy::too_many_arguments)]
 pub fn lun_occult_when_glob(
     jd_start: f64,
@@ -2514,10 +2514,7 @@ pub fn lun_occult_when_glob(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{
-///     FLG_MOSEPH, OccultSearchOptions, VENUS, lun_occult_when_glob,
-///     lun_occult_when_glob_with_options,
-/// };
+/// use swisseph_bindings::{FLG_MOSEPH, native::OccultSearchOptions, VENUS, global::lun_occult_when_glob, native::lun_occult_when_glob_with_options};
 ///
 /// // Next lunar occultation of Venus after J2000 (Moshier needs no
 /// // data): the extended call without `one_try` agrees with the
@@ -2541,7 +2538,7 @@ pub fn lun_occult_when_glob(
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 #[allow(clippy::too_many_arguments)]
 pub fn lun_occult_when_glob_with_options(
     jd_start: f64,
@@ -2643,9 +2640,9 @@ fn lun_occult_when_glob_impl(
 /// bits. `backward` selects the search direction.
 ///
 /// Observer side effect: the native search installs this observer as the
-/// process-global observer (as if by [`crate::set_topo`]), so later
-/// topocentric [`crate::calc_ut`]/[`crate::calc`] calls observe it until
-/// [`crate::set_topo`] runs again. Established by probing the pinned
+/// process-global observer (as if by [`crate::global::set_topo`]), so later
+/// topocentric [`crate::global::calc_ut`]/[`crate::global::calc`] calls observe it until
+/// [`crate::global::set_topo`] runs again. Established by probing the pinned
 /// build.
 ///
 /// For point-source fixed stars the first/fourth contacts coincide with
@@ -2669,7 +2666,7 @@ fn lun_occult_when_glob_impl(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, VENUS, lun_occult_when_loc};
+/// use swisseph_bindings::{FLG_MOSEPH, VENUS, global::lun_occult_when_loc};
 ///
 /// // Next lunar occultation of Venus visible from Greenwich after
 /// // J2000 (Moshier needs no data files, so no data path is set here).
@@ -2684,10 +2681,10 @@ fn lun_occult_when_glob_impl(
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 ///
 /// Observer height must satisfy the arithmetic ceiling documented by
-/// [`crate::set_topo`]; excessive height returns `InvalidInput` before
+/// [`crate::global::set_topo`]; excessive height returns `InvalidInput` before
 /// observer configuration or computation. Native geographic limits and
 /// data errors are still reported by the engine.
 #[allow(clippy::too_many_arguments)]
@@ -2742,10 +2739,7 @@ pub fn lun_occult_when_loc(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{
-///     FLG_MOSEPH, OccultSearchOptions, VENUS, lun_occult_when_loc,
-///     lun_occult_when_loc_with_options,
-/// };
+/// use swisseph_bindings::{FLG_MOSEPH, native::OccultSearchOptions, VENUS, global::lun_occult_when_loc, native::lun_occult_when_loc_with_options};
 ///
 /// // Next lunar occultation of Venus visible from Greenwich after
 /// // J2000 (Moshier needs no data files, so no data path is set here):
@@ -2772,10 +2766,10 @@ pub fn lun_occult_when_loc(
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 ///
 /// Observer height must satisfy the arithmetic ceiling documented by
-/// [`crate::set_topo`]; excessive height returns `InvalidInput` before
+/// [`crate::global::set_topo`]; excessive height returns `InvalidInput` before
 /// observer configuration or computation. Native geographic limits and
 /// data errors are still reported by the engine.
 #[allow(clippy::too_many_arguments)]
@@ -2902,14 +2896,15 @@ fn lun_occult_when_loc_impl(
 /// # Errors
 ///
 /// Non-finite `jd_ut` and overlong or NUL-containing star names are
-/// rejected before any native call, as is the Moon on the body path
-/// (meaningless even as a single computation). A negative native status
-/// becomes [`Error`] with the diagnostic kept.
+/// rejected before any native call. Unlike event searches, the fixed-instant
+/// body path also admits the Moon and retains every native word, including
+/// undefined non-finite geometry. A negative native status becomes [`Error`]
+/// with the diagnostic kept.
 ///
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, VENUS, lun_occult_when_glob, lun_occult_where};
+/// use swisseph_bindings::{FLG_MOSEPH, VENUS, global::lun_occult_when_glob, global::lun_occult_where};
 ///
 /// // Circumstances of the next Venus occultation after J2000 at its
 /// // own maximum.
@@ -2925,7 +2920,7 @@ fn lun_occult_when_loc_impl(
 /// conversions check configured Delta-T and possible source-fallback
 /// shifts under the computation lock; violations return `InvalidInput`.
 /// Sidereal requests also validate the active UT-based user reference epoch
-/// described by [`crate::set_sid_mode`].
+/// described by [`crate::global::set_sid_mode`].
 pub fn lun_occult_where_full(
     jd_ut: f64,
     body: i32,
@@ -2938,11 +2933,12 @@ pub fn lun_occult_where_full(
         ));
     }
     check_occult_star_input("lun_occult_where", star_name)?;
-    // Fixed-instant Moon geometry is finite; only event searches reject self-targets.
+    // Fixed-instant native output is retained, including undefined geometry.
+    // Only event searches reject self-targets because they cannot terminate.
     with_native_access(|| lun_occult_where_full_locked(jd_ut, body, star_name, flags))
 }
 
-/// Execute [`crate::lun_occult_where_full`] with native access already held.
+/// Execute [`crate::native::lun_occult_where_full`] with native access already held.
 /// Preserve its input domains, units, native status/flags and diagnostics;
 /// apply no configuration, fallback or alternate numerical method. Errors
 /// follow the public operation. Caller owns the lock for validation and C read.
@@ -2958,7 +2954,7 @@ pub(crate) fn lun_occult_where_full_locked(
         ));
     }
     check_occult_star_input("lun_occult_where", star_name)?;
-    // Fixed-instant Moon geometry is finite; only event searches reject self-targets.
+    // Preserve fixed-instant native words, including non-finite geometry.
     // Same caller-owned star buffer contract as in
     // [`lun_occult_when_glob`].
     let mut star_buffer = [0 as c_char; TEXT_BUF_LEN];
@@ -3531,9 +3527,9 @@ fn heliacal_name_buffer(object: &str) -> [c_char; TEXT_BUF_LEN] {
 /// ±60° leave the documented reliable range of the engine).
 ///
 /// Observer side effect: the native search installs this observer as the
-/// process-global observer (as if by [`crate::set_topo`]), so later
-/// topocentric [`crate::calc_ut`]/[`crate::calc`] calls observe it until
-/// [`crate::set_topo`] runs again. Established by probing the pinned
+/// process-global observer (as if by [`crate::global::set_topo`]), so later
+/// topocentric [`crate::global::calc_ut`]/[`crate::global::calc`] calls observe it until
+/// [`crate::global::set_topo`] runs again. Established by probing the pinned
 /// build.
 /// `atmosphere` carries pressure (mbar), temperature (°C), relative
 /// humidity (%) and the meteorological range or extinction coefficient;
@@ -3541,7 +3537,7 @@ fn heliacal_name_buffer(object: &str) -> [c_char; TEXT_BUF_LEN] {
 /// — with [`crate::HELFLAG_OPTICAL_PARAMS`] — magnification, aperture
 /// (mm) and transmission. Zero entries in either block select the native
 /// defaults. `object` names the planet (`"Venus"`, `"Mars"`, `"Moon"`,
-///...) or fixed star (`"Sirius"`, ...). `event_type` selects
+/// ...) or fixed star (`"Sirius"`, ...). `event_type` selects
 /// [`crate::HELIACAL_RISING`] (morning first), [`crate::HELIACAL_SETTING`]
 /// (evening last), [`crate::EVENING_FIRST`] or [`crate::MORNING_LAST`]
 /// (inner planets and the Moon only); any other integer passes through
@@ -3560,7 +3556,7 @@ fn heliacal_name_buffer(object: &str) -> [c_char; TEXT_BUF_LEN] {
 /// # Configuration dependence
 ///
 /// File-based sources require data files visible through
-/// [`crate::set_ephe_path`]; fixed-star objects additionally need the
+/// [`crate::global::set_ephe_path`]; fixed-star objects additionally need the
 /// `sefstars.txt` catalog on that path. The active configuration is
 /// captured under the process-wide native lock together with the search.
 ///
@@ -3578,7 +3574,7 @@ fn heliacal_name_buffer(object: &str) -> [c_char; TEXT_BUF_LEN] {
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, HELIACAL_RISING, heliacal_ut};
+/// use swisseph_bindings::{FLG_MOSEPH, HELIACAL_RISING, global::heliacal_ut};
 ///
 /// // Next heliacal rising of Venus after J2000 (Moshier needs no data).
 /// let event = heliacal_ut(
@@ -3596,7 +3592,7 @@ fn heliacal_name_buffer(object: &str) -> [c_char; TEXT_BUF_LEN] {
 /// shifts under the computation lock; violations return `InvalidInput`.
 ///
 /// Observer height must satisfy the arithmetic ceiling documented by
-/// [`crate::set_topo`]; excessive height returns `InvalidInput` before
+/// [`crate::global::set_topo`]; excessive height returns `InvalidInput` before
 /// observer configuration or computation. Native geographic limits and
 /// data errors are still reported by the engine.
 #[allow(clippy::too_many_arguments)]
@@ -3695,8 +3691,8 @@ pub fn heliacal_ut(
 ///
 /// Observer side effect: although no search runs, the native call still
 /// installs this observer as the process-global observer (as if by
-/// [`crate::set_topo`]), so later topocentric [`crate::calc_ut`] and
-/// [`crate::calc`] calls observe it until [`crate::set_topo`] runs
+/// [`crate::global::set_topo`]), so later topocentric [`crate::global::calc_ut`] and
+/// [`crate::global::calc`] calls observe it until [`crate::global::set_topo`] runs
 /// again. Established by probing the pinned build.
 ///
 /// # Configuration dependence
@@ -3712,7 +3708,7 @@ pub fn heliacal_ut(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{FLG_MOSEPH, HELIACAL_RISING, heliacal_pheno_ut, heliacal_ut};
+/// use swisseph_bindings::{FLG_MOSEPH, HELIACAL_RISING, global::heliacal_pheno_ut, global::heliacal_ut};
 ///
 /// // Circumstances of the next Venus heliacal rising at its optimum
 /// // (Moshier needs no data files).
@@ -3734,7 +3730,7 @@ pub fn heliacal_ut(
 /// shifts under the computation lock; violations return `InvalidInput`.
 ///
 /// Observer height must satisfy the arithmetic ceiling documented by
-/// [`crate::set_topo`]; excessive height returns `InvalidInput` before
+/// [`crate::global::set_topo`]; excessive height returns `InvalidInput` before
 /// observer configuration or computation. Native geographic limits and
 /// data errors are still reported by the engine.
 #[allow(clippy::too_many_arguments)]
@@ -3766,7 +3762,7 @@ pub fn heliacal_pheno_ut_full(
     })
 }
 
-/// Execute [`crate::heliacal_pheno_ut_full`] with native access already held.
+/// Execute [`crate::native::heliacal_pheno_ut_full`] with native access already held.
 /// Preserve its input domains, units, native status/flags and diagnostics;
 /// apply no configuration, fallback or alternate numerical method. Errors
 /// follow the public operation. Caller owns the lock for validation and C read.
@@ -3885,8 +3881,8 @@ pub fn heliacal_pheno_ut(
 ///
 /// Observer side effect: although no search runs, the native call still
 /// installs this observer as the process-global observer (as if by
-/// [`crate::set_topo`]), so later topocentric [`crate::calc_ut`] and
-/// [`crate::calc`] calls observe it until [`crate::set_topo`] runs
+/// [`crate::global::set_topo`]), so later topocentric [`crate::global::calc_ut`] and
+/// [`crate::global::calc`] calls observe it until [`crate::global::set_topo`] runs
 /// again. Established by probing the pinned build.
 ///
 /// The object is visible when
@@ -3912,9 +3908,7 @@ pub fn heliacal_pheno_ut(
 /// # Examples
 ///
 /// ```
-/// use swisseph_bindings::{
-///     FLG_MOSEPH, HELIACAL_RISING, VisibilityOutcome, heliacal_ut, vis_limit_mag,
-/// };
+/// use swisseph_bindings::{FLG_MOSEPH, HELIACAL_RISING, VisibilityOutcome, global::heliacal_ut, global::vis_limit_mag};
 ///
 /// // At its heliacal-rising optimum Venus is above the horizon and has
 /// // a limiting magnitude (Moshier needs no data files).
@@ -3936,7 +3930,7 @@ pub fn heliacal_pheno_ut(
 /// shifts under the computation lock; violations return `InvalidInput`.
 ///
 /// Observer height must satisfy the arithmetic ceiling documented by
-/// [`crate::set_topo`]; excessive height returns `InvalidInput` before
+/// [`crate::global::set_topo`]; excessive height returns `InvalidInput` before
 /// observer configuration or computation. Native geographic limits and
 /// data errors are still reported by the engine.
 #[allow(clippy::too_many_arguments)]
