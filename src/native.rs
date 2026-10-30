@@ -57,3 +57,54 @@ pub fn primary_session(
 
 /// Node/apse transport of the retained configured SDK session.
 pub use crate::node_result::NodesApsides as SessionNodesApsides;
+
+/// Read a file slot captured by a primary session's last computation attempt.
+///
+/// # Arguments
+///
+/// * `session` - The actual primary calculation owner; clones share snapshots.
+/// * `slot` - Native file-slot ID in `0..=4`.
+///
+/// # Returns
+///
+/// The complete captured metadata, or `None` before computation, for an empty,
+/// disabled or out-of-range slot. Other owners and global close cannot replace
+/// it. The snapshot describes slots at operation completion; returned source
+/// flags remain the authority for fallback. No configuration is installed and
+/// no calculation or current-global-slot query is performed.
+///
+/// # Errors
+///
+/// Native access or snapshot-lock poisoning is retained unchanged.
+pub fn primary_current_file_data(
+    session: &crate::Session,
+    slot: i32,
+) -> Result<Option<CurrentFileData>, Error> {
+    crate::primary::current_file_data(session, slot)
+}
+
+/// Copy a primary session's captured file path into reusable caller storage.
+///
+/// # Arguments
+///
+/// * `session` - The primary owner whose completed-operation snapshot is read.
+/// * `slot` - Native file-slot ID in `0..=4`.
+/// * `path` - Output storage; cleared when the slot has no captured path.
+///
+/// # Returns
+///
+/// Unit after copying the actual snapshot path. Existing string capacity is
+/// reused. No file lookup, configuration write or calculation occurs; slot and
+/// clone semantics match [`primary_current_file_data`].
+///
+/// # Errors
+///
+/// Invalid slots return `InvalidInput`; snapshot-lock poisoning retains its
+/// original category. Errors leave `path` unchanged. No native lock is acquired.
+pub fn copy_primary_file_path_into(
+    session: &crate::Session,
+    slot: i32,
+    path: &mut Option<String>,
+) -> Result<(), Error> {
+    crate::primary::copy_file_path_into(session, slot, path)
+}
