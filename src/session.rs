@@ -555,20 +555,35 @@ impl Session {
         if let Some((mode, t0, ayan)) = self.sid_mode {
             crate::config::prepare_owned_model_locked(mode, t0, ayan)?;
         }
+        // Automatic tidal selection belongs to the selected native data.
+        // Restoring it after path/JPL preparation would erase the intrinsic
+        // value selected from the opened file, notably for historical UT calls.
+        let automatic_tidal = self.tid_acc == Some(crate::constants::SE_TIDAL_AUTOMATIC);
+        if automatic_tidal {
+            apply_tid_acc_locked(crate::constants::SE_TIDAL_AUTOMATIC)?;
+        }
+        let closes_jpl = match &self.jpl_file {
+            Some(None) => true,
+            Some(Some(name)) => name.as_bytes().is_empty(),
+            None => false,
+        };
+        if closes_jpl {
+            // The native empty-name setter closes all file/model preparation,
+            // including Swiss files. Close first, then install the owned path.
+            ensure_jpl_file_locked(&CString::default())?;
+        }
         if let Some(path) = &self.ephe_path {
             ensure_owned_ephe_path_locked(
                 path.as_ref(),
                 !self.ephe_path_environment_on_installation,
                 !self.keep_relative_ephe_path,
+                automatic_tidal,
             )?;
         }
-        if let Some(jpl) = &self.jpl_file {
-            match jpl {
-                Some(name) => ensure_jpl_file_locked(name)?,
-                // SAFETY: an empty `CString` is a valid empty C string;
-                // the native setter treats it as "close the JPL file".
-                None => ensure_jpl_file_locked(&CString::default())?,
-            }
+        if let Some(Some(name)) = &self.jpl_file
+            && !closes_jpl
+        {
+            ensure_jpl_file_locked(name)?;
         }
         if let Some((lon, lat, alt)) = self.topo {
             apply_topo_locked(lon, lat, alt)?;
@@ -579,7 +594,10 @@ impl Session {
         if let Some((mode, t0, ayan_t0)) = self.sid_mode {
             crate::config::apply_owned_model_locked(mode, t0, ayan_t0)?;
         }
-        if let Some(acc) = self.tid_acc {
+        // Explicit manual values still override source-selected defaults.
+        if let Some(acc) = self.tid_acc
+            && !automatic_tidal
+        {
             apply_tid_acc_locked(acc)?;
         }
         if let Some(dt) = self.delta_t {
