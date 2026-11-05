@@ -2603,3 +2603,20 @@ fn rise((v, status): (crate::observer::RiseTransitOutcome, i32)) -> RiseTransit 
         },
     }
 }
+
+/// Read the retained native snapshot without installing configuration.
+pub(crate) fn current_file_data(
+    session: &Session,
+    slot: i32,
+) -> Result<Option<crate::native::CurrentFileData>, crate::native::Error> {
+    session.native.get_current_file_data(slot)
+}
+
+/// Reuse caller-owned path storage while reading the retained native snapshot.
+pub(crate) fn copy_file_path_into(
+    session: &Session,
+    slot: i32,
+    path: &mut Option<String>,
+) -> Result<(), crate::native::Error> {
+    session.native.copy_captured_file_path_into(slot, path)
+}

@@ -223,6 +223,6 @@ pub use crate::constants::WHITE_MOON;
 pub use crate::constants::ZEUS;
 pub use error::Error;
 pub use pure::*;
-pub(crate) use session::from_native_builder;
 pub use session::{Session, SessionBuilder};
+pub(crate) use session::{copy_file_path_into, current_file_data, from_native_builder};
 pub use types::*;

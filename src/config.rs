@@ -455,17 +455,29 @@ fn ensure_ephe_path_policy_locked(
     }
 }
 
-/// Owned requests reapply their own tide; manual tide alone does not reload files.
+/// Restore automatic path selection when requested; manual tide alone does not
+/// reload files. Caller holds native access across configuration and calculation.
 pub(crate) fn ensure_owned_ephe_path_locked(
     path: Option<&CString>,
     refresh_environment: bool,
     reinstall_on_directory_change: bool,
+    restore_automatic_tidal: bool,
 ) -> Result<(), Error> {
+    let model_prepared = VALIDATION_SETTINGS
+        .lock()
+        .map_err(|_| Error::lock_poisoned())?
+        .owned_model
+        .is_some();
+    if !model_prepared {
+        // JPL setters and model changes clear native files even when the path
+        // text is unchanged. Reinstall its actual preparation before the call.
+        return apply_ephe_path_locked(path);
+    }
     ensure_ephe_path_policy_locked(
         path,
         refresh_environment,
         reinstall_on_directory_change,
-        false,
+        restore_automatic_tidal,
     )
 }
 
