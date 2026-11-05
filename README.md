@@ -225,7 +225,8 @@ cargo doc --no-deps --open
 ## Tests and native validation
 
 ```sh
-cargo test --locked --offline
+SWISSEPH_EPHE_DIR=/path/to/swiss-data SWISSEPH_JPL_DIR=/path/to/jpl-data \
+  cargo test --locked --offline
 cargo fmt --all -- --check
 cargo clippy --all-targets --locked --offline -- -D warnings
 cargo test --test native_parity --locked --offline
@@ -234,6 +235,10 @@ cargo test --test native_parity --locked --offline
 The differential runner compares the safe Rust API with a separate public-header
 C caller linked to the same native archive. It checks binding preservation;
 independent astronomical accuracy requires a separate validation source.
+The full suite needs the explicit Swiss data directory; the standalone
+`native_parity` smoke profile requires no external files. JPL-specific controls
+use an existing `de440.eph` in `SWISSEPH_JPL_DIR` and report a skip when it is
+omitted. An explicitly incomplete Swiss directory is rejected.
 [Validation commands and coverage](validation/native-parity.md) include external
 Swiss/JPL prerequisites, full matrices, sanitizers and package checks.
 
@@ -256,6 +261,8 @@ The package includes the required native sources, headers, build helpers and
 license notices. Ephemeris files remain external. The dry run verifies packaging
 without uploading the crate. When ready, the owner publishes it with
 `cargo publish --locked`. No remote build or release pipeline is required.
+See the [2.0.0 release review](validation/release-2.0.0.md) for the current
+qualification scope, compatibility changes and publication checklist.
 
 Original SDK negative `calc`/`calc_ut` results retain `native_status()`,
 `native_operation()` and the original `native_diagnostic()` separately from the
@@ -289,3 +296,9 @@ state. No ephemeris data or positional approximation is involved.
 `native::Session::copy_captured_file_path_into` projects an already-owned file-path
 snapshot without acquiring native C access. It preserves owned bytes and
 reuses caller storage; calculations still refresh every native file slot.
+
+For primary sessions, use `native::primary_current_file_data(&session, slot)`
+or `native::copy_primary_file_path_into(&session, slot, &mut path)`. These read
+the retained per-owner snapshot, including after another owner computes or
+globally closes the engine. They never calculate again; actual returned source
+flags remain authoritative when a request falls back to another source.

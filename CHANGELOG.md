@@ -22,11 +22,23 @@ the native routine; the original SDK entry remains available. Foreign model
 changes invalidate owned model state before reuse, preventing stale native
 precession/nutation configuration and cached positions.
 
+Owned primary sessions preserve data-selected automatic tidal acceleration:
+empty JPL selection closes files before path preparation, while explicit manual
+tidal and Delta-T values remain final overrides. Native SDK queries
+`primary_current_file_data` and `copy_primary_file_path_into` expose complete
+per-owner file snapshots without another calculation or a global metadata read.
+Snapshot clones share history; rejected input retains the previous observation.
+
 The native dependency remains Swiss Ephemeris 2.10.03 at commit
 `9083a12d59e98034fb2337061481ac8800c16e64`. This API change does not alter native
-astronomical formulas, tolerances or data. Local qualification includes 239
-ordinary tests and 89 doctests, full selected-data/JPL conformance, bounded C
-sanitizer checks, strict Clippy and extracted Cargo package verification.
+astronomical formulas, tolerances or data. Pre-release review passes 246
+ordinary tests and 89 doctests, 35,376 selected-data/JPL differential cases,
+strict Clippy/Rustdoc, release-mode session controls and 20 contract-tool tests.
+Source-selection regressions retain 96 scalar comparisons and add 384 complete
+position comparisons with exact binary64 values, flags and diagnostics. Global
+reference sequences run in isolated processes and reject incomplete selected data.
+Earlier bounded C sanitizer evidence retains its original scope; see the
+[current release review](validation/release-2.0.0.md) for identities and limits.
 These checks establish binding preservation, not independent astronomical
 certification. Detailed scope and limitations are in the migration guide.
 
