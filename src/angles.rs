@@ -742,6 +742,39 @@ pub fn split_deg_2_10_03(degree: f64, roundflag: i32) -> Result<SplitDeg, Error>
     split_deg_with(degree, roundflag, ffi::swe_split_deg_2_10_03)
 }
 
+/// Split decimal degrees with the 2.10.03 contract and an explicit sidereal mode.
+///
+/// `sidereal_mode` is the mode number accepted by [`crate::global::set_sid_mode`].
+/// Its low mode byte selects the native nakshatra rule. Negative and unknown
+/// modes select Fagan-Bradley, as in the native setter. Other split flags retain
+/// their original behavior. The call leaves ambient sidereal settings and
+/// ephemeris resources untouched. The split needs no USER epoch or offset.
+///
+/// # Errors
+/// Degree validation and the native lock errors follow [`split_deg_2_10_03`].
+pub fn split_deg_2_10_03_with_sidereal_mode(
+    degree: f64,
+    roundflag: i32,
+    sidereal_mode: i32,
+) -> Result<SplitDeg, Error> {
+    split_deg_output(degree, |output| {
+        // SAFETY: the common helper holds native access and validates degree.
+        // All output slots belong to the caller and remain writable for the call.
+        unsafe {
+            ffi::swe_split_deg_2_10_03_with_sidereal_mode(
+                degree,
+                roundflag,
+                sidereal_mode,
+                &mut output.deg,
+                &mut output.min,
+                &mut output.sec,
+                &mut output.secfr,
+                &mut output.sign,
+            );
+        }
+    })
+}
+
 /// Native ABI shared by the current and explicitly versioned split utilities.
 type SplitDegreeFunction =
     unsafe extern "C" fn(c_double, i32, *mut i32, *mut i32, *mut i32, *mut c_double, *mut i32);
@@ -752,38 +785,39 @@ fn split_deg_with(
     roundflag: i32,
     operation: SplitDegreeFunction,
 ) -> Result<SplitDeg, Error> {
+    split_deg_output(degree, |output| {
+        // SAFETY: the common helper holds native access and validates degree.
+        // Each field is a separate writable slot matching the native ABI.
+        unsafe {
+            operation(
+                degree,
+                roundflag,
+                &mut output.deg,
+                &mut output.min,
+                &mut output.sec,
+                &mut output.secfr,
+                &mut output.sign,
+            );
+        }
+    })
+}
+
+/// Validate the common degree domain before acquiring native access.
+fn split_deg_output(degree: f64, operation: impl FnOnce(&mut SplitDeg)) -> Result<SplitDeg, Error> {
     if !degree.is_finite() || degree < -2147483647.0 || degree > 2147483647.0 {
         return Err(Error::invalid_input(format!(
             "split_deg: degree must be finite and within +-2147483647.0 ({degree})"
         )));
     }
     with_native_access(|| {
-        let mut deg: i32 = 0;
-        let mut min: i32 = 0;
-        let mut sec: i32 = 0;
-        let mut secfr: c_double = 0.0;
-        let mut sign: i32 = 0;
-        // SAFETY: each out variable owns exactly one writable slot of
-        // the declared type and outlives this call under the native
-        // lock. The engine writes all five slots. The domain check above
-        // keeps every native floating-to-integer conversion in-range.
-        unsafe {
-            operation(
-                degree as c_double,
-                roundflag,
-                &mut deg,
-                &mut min,
-                &mut sec,
-                &mut secfr,
-                &mut sign,
-            );
-        }
-        Ok(SplitDeg {
-            deg,
-            min,
-            sec,
-            secfr,
-            sign,
-        })
+        let mut output = SplitDeg {
+            deg: 0,
+            min: 0,
+            sec: 0,
+            secfr: 0.0,
+            sign: 0,
+        };
+        operation(&mut output);
+        Ok(output)
     })
 }
