@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Add a call-local sidereal mode for the versioned 2.10.03 degree split.
+  The legacy ambient entry point and C arithmetic are preserved.
+
+
 ## 2.0.0 — prepared for publication
 
 The crate root now exposes a typed primary API with owned `Session` and

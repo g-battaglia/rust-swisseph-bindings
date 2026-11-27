@@ -75,14 +75,15 @@
 /* Versioned output contract from Swiss Ephemeris 2.10.03.
  * Original: libswe/swephlib.c in the pyswisseph 2.10.3.2 source distribution.
  * Original file SHA256: d41eb2f396163fedd574749de02a25e8547b4e1e4c66783d47ccc0c7e4885a05
- * Only function names are changed. The pinned engine remains unmodified.
+ * The split shares one body between ambient and explicit sidereal-mode inputs.
+ * The arithmetic and pinned engine remain unchanged.
  */
 
 #include "swephexp.h"
 #include "sweph.h"
 #include "swephlib.h"
 
-static void split_deg_nakshatra_2_10_03(double ddeg, int32 roundflag, int32 *ideg, int32 *imin, int32 *isec, double *dsecfr, int32 *inak)
+static void split_deg_nakshatra_2_10_03(double ddeg, int32 roundflag, int32 sid_mode, int32 *ideg, int32 *imin, int32 *isec, double *dsecfr, int32 *inak)
 {
   double dadd = 0;
   double dnakshsize = 13.33333333333333;
@@ -93,7 +94,7 @@ static void split_deg_nakshatra_2_10_03(double ddeg, int32 roundflag, int32 *ide
     ddeg = 0;
   }
   // Sheoran "Vedic" ayanamsha: 0 Aries = 3°20 Ashvini
-  if ((swed.sidd.sid_mode & SE_SIDM_TRUE_SHEORAN) == SE_SIDM_TRUE_SHEORAN)
+  if ((sid_mode & SE_SIDM_TRUE_SHEORAN) == SE_SIDM_TRUE_SHEORAN)
     ddeg = swe_degnorm(ddeg + 3.33333333333333);
   if (roundflag & SE_SPLIT_DEG_ROUND_DEG) {
     dadd = 0.5;
@@ -125,7 +126,7 @@ static void split_deg_nakshatra_2_10_03(double ddeg, int32 roundflag, int32 *ide
   }
 }
 
-void CALL_CONV swe_split_deg_2_10_03(double ddeg, int32 roundflag, int32 *ideg, int32 *imin, int32 *isec, double *dsecfr, int32 *isgn)
+static void split_deg_2_10_03(double ddeg, int32 roundflag, int32 sid_mode, int32 *ideg, int32 *imin, int32 *isec, double *dsecfr, int32 *isgn)
 {
   double dadd = 0;
   *isgn = 1;
@@ -133,7 +134,7 @@ void CALL_CONV swe_split_deg_2_10_03(double ddeg, int32 roundflag, int32 *ideg, 
     *isgn = -1;
     ddeg = -ddeg;
   } else if (roundflag & SE_SPLIT_DEG_NAKSHATRA) {
-    split_deg_nakshatra_2_10_03(ddeg, roundflag, ideg, imin, isec, dsecfr, isgn);
+    split_deg_nakshatra_2_10_03(ddeg, roundflag, sid_mode, ideg, imin, isec, dsecfr, isgn);
     return;
   }
   if (roundflag & SE_SPLIT_DEG_ROUND_DEG) {
@@ -167,4 +168,19 @@ void CALL_CONV swe_split_deg_2_10_03(double ddeg, int32 roundflag, int32 *ideg, 
   } else {
     *dsecfr = *isec;  // is rounded, no fractional seconds
   }
+}
+
+void CALL_CONV swe_split_deg_2_10_03(double ddeg, int32 roundflag, int32 *ideg, int32 *imin, int32 *isec, double *dsecfr, int32 *isgn)
+{
+  split_deg_2_10_03(ddeg, roundflag, swed.sidd.sid_mode, ideg, imin, isec, dsecfr, isgn);
+}
+
+void CALL_CONV swe_split_deg_2_10_03_with_sidereal_mode(double ddeg, int32 roundflag, int32 sid_mode, int32 *ideg, int32 *imin, int32 *isec, double *dsecfr, int32 *isgn)
+{
+  // The split observes only low mode bits. Match swe_set_sid_mode's
+  // negative and unknown-mode fallbacks without installing a native model.
+  sid_mode = sid_mode < 0 ? SE_SIDM_FAGAN_BRADLEY : sid_mode % SE_SIDBITS;
+  if (sid_mode >= SE_NSIDM_PREDEF && sid_mode != SE_SIDM_USER)
+    sid_mode = SE_SIDM_FAGAN_BRADLEY;
+  split_deg_2_10_03(ddeg, roundflag, sid_mode, ideg, imin, isec, dsecfr, isgn);
 }

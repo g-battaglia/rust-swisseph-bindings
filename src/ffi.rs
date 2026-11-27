@@ -1457,6 +1457,18 @@ unsafe extern "C" {
         isgn: *mut i32,
     );
 
+    /// Versioned split with a call-local sidereal mode.
+    pub(crate) fn swe_split_deg_2_10_03_with_sidereal_mode(
+        ddeg: c_double,
+        roundflag: i32,
+        sid_mode: i32,
+        ideg: *mut i32,
+        imin: *mut i32,
+        isec: *mut i32,
+        dsecfr: *mut c_double,
+        isgn: *mut i32,
+    );
+
     /// `const char *swe_get_current_file_data(int ifno, double *tfstart,
     /// double *tfend, int *denum)` — identity of the ephemeris file
     /// backing file slot `ifno` (0 = planet file, 1 = Moon file). All
